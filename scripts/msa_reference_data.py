@@ -1,3 +1,4 @@
+import os as _os; _os.chdir(_os.path.dirname(_os.path.abspath(__file__)))  # paths below are relative to scripts/
 import Bio
 from Bio.Seq import Seq
 from Bio.Blast.Applications import NcbiblastnCommandline

@@ -7,7 +7,7 @@ import pandas as pd
 from Bio import SeqIO
 import config as cg
 from collections import defaultdict
-import os
+import os, tempfile
 
 def MakeDatabase(inpath: str, outpath: str, exepath: str = cg.paths['exe']['makeblastdb']):
     cline = NcbimakeblastdbCommandline(exepath, dbtype="nucl", input_file = inpath, out = outpath)
@@ -15,7 +15,7 @@ def MakeDatabase(inpath: str, outpath: str, exepath: str = cg.paths['exe']['make
     print('Database file has been writen to ' + outpath)
 
 def QueryNcl(querypath: str, outpath: str, dbpath : str = cg.paths['database'], exepath: str = cg.paths['exe']['blastn']):
-    tmp_out = './out'
+    tmp_out = tempfile.NamedTemporaryFile(prefix='blast_', suffix='.tsv', delete=False).name
     cline = NcbiblastnCommandline(exepath, query = querypath, db = dbpath, evalue=0.00001, out= tmp_out, outfmt=6, \
                         max_target_seqs = 1, task = 'blastn', max_hsps = 1)
     cline()

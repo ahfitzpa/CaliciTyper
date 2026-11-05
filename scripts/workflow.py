@@ -2,13 +2,11 @@ import utils as utl
 import pandas as pd
 import config as cg
 import os
-import subprocess
+import subprocess, sys, tempfile
 
 def WorkFlow(querypath: str):
     # step1, Blast query against large database, assign genogroup
-    if not os.path.exists("#tmp#"):
-        os.mkdir('#tmp#')
-    tmpdir = './#tmp#/'
+    tmpdir = tempfile.mkdtemp(prefix='norotyper_') + '/'
 
     utl.QueryNcl(querypath, tmpdir + '/tmp.csv')
     results = pd.read_csv(tmpdir + '/tmp.csv', sep="\t")
@@ -64,5 +62,6 @@ def WorkFlow(querypath: str):
                                     tmpdir + "boot_tree_orf2.tre"])
   
 
-#EU085529.1
-WorkFlow('./../testdata/AB089882.fasta')
+# DEPRECATED: use the `norotyper` command (norotyper/cli.py), which finishes the typing and uses 100 bootstraps.
+if __name__ == '__main__':
+    WorkFlow(sys.argv[1])

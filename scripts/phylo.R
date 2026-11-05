@@ -26,7 +26,7 @@ noro2 <- as.phyDat(noro, type="DNA")
 fitGTR <- pml_bb(noro2, model="HKY")
 
 # bs value should be set to 100 according to [Kroneman 11]
-bs <- bootstrap.pml(fitGTR, bs=5, optNni=TRUE,
+bs <- bootstrap.pml(fitGTR, bs=100, optNni=TRUE,
                     control = pml.control(trace = 0))
 
 # assigning standard bootstrap values to our tree; this is the default method

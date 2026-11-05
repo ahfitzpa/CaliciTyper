@@ -1,39 +1,41 @@
+import os, shutil
+_D = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # repository root
 paths = {
     # annotation file for blast ref seq
-    "annotation": "./../new_data/database/refseq_annotation.csv",
+    "annotation": _D+"/new_data/database/refseq_annotation.csv",
 
     # file prefix for fastas/orf/annotation/amino acids
     "prefix":
     {
-      'GI':["./../new_data/reference_sequences_RdRp/GI", "./../new_data/reference_sequences_VP1/GI"],
-      'GII':["./../new_data/reference_sequences_RdRp/GII", "./../new_data/reference_sequences_VP1/GII"],
-      'GIII':["./../new_data/reference_sequences_RdRp/GIII", "./../new_data/reference_sequences_VP1/GIII"],
-      'GIV':["./../new_data/reference_sequences_RdRp/GIV", "./../new_data/reference_sequences_VP1/GIV"],
-      'GV':["./../new_data/reference_sequences_RdRp/GV", "./../new_data/reference_sequences_VP1/GV"],
-      'GVI':["./../new_data/reference_sequences_RdRp/GVI", "./../new_data/reference_sequences_VP1/GVI"],
-      'GVII':["./../new_data/reference_sequences_RdRp/GVII", "./../new_data/reference_sequences_VP1/GVII"],
-      'GVIII':["", "./../new_data/reference_sequences_VP1/GVIII"],
-      'GNA1':["./../new_data/reference_sequences_RdRp/GNA1", "./../new_data/reference_sequences_VP1/GNA1"],
-      'GNA2':["./../new_data/reference_sequences_RdRp/GNA2", "./../new_data/reference_sequences_VP1/GNA2"],
-      'GIX':["", "./../new_data/reference_sequences_VP1/GIX"],
-      'GX':["./../new_data/reference_sequences_RdRp/GX", "./../new_data/reference_sequences_VP1/GX"],
+      'GI':[_D+"/new_data/reference_sequences_RdRp/GI", _D+"/new_data/reference_sequences_VP1/GI"],
+      'GII':[_D+"/new_data/reference_sequences_RdRp/GII", _D+"/new_data/reference_sequences_VP1/GII"],
+      'GIII':[_D+"/new_data/reference_sequences_RdRp/GIII", _D+"/new_data/reference_sequences_VP1/GIII"],
+      'GIV':[_D+"/new_data/reference_sequences_RdRp/GIV", _D+"/new_data/reference_sequences_VP1/GIV"],
+      'GV':[_D+"/new_data/reference_sequences_RdRp/GV", _D+"/new_data/reference_sequences_VP1/GV"],
+      'GVI':[_D+"/new_data/reference_sequences_RdRp/GVI", _D+"/new_data/reference_sequences_VP1/GVI"],
+      'GVII':[_D+"/new_data/reference_sequences_RdRp/GVII", _D+"/new_data/reference_sequences_VP1/GVII"],
+      'GVIII':["", _D+"/new_data/reference_sequences_VP1/GVIII"],
+      'GNA1':[_D+"/new_data/reference_sequences_RdRp/GNA1", _D+"/new_data/reference_sequences_VP1/GNA1"],
+      'GNA2':[_D+"/new_data/reference_sequences_RdRp/GNA2", _D+"/new_data/reference_sequences_VP1/GNA2"],
+      'GIX':["", _D+"/new_data/reference_sequences_VP1/GIX"],
+      'GX':[_D+"/new_data/reference_sequences_RdRp/GX", _D+"/new_data/reference_sequences_VP1/GX"],
     },
     "aln":
-      ["./../new_data/reference_sequences_RdRp/all.aln", "./../new_data/reference_sequences_VP1/all.aln"]
+      [_D+"/new_data/reference_sequences_RdRp/all.aln", _D+"/new_data/reference_sequences_VP1/all.aln"]
     ,
     # extracted from the published paper of noronet
     "taxonomy":
     {
-      "rdrp":'./../new_data/rdrp_taxonomy.csv',
-      "vp1":'./../new_data/vp1_taxonomy.csv'
+      "rdrp":_D+'/new_data/rdrp_taxonomy.csv',
+      "vp1":_D+'/new_data/vp1_taxonomy.csv'
     },
     # BLAST dataset
-    "database": "./../new_data/database/refseqdb_2",
+    "database": _D+"/new_data/database/refseqdb_2",
     "exe":
     {
-        "makeblastdb":"/home/people/23204543/.conda/pkgs/blast-2.5.0-hc0b0e79_3/bin/makeblastdb",
-        "blastn":"/home/people/23204543/.conda/pkgs/blast-2.5.0-hc0b0e79_3/bin/blastn",
-        "clustal":"/home/people/23204543/scratch/software/clustalw/clustalw2"
+        "makeblastdb": os.environ.get("NOROTYPER_MAKEBLASTDB") or shutil.which("makeblastdb"),
+        "blastn": os.environ.get("NOROTYPER_BLASTN") or shutil.which("blastn"),
+        "clustal": os.environ.get("NOROTYPER_CLUSTALW") or shutil.which("clustalw2") or shutil.which("clustalw"),
     },
 }
 # reference sequences for Blast

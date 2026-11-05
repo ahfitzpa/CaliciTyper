@@ -1,3 +1,4 @@
+import os as _os; _os.chdir(_os.path.dirname(_os.path.abspath(__file__)))  # paths below are relative to scripts/
 
 import config as cg
 import utils as utl

@@ -24,7 +24,7 @@
 # cd $SLURM_SUBMIT_DIR
 # Your code here! (This example just prints the current date and exits!)
 
-python /home/people/23204543/scratch/scripts/makedb.py \
-       '/home/people/23204543/scratch/new_data/database/refseq_2.fasta' \
-       '/home/people/23204543/scratch/new_data/database/refseqdb_2'
+python "$(dirname "$0")/makedb.py" \
+       "$(dirname "$0")/../new_data/database/refseq_2.fasta" \
+       "$(dirname "$0")/../new_data/database/refseqdb_2"
 
