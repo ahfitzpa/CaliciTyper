@@ -1,7 +1,7 @@
 """Locations of data and external programs. Nothing here is machine specific.
 
 Data directory : $NOROTYPER_DATA, else <repo>/new_data
-Programs       : $NOROTYPER_BLASTN / _MAKEBLASTDB / _CLUSTALW, else whatever is on PATH
+Programs       : $NOROTYPER_BLASTN / _MAKEBLASTDB / _CLUSTALW / _MAFFT, else whatever is on PATH
 """
 import os, shutil
 from pathlib import Path
@@ -18,9 +18,9 @@ NOROVIRUS_GROUPS = ["GI", "GII", "GIII", "GIV", "GV", "GVI", "GVII", "GVIII", "G
 
 def exe(name):
     env = os.environ.get(f"NOROTYPER_{name.upper()}")
-    candidates = {"clustalw": ["clustalw2", "clustalw"], "blastn": ["blastn"], "makeblastdb": ["makeblastdb"]}[name]
+    candidates = {"clustalw": ["clustalw2", "clustalw"], "blastn": ["blastn"], "makeblastdb": ["makeblastdb"], "mafft": ["mafft"]}[name]
     path = env or next((shutil.which(c) for c in candidates if shutil.which(c)), None)
     if not path:
-        raise FileNotFoundError(f"'{name}' not found on PATH; install it (conda install -c bioconda blast clustalw) "
+        raise FileNotFoundError(f"'{name}' not found on PATH; install it (conda install -c bioconda blast mafft clustalw) "
                                 f"or set NOROTYPER_{name.upper()}")
     return path

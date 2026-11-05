@@ -6,7 +6,7 @@ import pandas as pd
 from Bio import SeqIO
 from Bio.Seq import Seq
 from . import config as cg
-from . import tree
+from . import tree, align
 
 MIN_OVERLAP = 100
 MIN_QUERY_FRAC_COLS = 0.5   # keep alignment columns where >=50% of references have a base
@@ -31,8 +31,8 @@ def _clustalw_profile(aln, query_fa, out_fa):
     subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
-def type_region(seq, group, region, exclude=(), nrep=100, seed=1, min_support=70.0, max_refs_per_type=None):
-    """Type one sequence for one region against the reference set of `group`."""
+def _type_region_clustalw(seq, group, region, exclude=(), nrep=100, seed=1, min_support=70.0, max_refs_per_type=None):
+    """Legacy path: ClustalW profile alignment, one query per call (slow)."""
     aln, types = load_reference(region, group)
     excl = set(exclude)
     types = {k: v for k, v in types.items() if k not in excl}
@@ -67,6 +67,31 @@ def type_region(seq, group, region, exclude=(), nrep=100, seed=1, min_support=70
     return res
 
 
+def type_aligned(ref, qaln, exclude=(), nrep=100, seed=1, min_support=70.0, max_refs_per_type=None):
+    """Bootstrap-NJ typing of one query already aligned to `ref` (align.RefSet)."""
+    ex = set(exclude)
+    keep = [i for i, n in enumerate(ref.names) if n not in ex]
+    names = [ref.names[i] for i in keep] + ["QUERY"]
+    types = {ref.names[i]: ref.types[i] for i in keep}
+    codes = np.vstack([ref.codes[keep], tree.encode([qaln])])
+    frac = (codes[:-1] < 4).mean(0)
+    cols = (codes[-1] < 4) & (frac >= MIN_QUERY_FRAC_COLS)
+    if cols.sum() < MIN_OVERLAP:
+        return dict(type=None, support=0.0, supports={}, n_sites=int(cols.sum()), n_refs=len(types),
+                    note="too few aligned sites")
+    return tree.assign(names, types, "QUERY", codes[:, cols], nrep=nrep, seed=seed, min_support=min_support,
+                       max_refs_per_type=max_refs_per_type)
+
+
+def type_region(seq, group, region, exclude=(), nrep=100, seed=1, min_support=70.0, max_refs_per_type=None,
+                backend="mafft", threads=1):
+    """Type one sequence for one region against the reference set of `group`."""
+    if backend == "clustalw":
+        return _type_region_clustalw(seq, group, region, exclude, nrep, seed, min_support, max_refs_per_type)
+    ref, (qaln,) = align.align_queries(region, group, [("q", seq)], exclude, threads)
+    return type_aligned(ref, qaln, exclude, nrep, seed, min_support, max_refs_per_type)
+
+
 @lru_cache(maxsize=1)
 def _annotation():
     a = pd.read_csv(cg.ANNOTATION)
@@ -74,17 +99,17 @@ def _annotation():
     return a.set_index("acc")
 
 
-def blast_genogroup(query_fa):
+def blast_genogroup(query_fa, threads=1):
     """Return per-query dict(genogroup, subject, sstart, send, reverse)."""
     cmd = [cg.exe("blastn"), "-query", query_fa, "-db", str(cg.BLAST_DB), "-evalue", "1e-5", "-task", "blastn",
-           "-max_target_seqs", "5", "-max_hsps", "1",
+           "-max_target_seqs", "5", "-max_hsps", "1", "-num_threads", str(max(1, threads)),
            "-outfmt", "6 qseqid sseqid pident length qstart qend sstart send evalue bitscore"]
     out = subprocess.run(cmd, check=True, capture_output=True, text=True).stdout
     best = {}
     for line in out.splitlines():
         q, s, pid, ln, qs, qe, ss, se, ev, bs = line.split("\t")
         if q not in best or float(bs) > best[q]["bitscore"]:
-            best[q] = dict(subject=s, sstart=int(ss), send=int(se), bitscore=float(bs), pident=float(pid),
+            best[q] = dict(subject=s, qstart=int(qs), qend=int(qe), sstart=int(ss), send=int(se), bitscore=float(bs), pident=float(pid),
                            aln_len=int(ln), evalue=float(ev))
     for q, h in best.items():
         h["genogroup"] = h["subject"].split("|")[0]
@@ -133,3 +158,59 @@ def type_query(rec_id, seq, hit, nrep=100, seed=1, min_support=70.0, max_refs_pe
             notes.append(f"{region}: best {res.get('best_type', '-')} {res['support']:.0f}% < {min_support:.0f}%")
     row["note"] = "; ".join(notes)
     return row
+
+
+CROP_PAD = 300   # nt kept on each side of the expected ORF when cropping a long query before alignment
+
+
+def orf_window(hit, region):
+    """Approximate window (0-based, half-open) of `region` on the ORIGINAL query, mapped through the BLAST HSP."""
+    ann = _annotation()
+    acc = hit["subject"].split("|")[-1].split()[0]
+    if acc not in ann.index:
+        return None
+    row = ann.loc[acc]
+    a, b = (row.rdrp_start, row.rdrp_end) if region == "orf1" else (row.vp1_start, row.vp1_end)
+    if pd.isna(a) or pd.isna(b):
+        return None
+    f = (lambda x: hit["qstart"] + (hit["sstart"] - x)) if hit["reverse"] else (lambda x: hit["qstart"] + (x - hit["sstart"]))
+    lo, hi = sorted((f(a), f(b)))
+    return max(0, int(lo) - CROP_PAD - 1), int(hi) + CROP_PAD
+
+
+def plan_query(rec_id, seq, hit):
+    """Decide what to do with one query. Returns (row, jobs) where jobs = [(region, group, oriented_seq)]."""
+    row = dict(query=rec_id, genogroup="unassigned", orf1_type="", orf1_support="", orf2_type="", orf2_support="",
+               note="")
+    if hit is None:
+        row["note"] = "no BLAST hit (not a norovirus / Caliciviridae sequence in reference set)"
+        return row, []
+    g = hit["genogroup"]
+    row["genogroup"] = g
+    if g not in cg.NOROVIRUS_GROUPS:
+        row["note"] = "other Caliciviridae: genogroup only"
+        return row, []
+    jobs, notes = [], []
+    for region in ("orf1", "orf2"):
+        if region_overlap(hit, region) < MIN_OVERLAP:
+            notes.append(f"{region}: <{MIN_OVERLAP} nt overlap")
+            continue
+        if not (cg.REF_DIR[region] / f"{g}.aln").exists() and not (cg.REF_DIR[region] / "all.aln").exists():
+            continue
+        sub = str(seq)
+        w = orf_window(hit, region)
+        if w:                                   # long query (e.g. whole genome): align only the ORF neighbourhood
+            sub = sub[w[0]:w[1]]
+        if hit["reverse"]:
+            sub = str(Seq(sub).reverse_complement())
+        jobs.append((region, g, sub))
+    row["note"] = "; ".join(notes)
+    return row, jobs
+
+
+def apply_result(row, region, res, min_support):
+    row[f"{region}_type"] = res["type"] or "unassigned"
+    row[f"{region}_support"] = round(res["support"], 1)
+    if res["type"] is None:
+        extra = f"{region}: best {res.get('best_type', '-')} {res['support']:.0f}% < {min_support:.0f}%"
+        row["note"] = "; ".join(x for x in (row["note"], extra) if x)

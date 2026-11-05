@@ -1,0 +1,15 @@
+name: norotyper
+channels: [conda-forge, bioconda, defaults]
+dependencies:
+  - python>=3.10
+  - numpy
+  - pandas
+  - biopython
+  - blast        # genogroup assignment
+  - mafft        # fast alignment of queries to the pre-aligned references (default)
+  - clustalw     # only needed for the legacy --backend clustalw path
+  - numba        # optional: ~10x faster NJ in the bootstrap (pure-numpy fallback if absent)
+  - pytest
+  - pip
+  - pip:
+      - -e .

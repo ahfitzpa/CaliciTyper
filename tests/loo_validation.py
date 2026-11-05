@@ -15,7 +15,7 @@ A = None
 def work(job):
     region, group, acc, truth, seq = job
     r = ty.type_region(seq, group, region, exclude=[acc], nrep=A.bootstraps, min_support=A.min_support,
-                       max_refs_per_type=A.max_refs_per_type)
+                       max_refs_per_type=A.max_refs_per_type, backend=A.backend)
     return dict(region=region, group=group, accession=acc, truth=truth, call=r["type"] or "unassigned",
                 support=r["support"], best=r.get("best_type", ""), n_sites=r["n_sites"])
 
@@ -27,7 +27,7 @@ if __name__ == "__main__":
     ap.add_argument("--bootstraps", type=int, default=100); ap.add_argument("--min-support", type=float, default=70)
     ap.add_argument("--threads", type=int, default=2); ap.add_argument("--max-refs-per-type", type=int, default=2)
     ap.add_argument("--groups", default="GI,GII"); ap.add_argument("--regions", default="orf1,orf2"); ap.add_argument("--limit", type=int, default=0)
-    ap.add_argument("--out", default="results/loo.csv")
+    ap.add_argument("--out", default="results/loo.csv"); ap.add_argument("--backend", default="mafft", choices=["mafft","clustalw"])
     a = ap.parse_args()
     jobs = []
     for region in a.regions.split(","):

@@ -21,20 +21,26 @@ def encode(seqs):
     return out
 
 
-def tn93(codes, w=None):
+def indicators(codes):
+    """One-off precomputation for tn93: base indicator matrices (float32; counts stay exact integers)."""
+    X = [(codes == k).astype(np.float32) for k in range(4)]
+    return X, X[0] + X[1] + X[2] + X[3]
+
+
+def tn93(codes, w=None, pre=None):
     """Pairwise Tamura-Nei distance, pairwise deletion of gaps/ambiguities, site weights w (bootstrap)."""
     n, L = codes.shape
-    w = np.ones(L) if w is None else w.astype(float)
-    X = [(codes == k).astype(float) for k in range(4)]
-    Xw = [x * w for x in X]
-    valid, validw = X[0] + X[1] + X[2] + X[3], Xw[0] + Xw[1] + Xw[2] + Xw[3]
-    V = validw @ valid.T
-    match = sum(Xw[k] @ X[k].T for k in range(4))
-    ag = Xw[0] @ X[2].T + Xw[2] @ X[0].T
-    ct = Xw[1] @ X[3].T + Xw[3] @ X[1].T
+    w = np.ones(L) if w is None else w
+    X, valid = pre if pre is not None else indicators(codes)
+    wf = np.asarray(w, dtype=np.float32)
+    Xw = [x * wf for x in X]
+    V = ((valid * wf) @ valid.T).astype(float)
+    match = (Xw[0] @ X[0].T + Xw[1] @ X[1].T + Xw[2] @ X[2].T + Xw[3] @ X[3].T).astype(float)
+    ag = (Xw[0] @ X[2].T + Xw[2] @ X[0].T).astype(float)
+    ct = (Xw[1] @ X[3].T + Xw[3] @ X[1].T).astype(float)
     with np.errstate(divide="ignore", invalid="ignore"):
         P1, P2, Q = ag / V, ct / V, (V - match - ag - ct) / V
-    cnt = np.array([(Xw[k] * 1.0).sum() for k in range(4)]) + 1e-9
+    cnt = np.array([float((x @ wf).sum()) for x in X]) + 1e-9
     gA, gC, gG, gT = cnt / cnt.sum()
     gR, gY = gA + gG, gC + gT
     a1 = np.maximum(1 - gR * P1 / (2 * gA * gG) - Q / (2 * gR), 1e-12)
@@ -80,6 +86,85 @@ def is_clade(splits, full, mask):
     return mask in splits or (full ^ mask) in splits
 
 
+try:                                   # optional accelerator: pip/conda install numba
+    from numba import njit
+    HAVE_NUMBA = True
+except Exception:                      # pragma: no cover
+    HAVE_NUMBA = False
+
+if HAVE_NUMBA:
+    @njit(cache=True)
+    def _nj_clades(D, G):
+        """NJ on distance matrix D (n x n). G: (g x n) 0/1 membership of candidate groups.
+        Returns bool[g]: is group g (or its complement) a clade of the unrooted NJ tree."""
+        n = D.shape[0]
+        act = np.arange(n)
+        m = n
+        M = np.zeros((n, n), dtype=np.uint8)           # membership of each active node (row = node id)
+        for i in range(n):
+            M[i, i] = 1
+        rec = np.zeros((2 * n, n), dtype=np.uint8)
+        nrec = 0
+        Dm = D.copy()
+        r = np.zeros(n)
+        while m > 3:
+            for a in range(m):
+                s_ = 0.0
+                for b in range(m):
+                    s_ += Dm[act[a], act[b]]
+                r[a] = s_
+            best = 1e300; bi = 0; bj = 1
+            for a in range(m):
+                for b in range(a + 1, m):
+                    q = (m - 2) * Dm[act[a], act[b]] - r[a] - r[b]
+                    if q < best:
+                        best = q; bi = a; bj = b
+            i = act[bi]; j = act[bj]
+            dij = Dm[i, j]
+            for c in range(m):
+                k = act[c]
+                if k != i and k != j:
+                    v = 0.5 * (Dm[i, k] + Dm[j, k] - dij)
+                    Dm[i, k] = v; Dm[k, i] = v
+            for t in range(n):
+                M[i, t] = M[i, t] | M[j, t]
+            rec[nrec, :] = M[i, :]; nrec += 1
+            act[bj] = act[m - 1]
+            m -= 1
+        for a in range(m):
+            rec[nrec, :] = M[act[a], :]; nrec += 1
+        out = np.zeros(G.shape[0], dtype=np.bool_)
+        for g in range(G.shape[0]):
+            sz = 0
+            for t in range(n):
+                sz += G[g, t]
+            if sz <= 1 or n - sz <= 1:
+                out[g] = True
+                continue
+            for u in range(nrec):
+                same = True; comp = True
+                for t in range(n):
+                    if rec[u, t] != G[g, t]:
+                        same = False
+                    if rec[u, t] == G[g, t]:
+                        comp = False
+                    if not same and not comp:
+                        break
+                if same or comp:
+                    out[g] = True
+                    break
+        return out
+
+
+def _clades_python(D, G):
+    splits, full = nj_splits(D)
+    res = []
+    for row in G:
+        mask = sum(1 << i for i in np.flatnonzero(row))
+        res.append(is_clade(splits, full, mask))
+    return np.array(res)
+
+
 def assign(names, types, query, codes, nrep=100, seed=1, min_support=70.0, max_refs_per_type=None):
     """names: aligned sequence names (references + query); types: {ref_name: type}; query: its name.
     Returns dict(type, support, supports, n_sites, n_refs)."""
@@ -95,23 +180,36 @@ def assign(names, types, query, codes, nrep=100, seed=1, min_support=70.0, max_r
     order = [query] + refs
     idx = [names.index(n) for n in order]
     codes = codes[idx]
-    groups = {}
-    for pos, n in enumerate(order[1:], start=1):
-        groups.setdefault(types[n], 0)
-        groups[types[n]] |= 1 << pos
-    if not groups:
+    n = len(order)
+    tnames = sorted({types[x] for x in order[1:]})
+    if not tnames:
         return dict(type=None, support=0.0, supports={}, n_sites=codes.shape[1], n_refs=0)
+    G = np.zeros((len(tnames), n), dtype=np.uint8)
+    for pos, nm in enumerate(order[1:], start=1):
+        G[tnames.index(types[nm]), pos] = 1
+    G[:, 0] = 1                                      # query + all references of the type
     L = codes.shape[1]
+    # collapse identical alignment columns: the bootstrap only needs a weight per distinct column pattern
+    pats, inv = np.unique(codes.T, axis=0, return_inverse=True)
+    pcodes = pats.T.copy()
+    inv = inv.ravel()
     rng = np.random.default_rng(seed)
-    counts = dict.fromkeys(groups, 0)
+    counts = np.zeros(len(tnames))
+    pre = indicators(pcodes)
+    clades = _nj_clades if HAVE_NUMBA else _clades_python
     for rep in range(nrep):
         w = rng.multinomial(L, np.full(L, 1.0 / L))
-        splits, full = nj_splits(tn93(codes, w))
-        for t, gm in groups.items():
-            if is_clade(splits, full, gm | 1):
-                counts[t] += 1
-    sup = {t: 100.0 * c / nrep for t, c in counts.items()}
+        wp = np.bincount(inv, weights=w, minlength=len(pats))
+        counts += clades(tn93(pcodes, wp, pre), G)
+    sup = {t: 100.0 * c / nrep for t, c in zip(tnames, counts)}
     best = max(sup, key=sup.get)
     ranked = sorted(sup.items(), key=lambda kv: -kv[1])[:3]
     return dict(type=best if sup[best] >= min_support else None, support=sup[best],
                 best_type=best, supports=dict(ranked), n_sites=L, n_refs=len(refs))
+
+
+def warmup():
+    """Compile/load the numba kernel once (in the parent process, before workers are forked)."""
+    if HAVE_NUMBA:
+        D = np.random.default_rng(0).random((6, 6)); D = D + D.T; np.fill_diagonal(D, 0)
+        _nj_clades(D, np.ones((1, 6), dtype=np.uint8))
