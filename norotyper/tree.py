@@ -160,7 +160,9 @@ def _clades_python(D, G):
     splits, full = nj_splits(D)
     res = []
     for row in G:
-        mask = sum(1 << i for i in np.flatnonzero(row))
+        # int(i): np.flatnonzero yields np.int64, and `1 << np.int64(63)` wraps
+        # instead of promoting, so masks silently went wrong above 63 taxa.
+        mask = sum(1 << int(i) for i in np.flatnonzero(row))
         res.append(is_clade(splits, full, mask))
     return np.array(res)
 
