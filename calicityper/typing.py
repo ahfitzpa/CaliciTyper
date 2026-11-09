@@ -36,7 +36,7 @@ def _type_region_clustalw(seq, group, region, exclude=(), nrep=100, seed=1, min_
     aln, types = load_reference(region, group)
     excl = set(exclude)
     types = {k: v for k, v in types.items() if k not in excl}
-    with tempfile.TemporaryDirectory(prefix="norotyper_") as td:
+    with tempfile.TemporaryDirectory(prefix="calicityper_") as td:
         q, out = os.path.join(td, "q.fa"), os.path.join(td, "out.fa")
         with open(q, "w") as fh:
             fh.write(f">QUERY\n{str(seq).upper()}\n")

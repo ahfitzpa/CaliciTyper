@@ -1,6 +1,6 @@
 [project]
-name = "norotyper"
-version = "0.4.0"
+name = "calicityper"
+version = "0.5.0"
 description = "Command-line norovirus genotyping following the RIVM typing tool method"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -17,21 +17,21 @@ fast = ["numba"]
 report = ["bokeh"]
 test = ["pytest", "bokeh"]
 [project.urls]
-Homepage = "https://github.com/ahfitzpa/norotyper"
+Homepage = "https://github.com/ahfitzpa/calicityper"
 [project.scripts]
-norotyper = "norotyper.cli:main"
+calicityper = "calicityper.cli:main"
 [build-system]
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["norotyper"]
+packages = ["calicityper"]
 
 # The reference data lives inside the package so that it is installed with the
 # code; without this a wheel would contain only the .py files and the tool
 # could not run outside a source checkout.
 [tool.setuptools.package-data]
-norotyper = [
+calicityper = [
   "data/database/*",
   "data/reference_sequences_RdRp/*",
   "data/reference_sequences_VP1/*",

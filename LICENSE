@@ -4,7 +4,7 @@ Copyright (c) 2026 Amy Fitzpatrick, University College Dublin
 
 This software is a derivative work. The original NorovirusGenotyping project
 was written by Yang Ji (GitHub: zhuzhanji) as a UCD diploma project; the
-`scripts/` directory retains that original code. The `norotyper` package is a
+`scripts/` directory retains that original code. The `calicityper` package is a
 substantially rewritten reimplementation by Amy Fitzpatrick. See ATTRIBUTION.md
 for details.
 

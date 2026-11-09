@@ -25,6 +25,6 @@
 # Your code here! (This example just prints the current date and exits!)
 
 python "$(dirname "$0")/makedb.py" \
-       "$(dirname "$0")/../norotyper/data/database/refseq_2.fasta" \
-       "$(dirname "$0")/../norotyper/data/database/refseqdb_2"
+       "$(dirname "$0")/../calicityper/data/database/refseq_2.fasta" \
+       "$(dirname "$0")/../calicityper/data/database/refseqdb_2"
 

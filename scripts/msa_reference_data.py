@@ -31,7 +31,7 @@ for j in range(df.shape[0]):
         continue
     # write fastas into respective groups
     if group not in files:
-        files[group] = open('./../norotyper/data/reference_sequences_RdRp/'+group+'.fasta', 'w') 
+        files[group] = open('./../calicityper/data/reference_sequences_RdRp/'+group+'.fasta', 'w') 
     handle = Entrez.efetch(db="sequences", id = number, rettype="fasta", retmode="text")
     record = handle.read()
     files[group].write(record)
@@ -48,7 +48,7 @@ for j in range(df.shape[0]):
     if number == 'F529737':
         continue
     if group not in files:
-        files[group] = open('./../norotyper/data/reference_sequences_VP1/'+group+'.fasta', 'w') 
+        files[group] = open('./../calicityper/data/reference_sequences_VP1/'+group+'.fasta', 'w') 
     handle = Entrez.efetch(db="sequences", id = number, rettype="fasta", retmode="text")
     record = handle.read()
     files[group].write(record)

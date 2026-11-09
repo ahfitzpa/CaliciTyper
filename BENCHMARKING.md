@@ -1,6 +1,6 @@
 # Benchmarking and validation
 
-How `norotyper` has been tested, what each test does and does not show, and how
+How `calicityper` has been tested, what each test does and does not show, and how
 to reproduce every number quoted in the [README](README.md).
 
 Read the caveats. Several of these tests are easy to misread as stronger
@@ -63,7 +63,7 @@ The independent test: compare against the published calls of the
 
 ```bash
 python scripts/fetch_rivm_test_set.py rivm_test_set.fasta   # ~4,392 seqs from NCBI
-norotyper type rivm_test_set.fasta -o rivm_typed.tsv --threads 16
+calicityper type rivm_test_set.fasta -o rivm_typed.tsv --threads 16
 python scripts/validate_vs_rivm.py rivm_typed.tsv
 ```
 
@@ -78,7 +78,7 @@ fields naively scores every GII.4 record as a mismatch -- 42% of the test set.
 | | genotype field | variant field |
 |---|---|---|
 | RIVM | `capsid type` = `GII.4` | `capsid subtype` = `Sydney_2012` |
-| norotyper | `orf2_type` = `GII.4_Sydney` | (inside the type) |
+| calicityper | `orf2_type` = `GII.4_Sydney` | (inside the type) |
 
 The comparison therefore scores genotype agreement on the genotype stem
 (`GII.4_Sydney` -> `GII.4`) and reports the GII.4 variant separately against
@@ -96,7 +96,7 @@ non-noroviruses.
 
 ```bash
 python scripts/fetch_rivm_test_set.py rivm_all.fasta --all   # all 5,986
-norotyper type rivm_all.fasta -o all_typed.tsv --threads 16
+calicityper type rivm_all.fasta -o all_typed.tsv --threads 16
 python scripts/validate_vs_rivm.py all_typed.tsv --out results/rivm_comparison_all.csv
 ```
 
@@ -236,7 +236,7 @@ Install `numba`; without it the bootstrap is roughly 8x slower.
 ## Reproducing
 
 ```bash
-conda env create -f environment.yml && conda activate norotyper
+conda env create -f environment.yml && conda activate calicityper
 pytest tests/ -v                                   # unit, CLI and regression tests
 python tests/loo_validation.py --threads 8         # section 1
 python scripts/fetch_rivm_test_set.py rivm.fasta   # sections 2-3 (needs NCBI)

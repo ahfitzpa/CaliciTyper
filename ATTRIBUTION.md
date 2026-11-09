@@ -2,7 +2,7 @@
 
 ## Upstream project
 
-`norotyper` is a fork and partial rewrite of
+`calicityper` is a fork and partial rewrite of
 [**zhuzhanji/NorovirusGenotyping**](https://github.com/zhuzhanji/NorovirusGenotyping),
 a University College Dublin diploma project by **Yang Ji** (GitHub:
 [@zhuzhanji](https://github.com/zhuzhanji)).
@@ -13,10 +13,10 @@ What came from upstream:
   (`DataPreparation.py`, `workflow.py`, `clustalw.py`, `blastn.py`, `phylo.R`,
   `makedb.sh`, `msa_reference_data.py`, `utils.py`, `config.py`).
 - The curated norovirus reference sequence sets and BLAST database now in
-  `norotyper/data/`, and the taxonomy tables in `validation/`.
+  `calicityper/data/`, and the taxonomy tables in `validation/`.
 - The RIVM comparison call set, `validation/results_rivm.csv`.
 
-What is new in this fork (the `norotyper` package):
+What is new in this fork (the `calicityper` package):
 
 - A reimplementation as an installable, path-independent Python package with a
   command-line interface.
@@ -54,7 +54,7 @@ Reference sequence sets follow the 2019 norovirus classification:
 > *Journal of General Virology* 2019; 100(10): 1393-1406.
 > doi:10.1099/jgv.0.001318
 
-`norotyper` is an independent reimplementation. It is **not** produced,
+`calicityper` is an independent reimplementation. It is **not** produced,
 endorsed by, or affiliated with RIVM, and its calls are not guaranteed to match
 those of the RIVM web tool.
 

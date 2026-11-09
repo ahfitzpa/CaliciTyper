@@ -1,16 +1,16 @@
 cff-version: 1.2.0
-title: "norotyper: command-line norovirus genotyping following the RIVM method"
+title: "calicityper: command-line norovirus genotyping following the RIVM method"
 message: "If you use this software, please cite it as below."
 type: software
 authors:
   - family-names: Fitzpatrick
     given-names: Amy
     affiliation: University College Dublin
-version: 0.4.0
+version: 0.5.0
 license: MIT
-repository-code: "https://github.com/ahfitzpa/norotyper"
+repository-code: "https://github.com/ahfitzpa/calicityper"
 abstract: >-
-  norotyper assigns norovirus genogroup, ORF1 polymerase (P-) type and ORF2
+  calicityper assigns norovirus genogroup, ORF1 polymerase (P-) type and ORF2
   capsid type to assembled contigs or whole genomes, replicating the published
   method of the RIVM Norovirus Typing Tool: BLAST genogroup assignment, MAFFT
   profile alignment onto fixed reference columns, neighbour-joining phylogeny,

@@ -79,7 +79,7 @@ def _add_recomb_args(p):
 
 def main(argv=None):
     top = argparse.ArgumentParser(
-        prog="norotyper",
+        prog="calicityper",
         description="Norovirus genotyping (RIVM-style: BLAST, profile alignment, NJ tree, "
                     "bootstrap) and recombination analysis.")
     top.add_argument("--version", action="version", version=__version__)
@@ -101,7 +101,7 @@ def _run_type(a):
     a._want_aln = bool(a.html)          # alignments/trees are only needed for the HTML
     ty.cg.check_data()          # clear error if the bundled reference data is missing
     recs = [(r.id, str(r.seq)) for r in SeqIO.parse(a.fasta, "fasta")]
-    with tempfile.TemporaryDirectory(prefix="norotyper_") as td:
+    with tempfile.TemporaryDirectory(prefix="calicityper_") as td:
         q = os.path.join(td, "all.fa")
         SeqIO.write([r for r in SeqIO.parse(a.fasta, "fasta")], q, "fasta")
         hits = ty.blast_genogroup(q, a.threads)
@@ -239,7 +239,7 @@ def _write_reports(a, rows, alns):
 
 
 def _run_recomb(a):
-    """`norotyper recomb`: scan an alignment for recombination. Norovirus only."""
+    """`calicityper recomb`: scan an alignment for recombination. Norovirus only."""
     from . import recomb as R
 
     cfg = _rc.load(a.config)
@@ -260,7 +260,7 @@ def _run_recomb(a):
     cfg.validate()
 
     if not a.alignment and not a.input:
-        sys.exit("norotyper recomb: give --alignment (aligned FASTA) or --input (unaligned FASTA)")
+        sys.exit("calicityper recomb: give --alignment (aligned FASTA) or --input (unaligned FASTA)")
 
     outdir = Path(a.output)
     outdir.mkdir(parents=True, exist_ok=True)
@@ -282,7 +282,7 @@ def _run_recomb(a):
     queries = a.query or [n for n in aln.names]
     missing = [q for q in queries if q not in aln.names]
     if missing:
-        sys.exit(f"norotyper recomb: query id(s) not in the alignment: {missing[:5]}")
+        sys.exit(f"calicityper recomb: query id(s) not in the alignment: {missing[:5]}")
 
     if a.dry_run:
         exe = cfg.openrdp()
@@ -293,7 +293,7 @@ def _run_recomb(a):
         print(f"  informative    : {R.informative_sites(aln)}")
         print(f"queries          : {len(queries)}")
         print(f"methods requested: {' '.join(cfg.methods) or '(none)'}")
-        print(f"OpenRDP          : {exe or 'NOT FOUND (set $NOROTYPER_OPENRDP)'}")
+        print(f"OpenRDP          : {exe or 'NOT FOUND (set $CALICITYPER_OPENRDP)'}")
         print(f"segment trees    : {'yes' if cfg.build_segment_trees else 'no'}")
         print(f"GARD             : {'requested' if cfg.run_gard else 'off'}")
         for q in queries[:10]:

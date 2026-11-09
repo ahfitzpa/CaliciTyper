@@ -25,7 +25,7 @@ Once it is in place:
 
 ```bash
 python scripts/fetch_rivm_test_set.py rivm_test_set.fasta   # ~4,392 seqs from GenBank
-norotyper rivm_test_set.fasta -o rivm_typed.tsv --threads 16
+calicityper rivm_test_set.fasta -o rivm_typed.tsv --threads 16
 python scripts/validate_vs_rivm.py rivm_typed.tsv           # -> results/rivm_comparison.csv
 ```
 

@@ -73,7 +73,7 @@ class RecombConfig:
     regions: dict = field(default_factory=lambda: dict(DEFAULT_REGIONS))
     scoring: Scoring = field(default_factory=Scoring)
     status_rules: StatusRules = field(default_factory=StatusRules)
-    openrdp_exe: str = ""                                  # else $NOROTYPER_OPENRDP, else PATH
+    openrdp_exe: str = ""                                  # else $CALICITYPER_OPENRDP, else PATH
     hyphy_exe: str = ""
 
     def validate(self):
@@ -90,16 +90,16 @@ class RecombConfig:
     def openrdp(self):
         """Path to the OpenRDP CLI, or None.
 
-        OpenRDP pins numpy<2 while norotyper needs numpy>=2, so it cannot share
+        OpenRDP pins numpy<2 while calicityper needs numpy>=2, so it cannot share
         this environment. It is therefore treated like BLAST and MAFFT: an
         external executable, typically in its own conda env, located by
-        $NOROTYPER_OPENRDP or PATH.
+        $CALICITYPER_OPENRDP or PATH.
         """
-        cand = self.openrdp_exe or os.environ.get("NOROTYPER_OPENRDP") or shutil.which("openrdp")
+        cand = self.openrdp_exe or os.environ.get("CALICITYPER_OPENRDP") or shutil.which("openrdp")
         return cand if cand and Path(cand).exists() else None
 
     def hyphy(self):
-        cand = self.hyphy_exe or os.environ.get("NOROTYPER_HYPHY") or shutil.which("hyphy")
+        cand = self.hyphy_exe or os.environ.get("CALICITYPER_HYPHY") or shutil.which("hyphy")
         return cand if cand and Path(cand).exists() else None
 
 

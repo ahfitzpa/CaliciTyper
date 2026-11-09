@@ -1,7 +1,7 @@
 """The accelerated code paths must give the same answers as the plain ones."""
 import numpy as np
 import pytest
-from norotyper import tree
+from calicityper import tree
 
 
 @pytest.mark.skipif(not tree.HAVE_NUMBA, reason="numba not installed")
@@ -36,7 +36,7 @@ def test_clades_python_matches_numba_above_63_taxa():
     import numpy as np
     import pytest
 
-    from norotyper import tree
+    from calicityper import tree
 
     if not tree.HAVE_NUMBA:
         pytest.skip("needs numba to compare the two implementations")

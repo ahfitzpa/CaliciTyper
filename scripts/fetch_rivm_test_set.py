@@ -28,7 +28,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 RIVM = ROOT / "validation" / "results_rivm.csv"
 EUTILS = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
-TOOL = "norotyper"
+TOOL = "calicityper"
 
 
 def wanted_accessions(every=False):
@@ -86,7 +86,7 @@ def main():
     ap.add_argument("out", nargs="?", default="rivm_test_set.fasta")
     ap.add_argument("--batch", type=int, default=50, help="accessions per request (keeps the URL short)")
     ap.add_argument("--api-key", default=os.environ.get("NCBI_API_KEY", ""))
-    ap.add_argument("--email", default=os.environ.get("NCBI_EMAIL", "norotyper@example.org"))
+    ap.add_argument("--email", default=os.environ.get("NCBI_EMAIL", "calicityper@example.org"))
     ap.add_argument("--all", action="store_true", dest="every",
                     help="fetch all 5,986 RIVM records, not just the 4,392 with a type call "
                          "(needed to score genogroup detection on non-norovirus caliciviruses)")

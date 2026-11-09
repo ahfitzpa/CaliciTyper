@@ -46,7 +46,7 @@ def refset(region, group):
 
 def _mafft(ref, queries, exclude, threads):
     """queries: list of (id, seq). Returns list of aligned strings of reference-alignment length."""
-    with tempfile.TemporaryDirectory(prefix="norotyper_") as td:
+    with tempfile.TemporaryDirectory(prefix="calicityper_") as td:
         rf, qf = os.path.join(td, "ref.fa"), os.path.join(td, "q.fa")
         open(rf, "w").write(ref.fasta(exclude))
         with open(qf, "w") as fh:

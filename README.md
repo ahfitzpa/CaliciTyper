@@ -1,212 +1,290 @@
-# norotyper
-
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Python Version](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/)
-[![Classification Standard](https://img.shields.io/badge/Classification_Standard-Chhabra_2019-green.svg)](https://doi.org/10.1099/jgv.0.001318)
-[![Status](https://img.shields.io/badge/status-research_code-orange.svg)](#validation)
+[![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/)
+[![Classification](https://img.shields.io/badge/classification-Chhabra_2019-green.svg)](https://doi.org/10.1099/jgv.0.001318)
+[![Status](https://img.shields.io/badge/status-research_code-orange.svg)](BENCHMARKING.md)
 
-`norotyper` is a command-line tool for dual-typing norovirus **assembled
-contigs and whole genomes**, replicating the published method of the
-[RIVM Norovirus Typing Tool](https://www.rivm.nl/mpf/typingtool/norovirus/).
+# calicityper: command-line calicivirus genotyping and norovirus recombination analysis
 
-It assigns a **genogroup**, an **ORF2 capsid genotype** and an **ORF1
-polymerase (P-) type**, each with bootstrap support, following the updated
-classification of [Chhabra et al. (2019)](https://doi.org/10.1099/jgv.0.001318).
+`calicityper` assigns norovirus genogroup, ORF1 polymerase (P-) type and ORF2
+capsid type to assembled contigs and whole genomes, replicating the published
+method of the [RIVM Norovirus Typing
+Tool](https://www.rivm.nl/mpf/typingtool/norovirus/). It also scans norovirus
+genomes for recombination and reports evidence-weighted events rather than a
+yes/no answer.
 
-> **Status: research code.** Genotyping is validated for GI and GII only, and
-> the comparison against RIVM's own calls has not yet completed. Read
-> [Genogroup and genotype coverage](#genogroup-and-genotype-coverage) and
-> [Validation](#validation) before relying on a call.
+Every other norovirus typing tool we are aware of -- the RIVM tool, CDC's
+HuCaT -- is web-only. `calicityper` is the scriptable equivalent: no uploading
+surveillance sequences to a third-party form, reproducible with a fixed seed,
+and it drops into a pipeline.
 
-As far as we are aware, every other norovirus typing tool (the RIVM tool,
-CDC's HuCaT) is web-only. `norotyper` is intended to be the scriptable
-equivalent: no uploading of surveillance sequences to a third-party form, and
-it drops into a pipeline.
+> **Status: research code.** Genotyping is validated for norovirus GI and GII
+> only. Read [Genogroup and genotype coverage](#genogroup-and-genotype-coverage)
+> and [BENCHMARKING.md](BENCHMARKING.md) before trusting a call.
 
----
+### What works today
 
-## Key Features
-
-* **Dual-typing.** ORF1 (RdRp / P-type) and ORF2 (VP1 / capsid) are typed
-  independently, so recombinants are visible as a mismatched pair.
-* **GII.4 variant resolution.** The ORF2 reference set is labelled at variant
-  level, so GII.4 queries resolve to `GII.4_Sydney`, `GII.4_Den_Haag` and so on
-  rather than stopping at `GII.4`.
-* **RIVM's assignment rule.** 100 bootstrap replicates; a type is reported only
-  at **>= 70% support**.
-* **Reproducible.** The bootstrap is seeded (`--seed`), so repeated runs on the
-  same input give identical output.
-* **Self-contained.** The curated reference sets and BLAST database are
-  installed with the package; there is no separate database build step.
-* **Parallel.** Queries are independent and distributed across `--threads`.
+| Capability | Scope | State |
+|---|---|---|
+| Genogroup detection | all Caliciviridae genera | working |
+| Norovirus genotyping (ORF1 + ORF2) | GI, GII | validated |
+| Norovirus genotyping | GIII-GX | returns a call, **not validated** |
+| GII.4 variant resolution | 11 variants | validated |
+| Recombination analysis | **norovirus only** | working, see caveats |
+| **Sapovirus genotyping** | GI-GXIX | **reference tables drafted, not yet built** |
 
 ---
 
 ## Installation
 
-### Option 1: Conda / Mamba (recommended)
+### Conda / Mamba (recommended)
 
 ```bash
-git clone https://github.com/ahfitzpa/norotyper.git
-cd norotyper
-
+git clone https://github.com/ahfitzpa/calicityper.git
+cd calicityper
 conda env create -f environment.yml
-conda activate norotyper
+conda activate calicityper
 ```
 
-### Option 2: pip, with dependencies already present
+### pip, with dependencies already present
 
-Ensure `blast` and `mafft` are on `PATH`, then:
+Needs `blast` and `mafft` on `PATH`:
 
 ```bash
-pip install git+https://github.com/ahfitzpa/norotyper.git
+pip install git+https://github.com/ahfitzpa/calicityper.git
 ```
 
 The reference data ships inside the package, so this gives a working install
-with no further setup.
+with no database build step.
 
----
+### OpenRDP (only for `calicityper recomb`)
 
-## Requirements
-
-* **Python** >= 3.9
-* **External programs** (must be on `PATH`, or set `NOROTYPER_BLASTN` /
-  `NOROTYPER_MAFFT`):
-  * [BLAST+](https://blast.ncbi.nlm.nih.gov/Blast.cgi) - genogroup assignment
-  * [MAFFT](https://mafft.cbrc.jp/alignment/software/) - aligns queries onto the
-    fixed reference alignment
-* **Python packages:** biopython, numpy, pandas
-* **Strongly recommended:** `numba`. It is nominally optional, but without it
-  the bootstrap runs roughly 8x slower. Install it.
-* **For reports:** `bokeh`, needed only for the figures in the HTML report.
-* **Optional:** `clustalw`, only for the legacy `--backend clustalw` path;
-  `entrez-direct` is *not* required (the RIVM fetch script uses plain HTTP).
-
----
-
-## Quick Start
+OpenRDP pins `numpy<2` while `calicityper` needs `numpy>=2`, so **it cannot
+share the environment**. Install it separately and point at the CLI, the same
+way BLAST and MAFFT are found:
 
 ```bash
-norotyper contigs.fasta -o typed.tsv --threads 8
+conda create -n openrdp -c conda-forge python=3.11 "numpy<2" "scipy>=1.5" "h5py>=3.8,<3.11"
+conda activate openrdp
+git clone https://github.com/PoonLab/OpenRDP.git && pip install ./OpenRDP
+conda deactivate
+
+export CALICITYPER_OPENRDP=$(conda info --base)/envs/openrdp/bin/openrdp
 ```
 
-That is the whole interface: one input FASTA, one output TSV. There is no
-database build step and no subcommand.
+OpenRDP is unpackaged (no PyPI or bioconda release), so pin the git SHA for a
+reproducible deployment. Without it, `recomb` still runs and reports which
+methods were skipped and why.
 
-### Input must be assembled
+## Test
 
-`norotyper` types **contigs or genomes, not sequencing reads.** There is no
-FASTQ mode. For an Illumina run, assemble first: map or BLAST reads against
-norovirus references, assemble or cluster the hits (for example `vsearch` at
-99% identity), and pass the representative sequences in.
+```bash
+pytest tests/ -v                      # unit, CLI and regression tests
+python tests/loo_validation.py        # leave-one-out, no internet needed
+```
 
 ---
 
-## Output
+## Invoking calicityper
 
-A single TSV, one row per input record, in input order:
+### Typing: the common case
 
-| Column | Meaning |
+```bash
+% calicityper type contigs.fasta -o typed.tsv --threads 8
+```
+
+### Typing with a visual report
+
+```bash
+# also writes run01.md, run01.json and run01.html
+% calicityper type contigs.fasta -o typed.tsv --threads 8 --report run01
+```
+
+The HTML carries Bokeh alignment panels (query against the references of its
+assigned type *and* of the runner-up) and a neighbour-joining tree per region.
+A bootstrap percentage cannot be inspected; the alignment behind it can.
+
+### Recombination, from an alignment
+
+```bash
+% calicityper recomb --alignment panel.fasta --query SAMPLE_01 -o recomb_out/
+```
+
+### Recombination, from unaligned sequences
+
+```bash
+# aligned with MAFFT first, then scanned
+% calicityper recomb --input samples.fasta -o recomb_out/ --threads 8
+```
+
+### Check what would run, without running it
+
+```bash
+% calicityper recomb --alignment panel.fasta --query SAMPLE_01 --dry-run
+alignment        : panel.fasta
+  sequences      : 9
+  columns        : 7500
+  informative    : 2166
+queries          : 1
+methods requested: rdp geneconv bootscan maxchi chimaera siscan threeseq
+OpenRDP          : /path/to/openrdp
+  SAMPLE_01: OK
+```
+
+---
+
+## Commands
+
+### `calicityper type`
+
+Assigns genogroup and, for norovirus, ORF1 and ORF2 types.
+
+#### Output files
+
+| File | Description |
+|---|---|
+| `typed.tsv` | primary machine-readable output, one row per input sequence |
+| `PREFIX.json` | the same fields, with runner-ups as structured lists, plus run parameters |
+| `PREFIX.md` | table and genogroup tally, for a notebook or a PR |
+| `PREFIX.html` | self-contained page with alignment panels and trees |
+
+#### Output table fields
+
+| Column | Description |
 |---|---|
 | `query` | FASTA record id |
-| `genogroup` | `GI`, `GII`, ... `GX`, or `unassigned` |
+| `genogroup` | `GI`-`GX`, a non-norovirus lineage, or `unassigned` |
 | `orf1_type` | P-type, `unassigned`, or empty if the region was not typeable |
 | `orf1_support` | bootstrap % for the ORF1 call |
 | `orf1_runners` | up to 3 best-supported types, best first: `GII.P31:97.0\|GII.P16:2.0` |
-| `orf2_type` | capsid type (variant-level for GII.4), `unassigned`, or empty |
+| `orf2_type` | capsid type (variant-level for GII.4) |
 | `orf2_support` | bootstrap % for the ORF2 call |
-| `orf2_runners` | as `orf1_runners`, for ORF2 |
-| `note` | why a region was not typed: no BLAST hit, `<100 nt` ORF overlap, or support below threshold |
+| `orf2_runners` | as `orf1_runners` |
+| `note` | why a region was not typed: no BLAST hit, `<100 nt` ORF overlap, support below threshold |
 
-### Example
+Example:
 
-| query | genogroup | orf1_type | orf1_support | orf1_runners | orf2_type | orf2_support | note |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| NC_001959.2 | GI | GI.P1 | 100.0 | GI.P1:100.0\|GI.P10:0.0 | GI.1 | 100.0 | |
-| NC_039476.1 | GII | GII.P16 | 72.0 | GII.P16:72.0\|GII.P1:0.0 | GII.2 | 100.0 | |
-| frag_07 | GII | | | | GII.3 | 88.0 | orf1: <100 nt overlap |
-| junk_01 | unassigned | | | | | | no BLAST hit (not a norovirus / Caliciviridae sequence in reference set) |
+| query | genogroup | orf1_type | orf1_support | orf1_runners | orf2_type | note |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| NC_001959.2 | GI | GI.P1 | 100.0 | `GI.P1:100.0\|GI.P10:0.0` | GI.1 | |
+| NC_039476.1 | GII | GII.P16 | 72.0 | `GII.P16:72.0\|GII.P1:0.0` | GII.2 | |
+| frag_07 | GII | | | | GII.3 | orf1: <100 nt overlap |
+| junk_01 | unassigned | | | | | no BLAST hit |
 
-The second row is the case the runner-up column exists for: `GII.P16` cleared the
-70% threshold by two points, and nothing else drew meaningful support.
+The second row is what the runner-up column is for: `GII.P16` cleared the 70%
+threshold by two points and nothing else drew support.
 
-Note that for GII.4 the variant is carried **inside** `orf2_type`. Strip the
-suffix (`GII.4_Sydney` -> `GII.4`) if you need genotype-level labels, as RIVM
-reports them in a separate column.
+#### Options
 
-### Options
+| Argument | Type | Description |
+|---|---|---|
+| `fasta` | path | input FASTA (positional, required) |
+| `-o, --out` | path | output TSV, or `-` for stdout [`-`] |
+| `--bootstraps` | int | bootstrap replicates [100, RIVM's value] |
+| `--min-support` | float | minimum bootstrap % to assign a type [70] |
+| `--max-refs-per-type` | int | references per type used in the tree [2] |
+| `--threads` | int | worker processes [1] |
+| `--seed` | int | bootstrap seed, for reproducibility [1] |
+| `--report` | prefix | write `.md`, `.json` and `.html` as well |
+| `--json` / `--md` / `--html` | path | write one format individually |
+| `--report-max-panels` | int | most alignment panels to draw [20] |
+| `--no-tree` | flag | skip the per-region trees in the HTML |
 
-```text
-usage: norotyper [-h] [-o OUT] [--bootstraps N] [--min-support PCT]
-                 [--max-refs-per-type N] [--threads N] [--seed N] [--version]
-                 fasta
+### `calicityper recomb`
 
-  -o, --out               output TSV, or "-" for stdout [default: -]
-  --bootstraps            bootstrap replicates [default: 100, RIVM's value]
-  --min-support           minimum bootstrap % to assign a type [default: 70]
-  --max-refs-per-type     reference sequences per type used in the tree [default: 2]
-  --threads               worker processes [default: 1]
-  --seed                  bootstrap seed, for reproducibility [default: 1]
+Detects and scores recombination. **Norovirus only** -- the reference panels
+and the ORF1/ORF2 junction model are norovirus-specific.
 
-reports (the TSV stays the primary output):
-  --report PREFIX         write PREFIX.md, PREFIX.json and PREFIX.html too
-  --json PATH             results as JSON, with runner-ups as structured lists
-  --md PATH               Markdown report
-  --html PATH             self-contained HTML with alignment panels and trees
-  --report-max-panels N   most alignment panels to draw [default: 20]
-  --no-tree               skip the per-region trees in the HTML report
+#### Output files
+
+| File | Description |
+|---|---|
+| `recombination.json` | full result: events, breakpoints, score components, provenance |
+| `recombination.tsv` | one row per candidate event |
+| `aligned.fasta` | written only when `--input` was used |
+| `work/` | the sanitised alignment and raw OpenRDP CSV |
+
+#### Status labels
+
+| Status | Rule |
+|---|---|
+| `none` | no method passes the significance threshold |
+| `weak` | one method passes, evidence limited |
+| `possible` | two or more methods agree, **or** one method with strong phylogenetic support and distinct parents |
+| `likely` | three or more methods agree **and** segment phylogenies are incongruent |
+| `strong` | as `likely`, plus clearly distinct parental lineages |
+| `insufficient_sequence` | too short, too ambiguous, or too few informative sites |
+
+`strong` is never reached on one method, and a short or ambiguous sequence
+returns `insufficient_sequence` rather than a forced call.
+
+#### Scoring
+
+```
+score = 0.35 * method_support
+      + 0.20 * phylogenetic_support
+      + 0.20 * breakpoint_consistency
+      + 0.15 * parental_distinctness
+      + 0.10 * biological_plausibility
 ```
 
-### Reports
+All weights and thresholds are configurable; see
+[`calicityper/recomb_config.py`](calicityper/recomb_config.py) for the defaults
+and pass your own with `--config`.
 
-The TSV is the machine-readable output and never changes shape. For looking at
-a run:
+#### Options
 
-```bash
-norotyper contigs.fasta -o typed.tsv --threads 8 --report run01
-# -> typed.tsv, run01.md, run01.json, run01.html
-```
+| Argument | Type | Description |
+|---|---|---|
+| `--alignment` | path | aligned FASTA with the query and a reference panel |
+| `--input` | path | unaligned FASTA; aligned with MAFFT first |
+| `--query` | id | query id; repeat for several, omit for all |
+| `-o, --output` | dir | output directory [`recomb_out`] |
+| `--reference-metadata` | path | TSV/CSV/JSON mapping reference ids to lineages |
+| `--config` | path | YAML or TOML configuration |
+| `--methods` | list | subset of rdp geneconv bootscan maxchi chimaera siscan threeseq |
+| `--min-length` | int | override `min_sequence_length` [5000] |
+| `--pvalue-threshold` | float | override `pvalue_threshold` [0.05] |
+| `--max-breakpoint-distance` | int | clustering distance [250] |
+| `--skip-rdp` / `--skip-gard` | flag | skip the OpenRDP scanners / GARD |
+| `--no-segment-trees` | flag | skip the phylogeny check (faster, loses a component) |
+| `--threads` | int | threads for the MAFFT step [1] |
+| `--dry-run` | flag | validate inputs, report what would run, stop |
+| `--verbose` | flag | progress to stderr |
 
-* **`.json`** - every field from the TSV, with runner-ups as structured lists
-  (`[{"type": "GII.P31", "support": 97.0}, ...]`) plus the run parameters.
-* **`.md`** - the table and a genogroup tally, for pasting into a notebook or PR.
-* **`.html`** - a self-contained page carrying the table plus two kinds of figure:
-  * **Alignment panels.** Per call, the query against the references of the type
-    it was assigned *and* the references of the runner-up type, drawn with
-    [Bokeh](https://bokeh.org) following
-    [Farrell's sequence aligner](https://dmnfarrell.github.io/bioinformatics/bokeh-sequence-aligner).
-    Pan and zoom; letters appear once legible. A bootstrap percentage is not
-    inspectable, but the alignment it came from is.
-  * **Trees.** Per region and genogroup, a neighbour-joining tree placing the
-    queries (highlighted) among the references, so you can see *where* a run
-    landed rather than reading it row by row.
+---
 
-Panels are capped at `--report-max-panels` (highest support first) and trees at
-120 taxa, with a note in the report when either truncates. `bokeh` is needed
-for the figures; without it the Markdown and JSON are unaffected and the HTML is
-written without them.
+## Input must be assembled
+
+`calicityper` types **contigs and genomes, not sequencing reads.** There is no
+FASTQ mode. For an Illumina run: map or BLAST reads against norovirus
+references, assemble or cluster the hits (for example `vsearch` at 99%
+identity), and pass the representatives in.
+
+Recombination analysis additionally needs **near-complete genomes**: the
+default `min_sequence_length` is 5,000 nt and `min_informative_sites` 500.
+Most wastewater contigs will correctly return `insufficient_sequence`.
 
 ---
 
 ## Genogroup and genotype coverage
 
-These are two different steps with very different reliability, and the
-distinction matters.
+Two different steps, with very different reliability.
 
-**Genogroup detection works for all genogroups.** It is a BLAST search against
-whole genomes, independent of the typing alignments, and resolves any of
-GI-GX. Non-norovirus caliciviruses are reported with the genogroup only, plus a
-note.
+**Genogroup detection works across Caliciviridae.** It is a BLAST search
+against 60 whole genomes -- 30 norovirus GI-GX and 30 other genera (Sapovirus
+GI-GXII, Lagovirus, Vesivirus, Nebovirus, Nacovirus, Recovirus, Valovirus) --
+so non-noroviruses are *rejected* rather than forced into a norovirus
+genogroup.
 
-**Genotype assignment is only validated for GI and GII.** Typing requires a
-curated reference alignment, and only GI and GII have one. Every other
-genogroup falls back to `all.aln`, a single alignment of all genogroups mixed
-together, in which they are represented by a handful of sequences:
+**Genotype assignment is validated for norovirus GI and GII only.** Typing
+needs a curated reference alignment and only GI and GII have one. Everything
+else falls back to `all.aln`, a mixed alignment in which they are represented
+by a handful of sequences:
 
 | Genogroup | ORF1 refs | ORF2 refs | Genotyping |
 |---|---|---|---|
-| **GI** | 41 | 34 | validated (leave-one-out) |
-| **GII** | 121 | 96 | validated (leave-one-out) |
+| **GI** | 41 | 34 | validated |
+| **GII** | 121 | 96 | validated |
 | GIII | 2 | 3 | returns a call, not validated |
 | GIV | 4 | 12 | returns a call, not validated |
 | GV | 2 | 2 | returns a call, not validated |
@@ -216,310 +294,191 @@ together, in which they are represented by a handful of sequences:
 | GIX | - | 2 | ORF2 only, not validated |
 | GX | 2 | 2 | returns a call, not validated |
 
-A query outside GI/GII **will** return a genotype and a bootstrap percentage,
-and that percentage may look convincing. Treat it as unverified: two or three
-references cannot support a reliable assignment, and leave-one-out covered GI
-and GII only. GVIII and GIX cannot be ORF1-typed at all.
-
-In practice this is adequate for human and wastewater surveillance, which is
-almost entirely GI, GII and GIX. It is **not** adequate for the animal
-genogroups: GIII (bovine), GV (murine), GVI/GVII (canine), GX (bat).
+A query outside GI/GII **will** return a genotype and a confident-looking
+percentage. Treat it as unverified: two or three references cannot support a
+reliable assignment. This is adequate for human and wastewater surveillance
+(GI, GII, GIX) and **not** for the animal genogroups: GIII (bovine), GV
+(murine), GVI/GVII (canine), GX (bat).
 
 ### GII.4 variants
 
-GII.4 is resolved to variant level, from 11 variants in the ORF2 reference set
-(20 sequences): Bristol, US95_96, Camberwell, Farmington_Hills, Hunter, Asia,
-Yerseke, Den_Haag, Osaka, New_Orleans, Sydney.
+GII.4 resolves to variant level from 11 variants (20 sequences): Bristol,
+US95_96, Camberwell, Farmington_Hills, Hunter, Asia, Yerseke, Den_Haag, Osaka,
+New_Orleans, Sydney. The variant is carried **inside** `orf2_type`
+(`GII.4_Sydney`); strip the suffix for genotype-level labels, as RIVM reports
+the variant in a separate column.
 
-Leave-one-out assigns all 17 evaluable GII.4 references correctly, at 81-100%
-support. This is narrower than RIVM's variant set (which includes
-Apeldoorn_2007, absent here) and RIVM appends the emergence year
-(`Sydney_2012`), which `norotyper` does not.
+### Sapovirus typing: in preparation, not yet available
+
+Reference tables have been transcribed from the BMC Genomics dual VP1/RdRp
+typing proposal -- 54 VP1 genotypes and 46 RdRp P-types over 198 accessions, in
+[`validation/sapovirus_vp1_taxonomy.csv`](validation/sapovirus_vp1_taxonomy.csv)
+and
+[`validation/sapovirus_rdrp_taxonomy.csv`](validation/sapovirus_rdrp_taxonomy.csv).
+Every accession was verified against NCBI, which caught four transcription
+errors.
+
+**The reference alignments have not been built from them yet**, so
+`calicityper` does not currently assign sapovirus genotypes. Sapovirus
+sequences are detected to genus and genogroup only. The tables are marked
+DRAFT and need a human read-through before the sets are built.
 
 ---
 
 ## Method
 
-1. **Genogroup** - `blastn` against whole genomes.
-2. **Region selection** - a region is typed only if the BLAST hit overlaps the
+1. **Genogroup** -- `blastn` against whole genomes.
+2. **Region selection** -- a region is typed only if the BLAST hit overlaps the
    annotated ORF1 or ORF2 by at least 100 nt.
-3. **Alignment** - the query is cropped to the ORF window (+/- 300 nt) and added
-   to the pre-aligned reference set with MAFFT
+3. **Alignment** -- the query is cropped to the ORF window (+/- 300 nt) and
+   added to the pre-aligned references with MAFFT
    (`--addfragments --6merpair --keeplength`), so reference columns never move.
-4. **Tree** - Tamura-Nei distances, neighbour-joining.
-5. **Bootstrap** - 100 replicates. A type is assigned when the query forms a
-   clade with all references of exactly one type in >= 70% of replicates.
+4. **Tree** -- Tamura-Nei distances, neighbour-joining.
+5. **Bootstrap** -- 100 replicates; a type is assigned when the query forms a
+   clade with all references of exactly one type in >= 70% of them.
+
+For recombination: sanitise and validate the alignment, run the OpenRDP
+scanners, cluster hits into candidate events by breakpoint proximity, infer
+parents, test segment phylogenies either side of each breakpoint, score, and
+assign a status.
 
 ---
-
-## Datasets
-
-Everything the tool ships with, and everything it has been tested on.
-
-### Bundled reference data (`norotyper/data/`)
-
-Installed with the package; no download step.
-
-**BLAST database for genogroup detection** - 60 whole genomes, deliberately
-including other genera so that non-noroviruses are *rejected* rather than
-forced into a genogroup:
-
-| | Sequences |
-|---|---|
-| Norovirus GI-GX | 30 (GI 5, GII 8, GIX 3, GVI 4, GIV 2, GV 2, GVII 2, GX 2, GIII 1, GVIII 1) |
-| Other Caliciviridae | 30 (Sapovirus GI-GXII, Lagovirus, Vesivirus, Nebovirus, Nacovirus, Recovirus, Valovirus, and unclassified) |
-
-**Typing reference alignments** - norovirus only, 2019 (Chhabra) sets. GI and
-GII have their own curated alignments; all other genogroups fall back to a
-mixed `all.aln`:
-
-| Alignment | ORF1 (RdRp) | ORF2 (VP1) |
-|---|---|---|
-| `GI.aln` | 41 seqs, 806 cols | 34 seqs, 1,672 cols |
-| `GII.aln` | 121 seqs, 873 cols | 96 seqs, 1,719 cols |
-| `all.aln` (fallback) | 185 seqs, 874 cols | 166 seqs, 1,973 cols |
-
-GII.4 is labelled at variant level: 11 variants, 20 sequences (Bristol,
-US95_96, Camberwell, Farmington_Hills, Hunter, Asia, Yerseke, Den_Haag, Osaka,
-New_Orleans, Sydney).
-
-### Test set 1: leave-one-out on the bundled references
-
-Source: the bundled alignments themselves. Each reference ORF is typed against
-all other references of its genogroup; its own label is the answer. Only types
-with >= 2 references are evaluable. No internet needed.
-
-| | ORF1 | ORF2 |
-|---|---|---|
-| Queries | 147 | 125 |
-| Genogroups | GI (36), GII (111) | GI (34), GII (91) |
-| Distinct types | 49 | 42 |
-
-**This set is not independent.** Queries are drawn from the same curated,
-full-length sequences the tool types against. It demonstrates the method is
-wired up correctly; it does not estimate field accuracy.
-
-### Test set 2: RIVM Norovirus Typing Tool calls
-
-Source: 5,986 GenBank accessions with calls from the RIVM tool, in
-`validation/results_rivm.csv`. **Not redistributed here** - see
-[validation/README.md](validation/README.md). Sequences are fetched from NCBI
-with `scripts/fetch_rivm_test_set.py`.
-
-This is the independent set, and it is used two ways:
-
-| Subset | n | Used for |
-|---|---|---|
-| Records with a capsid or polymerase call | 4,392 | genotype agreement (default fetch) |
-| **All records** | **5,986** | genogroup detection (`--all`) |
-
-Composition of the full 5,986:
-
-| | n |
-|---|---|
-| **Norovirus** | **4,295** |
-| &nbsp;&nbsp;GII | 3,771 |
-| &nbsp;&nbsp;GI | 339 |
-| &nbsp;&nbsp;GV | 100 |
-| &nbsp;&nbsp;GIV | 51 |
-| &nbsp;&nbsp;GIII | 29 |
-| &nbsp;&nbsp;GVII | 5 |
-| **Non-norovirus Caliciviridae** | **1,691** |
-| &nbsp;&nbsp;Lagovirus (RHDV + unclassified) | 765 |
-| &nbsp;&nbsp;Sapovirus (GI-GIV and others) | ~420 |
-| &nbsp;&nbsp;Vesivirus (feline calicivirus and others) | ~190 |
-| &nbsp;&nbsp;Unassigned / other genera | ~320 |
-
-Of the capsid calls, 1,868 are GII.4 - 42% of the typed subset - which is why
-the GII.4 variant handling matters. Note the genogroup evaluation does reach
-the animal genogroups (GV 100, GIV 51, GIII 29), even though *genotyping* for
-those is unvalidated.
-
-### Not tested on anything else
-
-In particular: no assembled environmental or wastewater contigs, no partial or
-chimeric sequences from a real run, and no sequencing reads. Every number
-below comes from curated GenBank records.
 
 ## Validation
 
-### Leave-one-out on the bundled reference set
+Full detail, including what each test does *not* show, is in
+**[BENCHMARKING.md](BENCHMARKING.md)**.
 
-`python tests/loo_validation.py` (no internet needed). Each reference ORF is
-typed against all other references of its genogroup; its own label is the
-answer.
-
-| Region | Queries | Genogroups | Distinct types | Assigned | Correct | Wrong |
-|---|---|---|---|---|---|---|
-| ORF2 capsid | 125 | GI, GII | 42 | 100% | 100% | 0 |
-| ORF1 P-type | 147 | GI, GII | 49 | 93.9% | 93.2% | 1 |
+| Region | Queries | Assigned | Correct | Wrong |
+|---|---|---|---|---|
+| ORF2 capsid | 125 | 100% | 100% | 0 |
+| ORF1 P-type | 147 | 93.9% | 93.2% | 1 |
 
 Two caveats that matter:
 
-* **The single error is a confident one.** `AB074893.1` (true `GII.PNA4`) was
-  called `GII.P11` at **99% support**. The 70% threshold did not catch it, so
-  bootstrap support must not be read as a guarantee of correctness.
-* **Leave-one-out flatters the tool.** Queries are curated, full-length
-  reference sequences. It shows the method is wired up correctly; it does not
-  predict accuracy on partial, divergent or chimeric environmental contigs.
+- **Leave-one-out flatters the tool.** Queries are the same curated,
+  full-length references the tool types against.
+- **The one error is a confident error.** `AB074893.1` (true `GII.PNA4`) was
+  called `GII.P11` at **99% support**. Bootstrap support is not a guarantee of
+  correctness.
 
-### RIVM comparison (not yet complete)
-
-The answer set is RIVM Typing Tool calls for 4,392 GenBank accessions, 1,868 of
-them GII.4. It is **not redistributed here** - see
-[validation/README.md](validation/README.md) for how to obtain it.
-
-```bash
-python scripts/fetch_rivm_test_set.py rivm_test_set.fasta   # ~4,392 seqs from GenBank
-norotyper rivm_test_set.fasta -o rivm_typed.tsv --threads 16
-python scripts/validate_vs_rivm.py rivm_typed.tsv           # -> results/rivm_comparison.csv
-```
-
-The comparison reports four things:
-
-| Row | What it measures |
-|---|---|
-| **Genogroup** | every matched record, including the non-norovirus caliciviruses |
-| **Genogroup (norovirus only)** | records RIVM calls norovirus at all |
-| **ORF2 capsid** / **ORF1 P-type** | genotype agreement, variant suffixes stripped |
-| **GII.4 variant** | against RIVM's separate `capsid subtype` column |
-
-Genogroup is scored over a wider set than genotyping: the BLAST database holds
-30 norovirus references (GI-GX) and 30 other Caliciviridae (Sapovirus,
-Lagovirus, Vesivirus, Nebovirus and others), so detection is doing real
-discrimination and must also *reject* non-noroviruses correctly. Use
-`--all` on the fetch script to pull all 5,986 RIVM records rather than only the
-4,392 carrying a type call, which is what that evaluation needs.
-
-Label conventions are reconciled before scoring. RIVM puts plain `GII.4` in
-`capsid type` with the variant in `capsid subtype`, while `norotyper` carries
-the variant inside the type; and RIVM records genogroup as a lineage string
-(`Caliciviridae Norovirus GII`) where `norotyper` reports a bare `GII`.
-
-### Not yet validated
-
-Against RIVM's calls (genogroup or genotype -- the run has not completed); on
-genotyping outside GI/GII; on assembled environmental or wastewater contigs.
-
----
-
-## Performance
-
-Cost is dominated by the bootstrap, not by alignment. Measured per query
-(GII, 16 threads, one core's share):
-
-| Step | Per query | Share |
-|---|---|---|
-| BLAST | ~42 ms | ~2% |
-| MAFFT | ~40 ms | ~4% |
-| **Bootstrap, 100 replicates** | **~900 ms** | **~95%** |
-
-Within the bootstrap, the pairwise distance matrix is ~98% of the time and
-neighbour-joining ~2%. Cost scales with the *square* of the genogroup's
-reference count, so genogroup drives runtime: GII reference sets are about
-three times the size of GI.
-
-**Budget for GII, not GI.** An earlier figure of 0.5 s per genome was measured
-on GI and does not generalise. Real surveillance data is overwhelmingly GII.
-Install `numba`; without it the bootstrap is about 8x slower.
+The comparison against RIVM's own calls for 4,392 accessions is **running**;
+the genogroup comparison over all 5,986 is **queued**. Neither number is
+available yet.
 
 ---
 
 ## Known differences from RIVM
 
-* **Distance and tree**: Tamura-Nei computed analytically with
-  neighbour-joining, rather than PAUP\* HKY85. Tie-breaking and distance
-  estimation differ slightly.
-* **Clade rule**: "assigned" means the query groups with all (up to 2)
-  references of one type in >= 70% of replicates. RIVM's exact clade rule and
-  its choice of representative references are not published; the subset of two
-  per type was inferred from their description and from leave-one-out accuracy.
-* **ORF windows** are the full annotated ORFs, not RIVM's fixed typing windows.
-* **GII.4 variants** are a narrower set than RIVM's, and without the emergence
-  year suffix.
-* **Reference sets** are the 2019 (Chhabra) sets.
+- **Distance and tree**: Tamura-Nei computed analytically with
+  neighbour-joining, not PAUP\* HKY85. Tie-breaking differs slightly.
+- **Clade rule**: the query must group with all (up to 2) references of one
+  type in >= 70% of replicates. RIVM's exact rule is not published; the subset
+  of two per type was inferred from their description and from leave-one-out.
+- **ORF windows** are the full annotated ORFs, not RIVM's fixed typing windows.
+- **GII.4 variants** are a narrower set, without the emergence year suffix.
+
+`calicityper` is an independent reimplementation. It is **not** produced by,
+endorsed by, or affiliated with RIVM, and its calls are not guaranteed to match
+the RIVM web tool.
+
+---
+
+## FAQ
+
+**Can it type sapovirus?** Not yet. It detects sapovirus to genogroup; the
+genotype reference sets are drafted but not built.
+
+**Can it take FASTQ?** No. Assemble or cluster first.
+
+**Why did recombination return `insufficient_sequence`?** The sequence is under
+5,000 nt or has fewer than 500 informative sites. The classical scanners cannot
+say anything useful below that, and guessing would be worse.
+
+**Why is a GIII call untrustworthy when it shows 98% support?** Support
+measures how often the bootstrap recovers the same grouping, not whether the
+reference set contains the right answer. GIII has two or three references.
+
+**Do I need OpenRDP?** Only for `recomb`. Without it the command still runs and
+reports every method it skipped.
+
+**Why is it slow?** The bootstrap is ~95% of runtime, and cost scales with the
+square of the genogroup's reference count, so GII is much slower than GI.
+Install `numba`; without it the bootstrap is roughly 8x slower.
+
+---
+
+## Dependencies
+
+**Mandatory**
+
+- **Python** >= 3.9, with biopython, numpy, pandas
+- **[BLAST+](https://blast.ncbi.nlm.nih.gov/Blast.cgi)** -- genogroup assignment
+- **[MAFFT](https://mafft.cbrc.jp/alignment/software/)** -- aligns queries onto the fixed reference alignment
+
+**Strongly recommended**
+
+- **[numba](https://numba.pydata.org/)** -- nominally optional, but the bootstrap is ~8x slower without it
+
+**Optional**
+
+- **[bokeh](https://bokeh.org)** -- figures in the HTML report
+- **[OpenRDP](https://github.com/PoonLab/OpenRDP)** -- the seven recombination scanners
+- **clustalw** -- only for the legacy `--backend clustalw` path
+
+External programs are found on `PATH`, or via `CALICITYPER_BLASTN`,
+`CALICITYPER_MAFFT`, `CALICITYPER_CLUSTALW`, `CALICITYPER_OPENRDP`. Reference
+data location is overridable with `CALICITYPER_DATA`.
 
 ---
 
 ## Roadmap
 
-Not implemented. Listed so the gap between this tool and a surveillance-ready
-one is explicit.
-
-* **Explicit recombinant reporting.** ORF1 and ORF2 are already typed
-  independently; a `GII.4_Sydney[P16]`-style dual-type label and a
-  recombinant flag would make the mismatch explicit.
-* **Reference curation for the animal genogroups**, to lift GIII-GX above two
-  or three sequences.
-* **FASTQ entry point**, wrapping read QC and assembly.
-* **Distribution** via PyPI and a bioconda recipe. Currently install is from
-  this repository only.
-
----
-
-## Repository layout
-
-```
-norotyper/            the maintained package
-  data/               reference sequences and BLAST database (installed with the code)
-scripts/              the original upstream pipeline, kept for provenance
-tests/                unit tests, CLI tests, leave-one-out validation
-validation/           taxonomy tables; RIVM comparison inputs go here (untracked)
-results/              leave-one-out output
-```
+- Build the sapovirus reference sets from the drafted taxonomy tables.
+- HyPhy GARD as independent phylogenetic confirmation of breakpoints.
+- Explicit recombinant labelling (`GII.4_Sydney[P16]`) and a recombinant flag
+  in `calicityper type`.
+- Reference curation for the animal genogroups, to lift GIII-GX above two or
+  three sequences.
+- Distribution via PyPI and bioconda.
 
 ---
 
 ## Citation
 
-### `norotyper`
-
 ```bibtex
-@software{fitzpatrick_norotyper,
+@software{fitzpatrick_calicityper,
   author = {Amy Heather Fitzpatrick},
-  title  = {norotyper: command-line norovirus dual-typing following the RIVM method},
-  url    = {https://github.com/ahfitzpa/norotyper},
+  title  = {calicityper: command-line calicivirus genotyping and norovirus recombination analysis},
+  url    = {https://github.com/ahfitzpa/calicityper},
   year   = {2026}
 }
 ```
 
-### Method and classification standard
+Please also cite the method and the classification standard:
 
-```bibtex
-@article{kroneman2011automated,
-  author  = {Kroneman, Annelies and Vennema, Harry and Deforche, Koen and
-             van der Avoort, Harrie and Pe{\~n}aranda, Silvia and Oberste, M Steven
-             and Vinj{\'e}, Jan and Koopmans, Marion},
-  title   = {An automated genotyping tool for enteroviruses and noroviruses},
-  journal = {Journal of Clinical Virology},
-  volume  = {51},
-  number  = {2},
-  pages   = {121--125},
-  year    = {2011},
-  doi     = {10.1016/j.jcv.2011.03.006}
-}
+> Kroneman A, Vennema H, Deforche K, *et al.* An automated genotyping tool for
+> enteroviruses and noroviruses. *J Clin Virol* 2011;51(2):121-125.
+> [doi:10.1016/j.jcv.2011.03.006](https://doi.org/10.1016/j.jcv.2011.03.006)
 
-@article{chhabra2019updated,
-  author  = {Chhabra, Preeti and de Graaf, Miranda and Parra, Gabriel I and
-             Chan, Martin Chi-Wai and Green, Kim and Martella, Vito and Wang, Qiuhong
-             and White, Patricia A and Katayama, Kazuhiko and Vinj{\'e}, Jan},
-  title   = {Updated classification of norovirus genogroups and genotypes},
-  journal = {Journal of General Virology},
-  volume  = {100},
-  number  = {10},
-  pages   = {1393--1406},
-  year    = {2019},
-  doi     = {10.1099/jgv.0.001318}
-}
-```
+> Chhabra P, de Graaf M, Parra GI, *et al.* Updated classification of norovirus
+> genogroups and genotypes. *J Gen Virol* 2019;100(10):1393-1406.
+> [doi:10.1099/jgv.0.001318](https://doi.org/10.1099/jgv.0.001318)
 
----
+If you use `recomb`, cite [OpenRDP](https://github.com/PoonLab/OpenRDP) and the
+underlying methods.
 
-## Attribution and licence
+## Licence
 
-MIT licensed. This is a fork and substantial rewrite of
+MIT. See [LICENSE](LICENSE).
+
+## Attribution
+
+A fork and substantial rewrite of
 [zhuzhanji/NorovirusGenotyping](https://github.com/zhuzhanji/NorovirusGenotyping)
-by Yang Ji, and it reimplements the method of the RIVM Norovirus Typing Tool.
-See **[ATTRIBUTION.md](ATTRIBUTION.md)** for what came from where and an
-important note on upstream licensing. `norotyper` is not produced by, endorsed
-by, or affiliated with RIVM.
+by Yang Ji. See **[ATTRIBUTION.md](ATTRIBUTION.md)** for what came from where
+and an important note on upstream licensing.
+
+## Author
+
+Amy Fitzpatrick, University College Dublin.

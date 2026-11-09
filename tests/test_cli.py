@@ -1,4 +1,4 @@
-"""End-to-end tests for the norotyper command line interface.
+"""End-to-end tests for the calicityper command line interface.
 
 These complement tests/test_fast_paths.py (which checks the numeric kernels)
 and tests/loo_validation.py (accuracy). The point here is behaviour a user
@@ -15,7 +15,7 @@ import sys
 import pytest
 from Bio import SeqIO
 
-from norotyper import config as cg
+from calicityper import config as cg
 
 COLUMNS = ["query", "genogroup", "orf1_type", "orf1_support", "orf1_runners",
            "orf2_type", "orf2_support", "orf2_runners", "note"]
@@ -28,9 +28,9 @@ needs_tools = pytest.mark.skipif(
 
 def run_cli(fasta, out, *extra):
     """Invoke the CLI as a subprocess, the way a user does."""
-    cmd = [sys.executable, "-m", "norotyper.cli", "type", str(fasta), "-o", str(out), *extra]
+    cmd = [sys.executable, "-m", "calicityper.cli", "type", str(fasta), "-o", str(out), *extra]
     p = subprocess.run(cmd, capture_output=True, text=True)
-    assert p.returncode == 0, f"norotyper failed:\n{p.stdout}\n{p.stderr}"
+    assert p.returncode == 0, f"calicityper failed:\n{p.stdout}\n{p.stderr}"
     with open(out) as fh:
         return list(csv.DictReader(fh, delimiter="\t"))
 
@@ -154,7 +154,7 @@ def test_report_writes_tsv_md_json_and_html(tmp_path):
         assert f.exists() and f.stat().st_size > 0, f"{ext} report missing"
 
     doc = json.loads(prefix.with_suffix(".json").read_text())
-    assert doc["tool"] == "norotyper"
+    assert doc["tool"] == "calicityper"
     assert doc["n_queries"] == 3
     assert len(doc["results"]) == 3
     assert doc["meta"]["bootstraps"] == 30
@@ -165,13 +165,13 @@ def test_report_writes_tsv_md_json_and_html(tmp_path):
     assert "support" in typed[0]["orf2_runners"][0]
 
     page = prefix.with_suffix(".html").read_text()
-    assert "norotyper report" in page
+    assert "calicityper report" in page
     assert "validated for" in page, "HTML must carry the GI/GII validation caveat"
 
 
 def test_report_module_works_without_bokeh(tmp_path, monkeypatch):
     """Markdown and JSON must not depend on bokeh, and HTML must degrade."""
-    from norotyper import report
+    from calicityper import report
 
     monkeypatch.setattr(report, "HAVE_BOKEH", False)
     rows = [dict(query="q1", genogroup="GII", orf1_type="GII.P31", orf1_support=97.0,

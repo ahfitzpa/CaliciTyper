@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
-"""Compare norotyper output with RIVM Norovirus Typing Tool calls.
+"""Compare calicityper output with RIVM Norovirus Typing Tool calls.
 
 Needs validation/results_rivm.csv (not redistributed here -- see
 validation/README.md).
 
-    norotyper rivm_test_set.fasta -o norotyper_out.tsv --threads 16
-    python scripts/validate_vs_rivm.py norotyper_out.tsv
+    calicityper rivm_test_set.fasta -o calicityper_out.tsv --threads 16
+    python scripts/validate_vs_rivm.py calicityper_out.tsv
 
 Label conventions differ and must be reconciled before anything is comparable:
 
 * RIVM splits GII.4 across two columns: `capsid type` is plain "GII.4" for all
   1,868 GII.4 records, and the variant lives in `capsid subtype`
   ("Sydney_2012", "Den_Haag_2006b", ...).
-* norotyper carries the variant inside the type itself ("GII.4_Sydney"),
+* calicityper carries the variant inside the type itself ("GII.4_Sydney"),
   because its ORF2 reference set is labelled at variant level.
 
 Comparing those two fields literally scores every GII.4 sequence as a
@@ -29,7 +29,7 @@ UNASSIGNED = {"", "could not assign", "unassigned", "nan", "none"}
 
 
 def norm(x):
-    """RIVM/norotyper label -> comparable genotype, or 'unassigned'."""
+    """RIVM/calicityper label -> comparable genotype, or 'unassigned'."""
     if pd.isna(x) or str(x).strip().lower() in UNASSIGNED:
         return "unassigned"
     s = re.sub(r"\s*\(.*\)$", "", str(x).strip())     # 'GI.P10 (GI.Pa)' -> 'GI.P10'
@@ -53,7 +53,7 @@ def variant(x):
 def rivm_variant(x):
     """RIVM subtype -> comparable variant: 'Sydney_2012' -> 'sydney'.
 
-    RIVM appends the emergence year; norotyper's reference labels do not, so the
+    RIVM appends the emergence year; calicityper's reference labels do not, so the
     year is stripped before comparing.
     """
     if pd.isna(x) or str(x).strip().lower() in UNASSIGNED:
@@ -70,7 +70,7 @@ def genogroup_label(x):
 
     RIVM reports it in the `BLAST` column as a lineage string
     ("Caliciviridae Norovirus GII", "Caliciviridae Sapovirus GI",
-    "Caliciviridae Lagovirus unclassified"). norotyper reports the subject
+    "Caliciviridae Lagovirus unclassified"). calicityper reports the subject
     prefix of its BLAST database, which is a bare genogroup for norovirus
     ("GII") and an underscored lineage for everything else
     ("Caliciviridae_Sapovirus_GI"). Both collapse to the same form here:
@@ -83,7 +83,7 @@ def genogroup_label(x):
     m = NOROVIRUS_RE.match(s)
     if m:
         return m.group(1).upper()
-    if re.fullmatch(r"g[ivx]+", s, re.I):             # norotyper's bare norovirus genogroup
+    if re.fullmatch(r"g[ivx]+", s, re.I):             # calicityper's bare norovirus genogroup
         return s.upper()
     return re.sub(r"^caliciviridae ", "", s, flags=re.I)
 
@@ -96,24 +96,24 @@ def summarise(d, label):
         both_assigned=len(both),
         agree_of_both=round(100 * (both.nt == both.rivm).mean(), 2) if len(both) else None,
         rivm_only=int(((d.nt == "unassigned") & (d.rivm != "unassigned")).sum()),
-        norotyper_only=int(((d.nt != "unassigned") & (d.rivm == "unassigned")).sum()),
+        calicityper_only=int(((d.nt != "unassigned") & (d.rivm == "unassigned")).sum()),
         agree_overall=round(100 * (d.nt == d.rivm).mean(), 2) if len(d) else None,
     )
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("norotyper_tsv")
+    ap.add_argument("calicityper_tsv")
     ap.add_argument("--rivm", default="validation/results_rivm.csv")
     ap.add_argument("--out", default="results/rivm_comparison.csv")
     a = ap.parse_args()
 
-    mine = pd.read_csv(a.norotyper_tsv, sep="\t", dtype=str)
+    mine = pd.read_csv(a.calicityper_tsv, sep="\t", dtype=str)
     mine["acc"] = mine["query"].str.split(".").str[0].str.split("|").str[-1]
     rv = pd.read_csv(a.rivm, dtype=str)
     rv["acc"] = rv["name"].str.split(".").str[0]
     m = mine.merge(rv, on="acc", suffixes=("_nt", "_rivm"))
-    print(f"matched {len(m)} of {len(mine)} norotyper rows to RIVM records")
+    print(f"matched {len(m)} of {len(mine)} calicityper rows to RIVM records")
 
     rows = []
     # Genotype-level agreement: variant suffixes stripped from BOTH sides.

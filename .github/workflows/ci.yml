@@ -1,7 +1,7 @@
 name: CI
 
 # Runs on every push and pull request. Its job is to prove that a clean
-# machine can install norotyper and type a sequence correctly -- this is what
+# machine can install calicityper and type a sequence correctly -- this is what
 # catches a dependency release breaking the tool for other people, which a
 # working laptop or cluster never notices.
 on:
@@ -23,7 +23,7 @@ jobs:
       - name: Install BLAST, MAFFT and Python via conda
         uses: mamba-org/setup-micromamba@v2
         with:
-          environment-name: norotyper-ci
+          environment-name: calicityper-ci
           create-args: >-
             python=${{ matrix.python-version }}
             blast
@@ -38,7 +38,7 @@ jobs:
               - conda-forge
               - bioconda
 
-      - name: Install norotyper
+      - name: Install calicityper
         shell: bash -el {0}
         run: pip install -e ".[test]"
 
@@ -52,12 +52,12 @@ jobs:
           pip wheel . --no-deps -w /tmp/wh
           python - <<'PY'
           import glob, zipfile
-          whl = glob.glob("/tmp/wh/norotyper-*.whl")[0]
+          whl = glob.glob("/tmp/wh/calicityper-*.whl")[0]
           names = zipfile.ZipFile(whl).namelist()
-          need = ["norotyper/data/database/refseq_2.fasta",
-                  "norotyper/data/database/refseq_annotation.csv"]
+          need = ["calicityper/data/database/refseq_2.fasta",
+                  "calicityper/data/database/refseq_annotation.csv"]
           missing = [n for n in need if n not in names]
-          refs = [n for n in names if n.startswith("norotyper/data/reference_sequences_")]
+          refs = [n for n in names if n.startswith("calicityper/data/reference_sequences_")]
           assert not missing, f"wheel is missing reference data: {missing}"
           assert len(refs) > 20, f"wheel has only {len(refs)} reference files"
           print(f"OK: wheel carries {len(names)} files, {len(refs)} reference files")
@@ -68,10 +68,10 @@ jobs:
         run: |
           python - <<'PY'
           from Bio import SeqIO
-          rs = list(SeqIO.parse("norotyper/data/database/refseq_2.fasta", "fasta"))
+          rs = list(SeqIO.parse("calicityper/data/database/refseq_2.fasta", "fasta"))
           SeqIO.write(rs[:2], "ci_query.fa", "fasta")
           PY
-          norotyper ci_query.fa -o ci_out.tsv --threads 2
+          calicityper ci_query.fa -o ci_out.tsv --threads 2
           cat ci_out.tsv
           python - <<'PY'
           import csv

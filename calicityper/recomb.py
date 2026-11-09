@@ -7,8 +7,8 @@ implicated, whether segment phylogenies agree, and what was skipped and why.
 
 The classical scanners (RDP, GENECONV, BootScan, MaxChi, Chimaera, SiScan,
 3Seq) come from OpenRDP, which is run as an EXTERNAL program: it pins
-numpy<2 while norotyper needs numpy>=2, so it cannot share this environment.
-Install it in its own env and point $NOROTYPER_OPENRDP at the CLI. If it is
+numpy<2 while calicityper needs numpy>=2, so it cannot share this environment.
+Install it in its own env and point $CALICITYPER_OPENRDP at the CLI. If it is
 absent, the run still proceeds with whatever in-tree evidence is available and
 says so in the provenance block.
 
@@ -198,7 +198,7 @@ def run_openrdp(alignment_path, cfg, workdir, timeout=7200):
     """
     exe = cfg.openrdp()
     if not exe:
-        return [], [], [("openrdp", "not found: set $NOROTYPER_OPENRDP or put it on PATH")], ""
+        return [], [], [("openrdp", "not found: set $CALICITYPER_OPENRDP or put it on PATH")], ""
     out_csv = Path(workdir) / "openrdp.csv"
     # The input path must come BEFORE -m: OpenRDP declares --methods with
     # nargs="*", so a trailing positional is swallowed as a method name and the
@@ -652,7 +652,7 @@ def analyse(alignment_path, queries, cfg, metadata_path=None, workdir=None,
     if missing:
         raise AlignmentError(f"query id(s) not in alignment: {missing[:5]}")
 
-    tmp = workdir or tempfile.mkdtemp(prefix="norotyper_recomb_")
+    tmp = workdir or tempfile.mkdtemp(prefix="calicityper_recomb_")
     Path(tmp).mkdir(parents=True, exist_ok=True)
     clean = Path(tmp) / "alignment_clean.fasta"
     with open(clean, "w") as fh:
@@ -708,7 +708,7 @@ def analyse(alignment_path, queries, cfg, metadata_path=None, workdir=None,
 # -------------------------------------------------------------------- writers
 
 def write_json(results, provenance, path):
-    doc = {"tool": "norotyper recomb", "provenance": provenance, "results": results}
+    doc = {"tool": "calicityper recomb", "provenance": provenance, "results": results}
     Path(path).write_text(json.dumps(doc, indent=2))
     return path
 

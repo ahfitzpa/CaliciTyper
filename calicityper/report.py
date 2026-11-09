@@ -166,7 +166,7 @@ def to_json(rows, path, meta=None):
         for region in ("orf1", "orf2"):
             rec[f"{region}_runners"] = _runners_to_list(r.get(f"{region}_runners"))
         recs.append(rec)
-    doc = {"tool": "norotyper",
+    doc = {"tool": "calicityper",
            "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
            "n_queries": len(rows),
            "meta": meta or {},
@@ -191,7 +191,7 @@ def to_markdown(rows, path, meta=None):
     for r in rows:
         gg[r.get("genogroup") or "unassigned"] = gg.get(r.get("genogroup") or "unassigned", 0) + 1
     lines = [
-        "# norotyper results",
+        "# calicityper results",
         "",
         f"Generated {datetime.now(timezone.utc).isoformat(timespec='seconds')}  ",
         f"Queries: **{len(rows)}**",
@@ -270,10 +270,10 @@ def to_html(rows, path, figures=None, meta=None, notes=()):
     doc = f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>norotyper report</title>
+<title>calicityper report</title>
 {bokeh_css}
 <style>{_CSS}</style></head><body><div class="wrap">
-<h1>norotyper report</h1>
+<h1>calicityper report</h1>
 <div class="sub">{esc(datetime.now(timezone.utc).isoformat(timespec='seconds'))}
  &middot; <span class="pill">{len(rows)} queries</span></div>
 <div class="warn">Genotyping is validated for <strong>GI and GII only</strong>. Calls for

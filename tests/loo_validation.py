@@ -9,7 +9,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import pandas as pd
 from Bio import SeqIO
-from norotyper import typing as ty, config as cg
+from calicityper import typing as ty, config as cg
 
 A = None
 def work(job):
