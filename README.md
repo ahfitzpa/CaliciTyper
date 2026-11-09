@@ -252,6 +252,95 @@ Apeldoorn_2007, absent here) and RIVM appends the emergence year
 
 ---
 
+## Datasets
+
+Everything the tool ships with, and everything it has been tested on.
+
+### Bundled reference data (`norotyper/data/`)
+
+Installed with the package; no download step.
+
+**BLAST database for genogroup detection** - 60 whole genomes, deliberately
+including other genera so that non-noroviruses are *rejected* rather than
+forced into a genogroup:
+
+| | Sequences |
+|---|---|
+| Norovirus GI-GX | 30 (GI 5, GII 8, GIX 3, GVI 4, GIV 2, GV 2, GVII 2, GX 2, GIII 1, GVIII 1) |
+| Other Caliciviridae | 30 (Sapovirus GI-GXII, Lagovirus, Vesivirus, Nebovirus, Nacovirus, Recovirus, Valovirus, and unclassified) |
+
+**Typing reference alignments** - norovirus only, 2019 (Chhabra) sets. GI and
+GII have their own curated alignments; all other genogroups fall back to a
+mixed `all.aln`:
+
+| Alignment | ORF1 (RdRp) | ORF2 (VP1) |
+|---|---|---|
+| `GI.aln` | 41 seqs, 806 cols | 34 seqs, 1,672 cols |
+| `GII.aln` | 121 seqs, 873 cols | 96 seqs, 1,719 cols |
+| `all.aln` (fallback) | 185 seqs, 874 cols | 166 seqs, 1,973 cols |
+
+GII.4 is labelled at variant level: 11 variants, 20 sequences (Bristol,
+US95_96, Camberwell, Farmington_Hills, Hunter, Asia, Yerseke, Den_Haag, Osaka,
+New_Orleans, Sydney).
+
+### Test set 1: leave-one-out on the bundled references
+
+Source: the bundled alignments themselves. Each reference ORF is typed against
+all other references of its genogroup; its own label is the answer. Only types
+with >= 2 references are evaluable. No internet needed.
+
+| | ORF1 | ORF2 |
+|---|---|---|
+| Queries | 147 | 125 |
+| Genogroups | GI (36), GII (111) | GI (34), GII (91) |
+| Distinct types | 49 | 42 |
+
+**This set is not independent.** Queries are drawn from the same curated,
+full-length sequences the tool types against. It demonstrates the method is
+wired up correctly; it does not estimate field accuracy.
+
+### Test set 2: RIVM Norovirus Typing Tool calls
+
+Source: 5,986 GenBank accessions with calls from the RIVM tool, in
+`validation/results_rivm.csv`. **Not redistributed here** - see
+[validation/README.md](validation/README.md). Sequences are fetched from NCBI
+with `scripts/fetch_rivm_test_set.py`.
+
+This is the independent set, and it is used two ways:
+
+| Subset | n | Used for |
+|---|---|---|
+| Records with a capsid or polymerase call | 4,392 | genotype agreement (default fetch) |
+| **All records** | **5,986** | genogroup detection (`--all`) |
+
+Composition of the full 5,986:
+
+| | n |
+|---|---|
+| **Norovirus** | **4,295** |
+| &nbsp;&nbsp;GII | 3,771 |
+| &nbsp;&nbsp;GI | 339 |
+| &nbsp;&nbsp;GV | 100 |
+| &nbsp;&nbsp;GIV | 51 |
+| &nbsp;&nbsp;GIII | 29 |
+| &nbsp;&nbsp;GVII | 5 |
+| **Non-norovirus Caliciviridae** | **1,691** |
+| &nbsp;&nbsp;Lagovirus (RHDV + unclassified) | 765 |
+| &nbsp;&nbsp;Sapovirus (GI-GIV and others) | ~420 |
+| &nbsp;&nbsp;Vesivirus (feline calicivirus and others) | ~190 |
+| &nbsp;&nbsp;Unassigned / other genera | ~320 |
+
+Of the capsid calls, 1,868 are GII.4 - 42% of the typed subset - which is why
+the GII.4 variant handling matters. Note the genogroup evaluation does reach
+the animal genogroups (GV 100, GIV 51, GIII 29), even though *genotyping* for
+those is unvalidated.
+
+### Not tested on anything else
+
+In particular: no assembled environmental or wastewater contigs, no partial or
+chimeric sequences from a real run, and no sequencing reads. Every number
+below comes from curated GenBank records.
+
 ## Validation
 
 ### Leave-one-out on the bundled reference set
