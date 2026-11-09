@@ -1,0 +1,129 @@
+#!/usr/bin/env python3
+"""Fetch the GenBank sequences that the RIVM Typing Tool called, for comparison.
+
+Reads the accessions out of validation/results_rivm.csv (every row carrying a
+polymerase or capsid call) and downloads them from NCBI into one FASTA.
+
+Why not entrez-direct: `efetch` POSTs batches and NCBI drops those connections
+under throttling ("SSL_read: unexpected eof"), which fails silently per batch.
+Plain GET requests of 50 accessions with a polite rate are reliable, and this
+script is resumable and verifies what it got.
+
+Usage:
+    python scripts/fetch_rivm_test_set.py [out.fasta] [--batch 50] [--api-key KEY]
+
+An NCBI API key (free, from https://www.ncbi.nlm.nih.gov/account/) raises the
+rate limit from 3 to 10 requests/second. Set NCBI_API_KEY or pass --api-key.
+"""
+import argparse
+import csv
+import os
+import sys
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+RIVM = ROOT / "validation" / "results_rivm.csv"
+EUTILS = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
+TOOL = "norotyper"
+
+
+def wanted_accessions():
+    with open(RIVM) as fh:
+        rows = list(csv.DictReader(fh))
+    accs = {
+        r["name"].split(".")[0]
+        for r in rows
+        if (r.get("capsid type") or "").strip() or (r.get("polymerase type") or "").strip()
+    }
+    return sorted(accs)
+
+
+def already_have(path):
+    """Accessions already present in a partially written FASTA, for resuming."""
+    if not path.exists():
+        return set()
+    have = set()
+    with open(path) as fh:
+        for line in fh:
+            if line.startswith(">"):
+                have.add(line[1:].split()[0].split(".")[0])
+    return have
+
+
+def fetch(ids, email, api_key, tries=5):
+    q = {"db": "nuccore", "rettype": "fasta", "retmode": "text",
+         "tool": TOOL, "email": email, "id": ",".join(ids)}
+    if api_key:
+        q["api_key"] = api_key
+    url = f"{EUTILS}?{urllib.parse.urlencode(q)}"
+    for attempt in range(1, tries + 1):
+        try:
+            with urllib.request.urlopen(url, timeout=120) as r:
+                text = r.read().decode("utf-8", "replace")
+            if text.count(">") == 0:
+                raise ValueError("empty response")
+            return text
+        except (urllib.error.URLError, urllib.error.HTTPError, ValueError, OSError) as e:
+            wait = min(60, 2 ** attempt)
+            print(f"    retry {attempt}/{tries} after {type(e).__name__}: {e} (sleep {wait}s)",
+                  file=sys.stderr, flush=True)
+            time.sleep(wait)
+    return None
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("out", nargs="?", default="rivm_test_set.fasta")
+    ap.add_argument("--batch", type=int, default=50, help="accessions per request (keeps the URL short)")
+    ap.add_argument("--api-key", default=os.environ.get("NCBI_API_KEY", ""))
+    ap.add_argument("--email", default=os.environ.get("NCBI_EMAIL", "norotyper@example.org"))
+    a = ap.parse_args()
+
+    out = Path(a.out)
+    accs = wanted_accessions()
+    have = already_have(out)
+    todo = [x for x in accs if x not in have]
+    delay = 0.12 if a.api_key else 0.40           # stay under 10/s with a key, 3/s without
+
+    print(f"RIVM-called accessions : {len(accs)}")
+    print(f"already in {out.name:22s}: {len(have)}")
+    print(f"to fetch               : {len(todo)}  "
+          f"({-(-len(todo) // a.batch)} requests, api_key={'yes' if a.api_key else 'no'})")
+    if not todo:
+        print("nothing to do.")
+        return 0
+
+    failed = []
+    with open(out, "a") as fh:
+        for i in range(0, len(todo), a.batch):
+            chunk = todo[i:i + a.batch]
+            text = fetch(chunk, a.email, a.api_key)
+            if text is None:
+                failed += chunk
+                print(f"  [{i // a.batch + 1}] FAILED {len(chunk)} accessions", flush=True)
+                continue
+            fh.write(text if text.endswith("\n") else text + "\n")
+            fh.flush()
+            got = text.count(">")
+            print(f"  [{i // a.batch + 1:3d}] {got:3d}/{len(chunk)} seqs  "
+                  f"({i + len(chunk)}/{len(todo)})", flush=True)
+            time.sleep(delay)
+
+    final = already_have(out)
+    missing = [x for x in accs if x not in final]
+    print(f"\nwrote {out}  sequences={len(final)}")
+    if missing:
+        Path("missing_accessions.txt").write_text("\n".join(missing) + "\n")
+        print(f"MISSING {len(missing)} accessions (listed in missing_accessions.txt); "
+              f"rerun this script to retry them")
+    if failed:
+        print(f"{len(failed)} accessions were in batches that failed outright")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
