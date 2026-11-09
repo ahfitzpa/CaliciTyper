@@ -18,6 +18,12 @@ def _work(chunk):
 def _init(a):
     global _ARGS
     _ARGS = a
+    # Compile/load the numba kernel in THIS worker. Python 3.14+ defaults to the
+    # "forkserver" start method on Linux, so workers are not forked from the
+    # parent and a warmup() done there does not carry over -- every worker has to
+    # load the kernel itself. njit(cache=True) makes this a disk-cache load
+    # rather than a recompile, but it still has to happen here.
+    tree.warmup()
 
 def main(argv=None):
     p = argparse.ArgumentParser(prog="norotyper", description="Norovirus genotyping (RIVM-style: BLAST, profile "
@@ -41,7 +47,7 @@ def main(argv=None):
         rows[i] = row
         for region, g, seq in jobs:
             todo[(region, g)].append((i, seq))
-    tree.warmup()
+    tree.warmup()          # primes the on-disk kernel cache the workers load from
     chunks = []                                     # one aligner call per chunk of queries from one region/genogroup
     for (region, g), lst in todo.items():
         size = max(8, -(-len(lst) // (2 * a.threads)))

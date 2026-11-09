@@ -62,9 +62,31 @@ representative sequences to `norotyper`.
 
 ### Speed
 
-About **0.5 s per whole genome on one core**; 100 genomes in 26 s and 400 in
-99 s on two cores. Queries are independent, so throughput scales with
-`--threads`.
+Cost is dominated by the pairwise distance matrix, which is **98%** of the time
+per bootstrap replicate (neighbour-joining is the remaining 2%). It scales with
+the *square of the number of references* in the genogroup, times the number of
+alignment columns.
+
+That makes genogroup the main determinant of runtime, because the GII reference
+sets are about three times the size of GI:
+
+| Genogroup | ORF1 refs | ORF2 refs |
+|---|---|---|
+| GI | 41 | 34 |
+| GII | 121 | 96 |
+
+Measured figures:
+
+| Workload | Hardware | Time |
+|---|---|---|
+| GI whole genomes | 2 cores | ~0.5 s/genome (100 in 26 s, 400 in 99 s) |
+| GII, per region, 100 replicates | 1 core | ~0.8 s/query |
+
+**The 0.5 s/genome figure was measured on GI and does not generalise.** Real
+surveillance data is overwhelmingly GII, so budget considerably more: a run of
+4,391 mostly-GII sequences on 16 cores took over 40 minutes, not the ~2 minutes
+the per-genome figure implies. Queries are independent, so throughput still
+scales with `--threads`.
 
 ## Method
 
@@ -79,6 +101,41 @@ About **0.5 s per whole genome on one core**; 100 genomes in 26 s and 400 in
    clade with all references of exactly one type in >= 70% of replicates.
 
 Reference sets follow the 2019 classification (Chhabra *et al.*).
+
+## Genogroup coverage
+
+These are two different steps, with very different reliability.
+
+**Genogroup detection works for all genogroups.** It is a BLAST search against
+whole genomes, independent of the typing alignments, and reports any of GI-GX.
+Non-norovirus caliciviruses are reported with the genogroup only, plus a note.
+
+**Genotype assignment is only trustworthy for GI and GII.** Typing needs a
+curated reference alignment, and only GI and GII have one. Every other
+genogroup falls back to `all.aln`, a single alignment of all genogroups mixed
+together, in which they are represented by a handful of sequences:
+
+| Genogroup | ORF1 refs | ORF2 refs | Typing |
+|---|---|---|---|
+| **GI** | 41 | 34 | validated |
+| **GII** | 121 | 96 | validated |
+| GIII | 2 | 3 | not validated |
+| GIV | 4 | 12 | not validated |
+| GV | 2 | 2 | not validated |
+| GVI | 8 | 8 | not validated |
+| GVII | 2 | 2 | not validated |
+| GVIII | - | 2 | ORF2 only, not validated |
+| GIX | - | 2 | ORF2 only, not validated |
+| GX | 2 | 2 | not validated |
+
+A query outside GI/GII **will** return a genotype and a bootstrap percentage,
+and that number may look confident. Treat it as unverified: leave-one-out
+validation covered GI and GII only, and two or three references cannot support
+a reliable assignment. GVIII and GIX cannot be ORF1-typed at all.
+
+In practice this is adequate for human and wastewater surveillance, which is
+almost entirely GI, GII and GIX. It is **not** adequate for the animal
+genogroups: GIII (bovine), GV (murine), GVI/GVII (canine), GX (bat).
 
 ## Validation
 
