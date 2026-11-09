@@ -78,6 +78,7 @@ with no further setup.
 * **Python packages:** biopython, numpy, pandas
 * **Strongly recommended:** `numba`. It is nominally optional, but without it
   the bootstrap runs roughly 8x slower. Install it.
+* **For reports:** `bokeh`, needed only for the figures in the HTML report.
 * **Optional:** `clustalw`, only for the legacy `--backend clustalw` path;
   `entrez-direct` is *not* required (the RIVM fetch script uses plain HTTP).
 
@@ -111,18 +112,23 @@ A single TSV, one row per input record, in input order:
 | `genogroup` | `GI`, `GII`, ... `GX`, or `unassigned` |
 | `orf1_type` | P-type, `unassigned`, or empty if the region was not typeable |
 | `orf1_support` | bootstrap % for the ORF1 call |
+| `orf1_runners` | up to 3 best-supported types, best first: `GII.P31:97.0\|GII.P16:2.0` |
 | `orf2_type` | capsid type (variant-level for GII.4), `unassigned`, or empty |
 | `orf2_support` | bootstrap % for the ORF2 call |
+| `orf2_runners` | as `orf1_runners`, for ORF2 |
 | `note` | why a region was not typed: no BLAST hit, `<100 nt` ORF overlap, or support below threshold |
 
 ### Example
 
-| query | genogroup | orf1_type | orf1_support | orf2_type | orf2_support | note |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| NC_001959.2 | GI | GI.P1 | 100.0 | GI.1 | 100.0 | |
-| JX459908.1 | GII | GII.P31 | 97.0 | GII.4_Sydney | 99.0 | |
-| frag_07 | GII | | | GII.3 | 88.0 | orf1: <100 nt overlap |
-| junk_01 | unassigned | | | | | no BLAST hit (not a norovirus / Caliciviridae sequence in reference set) |
+| query | genogroup | orf1_type | orf1_support | orf1_runners | orf2_type | orf2_support | note |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| NC_001959.2 | GI | GI.P1 | 100.0 | GI.P1:100.0\|GI.P10:0.0 | GI.1 | 100.0 | |
+| NC_039476.1 | GII | GII.P16 | 72.0 | GII.P16:72.0\|GII.P1:0.0 | GII.2 | 100.0 | |
+| frag_07 | GII | | | | GII.3 | 88.0 | orf1: <100 nt overlap |
+| junk_01 | unassigned | | | | | | no BLAST hit (not a norovirus / Caliciviridae sequence in reference set) |
+
+The second row is the case the runner-up column exists for: `GII.P16` cleared the
+70% threshold by two points, and nothing else drew meaningful support.
 
 Note that for GII.4 the variant is carried **inside** `orf2_type`. Strip the
 suffix (`GII.4_Sydney` -> `GII.4`) if you need genotype-level labels, as RIVM
@@ -141,7 +147,44 @@ usage: norotyper [-h] [-o OUT] [--bootstraps N] [--min-support PCT]
   --max-refs-per-type     reference sequences per type used in the tree [default: 2]
   --threads               worker processes [default: 1]
   --seed                  bootstrap seed, for reproducibility [default: 1]
+
+reports (the TSV stays the primary output):
+  --report PREFIX         write PREFIX.md, PREFIX.json and PREFIX.html too
+  --json PATH             results as JSON, with runner-ups as structured lists
+  --md PATH               Markdown report
+  --html PATH             self-contained HTML with alignment panels and trees
+  --report-max-panels N   most alignment panels to draw [default: 20]
+  --no-tree               skip the per-region trees in the HTML report
 ```
+
+### Reports
+
+The TSV is the machine-readable output and never changes shape. For looking at
+a run:
+
+```bash
+norotyper contigs.fasta -o typed.tsv --threads 8 --report run01
+# -> typed.tsv, run01.md, run01.json, run01.html
+```
+
+* **`.json`** - every field from the TSV, with runner-ups as structured lists
+  (`[{"type": "GII.P31", "support": 97.0}, ...]`) plus the run parameters.
+* **`.md`** - the table and a genogroup tally, for pasting into a notebook or PR.
+* **`.html`** - a self-contained page carrying the table plus two kinds of figure:
+  * **Alignment panels.** Per call, the query against the references of the type
+    it was assigned *and* the references of the runner-up type, drawn with
+    [Bokeh](https://bokeh.org) following
+    [Farrell's sequence aligner](https://dmnfarrell.github.io/bioinformatics/bokeh-sequence-aligner).
+    Pan and zoom; letters appear once legible. A bootstrap percentage is not
+    inspectable, but the alignment it came from is.
+  * **Trees.** Per region and genogroup, a neighbour-joining tree placing the
+    queries (highlighted) among the references, so you can see *where* a run
+    landed rather than reading it row by row.
+
+Panels are capped at `--report-max-panels` (highest support first) and trees at
+120 taxa, with a note in the report when either truncates. `bokeh` is needed
+for the figures; without it the Markdown and JSON are unaffected and the HTML is
+written without them.
 
 ---
 
@@ -243,15 +286,31 @@ norotyper rivm_test_set.fasta -o rivm_typed.tsv --threads 16
 python scripts/validate_vs_rivm.py rivm_typed.tsv           # -> results/rivm_comparison.csv
 ```
 
-The comparison reconciles the two labelling conventions before scoring: RIVM
-puts plain `GII.4` in `capsid type` with the variant in `capsid subtype`, while
-`norotyper` carries the variant inside the type. Genotype agreement is measured
-on the genotype stem, and the GII.4 variant is scored separately.
+The comparison reports four things:
+
+| Row | What it measures |
+|---|---|
+| **Genogroup** | every matched record, including the non-norovirus caliciviruses |
+| **Genogroup (norovirus only)** | records RIVM calls norovirus at all |
+| **ORF2 capsid** / **ORF1 P-type** | genotype agreement, variant suffixes stripped |
+| **GII.4 variant** | against RIVM's separate `capsid subtype` column |
+
+Genogroup is scored over a wider set than genotyping: the BLAST database holds
+30 norovirus references (GI-GX) and 30 other Caliciviridae (Sapovirus,
+Lagovirus, Vesivirus, Nebovirus and others), so detection is doing real
+discrimination and must also *reject* non-noroviruses correctly. Use
+`--all` on the fetch script to pull all 5,986 RIVM records rather than only the
+4,392 carrying a type call, which is what that evaluation needs.
+
+Label conventions are reconciled before scoring. RIVM puts plain `GII.4` in
+`capsid type` with the variant in `capsid subtype`, while `norotyper` carries
+the variant inside the type; and RIVM records genogroup as a lineage string
+(`Caliciviridae Norovirus GII`) where `norotyper` reports a bare `GII`.
 
 ### Not yet validated
 
-Against RIVM's calls; on any genogroup outside GI/GII; on assembled
-environmental or wastewater contigs.
+Against RIVM's calls (genogroup or genotype -- the run has not completed); on
+genotyping outside GI/GII; on assembled environmental or wastewater contigs.
 
 ---
 
@@ -298,13 +357,6 @@ Install `numba`; without it the bootstrap is about 8x slower.
 Not implemented. Listed so the gap between this tool and a surveillance-ready
 one is explicit.
 
-* **Visual alignment report.** Per assignment, plot the query against the
-  reference sequences of the called genotype, using a Bokeh sequence viewer
-  along the lines of
-  [Farrell's Bokeh sequence aligner](https://dmnfarrell.github.io/bioinformatics/bokeh-sequence-aligner).
-  One panel per typed region, so a call can be inspected rather than trusted.
-* **Structured output.** JSON alongside the TSV, carrying the alignment and the
-  ranked runner-up types that are currently computed and discarded.
 * **Explicit recombinant reporting.** ORF1 and ORF2 are already typed
   independently; a `GII.4_Sydney[P16]`-style dual-type label and a
   recombinant flag would make the mismatch explicit.

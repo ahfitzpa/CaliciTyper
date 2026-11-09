@@ -31,6 +31,7 @@ jobs:
             numpy
             pandas
             biopython
+            bokeh
             pytest
           condarc: |
             channels:

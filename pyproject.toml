@@ -14,7 +14,8 @@ classifiers = [
 ]
 [project.optional-dependencies]
 fast = ["numba"]
-test = ["pytest"]
+report = ["bokeh"]
+test = ["pytest", "bokeh"]
 [project.urls]
 Homepage = "https://github.com/ahfitzpa/norotyper"
 [project.scripts]

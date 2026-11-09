@@ -9,6 +9,7 @@ dependencies:
   - mafft          # aligns queries onto the pre-aligned references (default backend)
   - clustalw       # only for the legacy --backend clustalw path
   - numba          # optional: ~10x faster bootstrap (pure-numpy fallback if absent)
+  - bokeh         # figures in the HTML report (--html / --report)
   - entrez-direct  # only for scripts/fetch_rivm_test_set.sh (RIVM comparison set)
   - pytest
   - pip
