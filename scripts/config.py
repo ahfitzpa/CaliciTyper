@@ -2,35 +2,35 @@ import os, shutil
 _D = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # repository root
 paths = {
     # annotation file for blast ref seq
-    "annotation": _D+"/new_data/database/refseq_annotation.csv",
+    "annotation": _D+"/norotyper/data/database/refseq_annotation.csv",
 
     # file prefix for fastas/orf/annotation/amino acids
     "prefix":
     {
-      'GI':[_D+"/new_data/reference_sequences_RdRp/GI", _D+"/new_data/reference_sequences_VP1/GI"],
-      'GII':[_D+"/new_data/reference_sequences_RdRp/GII", _D+"/new_data/reference_sequences_VP1/GII"],
-      'GIII':[_D+"/new_data/reference_sequences_RdRp/GIII", _D+"/new_data/reference_sequences_VP1/GIII"],
-      'GIV':[_D+"/new_data/reference_sequences_RdRp/GIV", _D+"/new_data/reference_sequences_VP1/GIV"],
-      'GV':[_D+"/new_data/reference_sequences_RdRp/GV", _D+"/new_data/reference_sequences_VP1/GV"],
-      'GVI':[_D+"/new_data/reference_sequences_RdRp/GVI", _D+"/new_data/reference_sequences_VP1/GVI"],
-      'GVII':[_D+"/new_data/reference_sequences_RdRp/GVII", _D+"/new_data/reference_sequences_VP1/GVII"],
-      'GVIII':["", _D+"/new_data/reference_sequences_VP1/GVIII"],
-      'GNA1':[_D+"/new_data/reference_sequences_RdRp/GNA1", _D+"/new_data/reference_sequences_VP1/GNA1"],
-      'GNA2':[_D+"/new_data/reference_sequences_RdRp/GNA2", _D+"/new_data/reference_sequences_VP1/GNA2"],
-      'GIX':["", _D+"/new_data/reference_sequences_VP1/GIX"],
-      'GX':[_D+"/new_data/reference_sequences_RdRp/GX", _D+"/new_data/reference_sequences_VP1/GX"],
+      'GI':[_D+"/norotyper/data/reference_sequences_RdRp/GI", _D+"/norotyper/data/reference_sequences_VP1/GI"],
+      'GII':[_D+"/norotyper/data/reference_sequences_RdRp/GII", _D+"/norotyper/data/reference_sequences_VP1/GII"],
+      'GIII':[_D+"/norotyper/data/reference_sequences_RdRp/GIII", _D+"/norotyper/data/reference_sequences_VP1/GIII"],
+      'GIV':[_D+"/norotyper/data/reference_sequences_RdRp/GIV", _D+"/norotyper/data/reference_sequences_VP1/GIV"],
+      'GV':[_D+"/norotyper/data/reference_sequences_RdRp/GV", _D+"/norotyper/data/reference_sequences_VP1/GV"],
+      'GVI':[_D+"/norotyper/data/reference_sequences_RdRp/GVI", _D+"/norotyper/data/reference_sequences_VP1/GVI"],
+      'GVII':[_D+"/norotyper/data/reference_sequences_RdRp/GVII", _D+"/norotyper/data/reference_sequences_VP1/GVII"],
+      'GVIII':["", _D+"/norotyper/data/reference_sequences_VP1/GVIII"],
+      'GNA1':[_D+"/norotyper/data/reference_sequences_RdRp/GNA1", _D+"/norotyper/data/reference_sequences_VP1/GNA1"],
+      'GNA2':[_D+"/norotyper/data/reference_sequences_RdRp/GNA2", _D+"/norotyper/data/reference_sequences_VP1/GNA2"],
+      'GIX':["", _D+"/norotyper/data/reference_sequences_VP1/GIX"],
+      'GX':[_D+"/norotyper/data/reference_sequences_RdRp/GX", _D+"/norotyper/data/reference_sequences_VP1/GX"],
     },
     "aln":
-      [_D+"/new_data/reference_sequences_RdRp/all.aln", _D+"/new_data/reference_sequences_VP1/all.aln"]
+      [_D+"/norotyper/data/reference_sequences_RdRp/all.aln", _D+"/norotyper/data/reference_sequences_VP1/all.aln"]
     ,
     # extracted from the published paper of noronet
     "taxonomy":
     {
-      "rdrp":_D+'/new_data/rdrp_taxonomy.csv',
-      "vp1":_D+'/new_data/vp1_taxonomy.csv'
+      "rdrp":_D+'/validation/rdrp_taxonomy.csv',
+      "vp1":_D+'/validation/vp1_taxonomy.csv'
     },
     # BLAST dataset
-    "database": _D+"/new_data/database/refseqdb_2",
+    "database": _D+"/norotyper/data/database/refseqdb_2",
     "exe":
     {
         "makeblastdb": os.environ.get("NOROTYPER_MAKEBLASTDB") or shutil.which("makeblastdb"),

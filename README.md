@@ -1,61 +1,152 @@
-# norotyper: command-line norovirus genotyping (RIVM method)
+# norotyper
 
-Fork of `zhuzhanji/NorovirusGenotyping` (UCD diploma project). The original scripts are kept in `scripts/`; the
-maintained tool is the `norotyper` package.
+Command-line norovirus genotyping, replicating the published method of the
+[RIVM Norovirus Typing Tool](https://www.rivm.nl/mpf/typingtool/norovirus/).
 
-## What changed
-- **No machine-specific paths.** Data: `$NOROTYPER_DATA` or `<repo>/new_data`. Programs: found on `PATH`
-  (override with `NOROTYPER_BLASTN`, `NOROTYPER_MAKEBLASTDB`, `NOROTYPER_CLUSTALW`). Legacy scripts no longer
-  contain personal cluster paths or depend on the directory they are run from; temporary files are unique per run.
-- **Follows the published RIVM method**: BLAST against whole genomes (genogroup) -> >=100 nt overlap with ORF1 or
-  ORF2 -> MAFFT alignment to pre-aligned references -> neighbour-joining tree -> **100 bootstrap
-  replicates** -> a type is assigned only with bootstrap **>= 70%** (RIVM: "Only with bootstrap > 70").
-  The old `phylo.R` built a maximum-likelihood tree with **5** bootstraps; it is now 100 and only used by the legacy workflow.
-- **Finishes the job**: reports genogroup, ORF1 (P-type) and ORF2 (capsid) type with bootstrap support for any
-  number of sequences, in parallel (`--threads`).
+`norotyper` assigns, for each input sequence:
+
+- **genogroup** (BLAST against whole norovirus genomes)
+- **ORF1 P-type** (polymerase) with bootstrap support
+- **ORF2 capsid type** with bootstrap support
+
+A type is reported only when it reaches **>= 70% bootstrap support** over 100
+replicates, following RIVM's rule.
+
+> **Status: research code, validated on reference sequences only.** See
+> [Validation](#validation) before relying on the calls. The comparison against
+> RIVM's own calls has not yet been run.
+
+## Install
+
+```bash
+conda create -n norotyper -c conda-forge -c bioconda \
+    python=3.12 blast mafft numpy pandas biopython numba
+conda activate norotyper
+pip install .
+```
+
+BLAST and MAFFT must be on `PATH`. The reference data ships inside the package,
+so no extra download or configuration is needed. `numba` is optional and makes
+the bootstrap roughly ten times faster; without it a pure-NumPy fallback is used.
+
+For development, `conda env create -f environment.yml` installs the same stack
+plus `pytest` and an editable install.
 
 ## Use
+
+```bash
+norotyper contigs.fasta -o typed.tsv --threads 8
 ```
-conda install -c conda-forge -c bioconda blast clustalw biopython numpy pandas
-pip install -e .
-norotyper queries.fasta -o typed.tsv --threads 8        # --bootstraps 100 --min-support 70 are the defaults
-```
-Output columns: query, genogroup, orf1_type, orf1_support, orf2_type, orf2_support, note.
+
+Output is a TSV with one row per input sequence, in input order:
+
+| column | meaning |
+|---|---|
+| `query` | FASTA record id |
+| `genogroup` | `GI`, `GII`, … or `unassigned` |
+| `orf1_type` | P-type, `unassigned`, or empty if not typeable |
+| `orf1_support` | bootstrap % for the ORF1 call |
+| `orf2_type` | capsid type, `unassigned`, or empty if not typeable |
+| `orf2_support` | bootstrap % for the ORF2 call |
+| `note` | why a region was not typed (no BLAST hit, `<100 nt` overlap, support below threshold) |
+
+Useful options: `--bootstraps` (default 100), `--min-support` (default 70),
+`--threads`, `--seed` (the bootstrap is seeded, so runs are reproducible).
+
+### Input must be assembled
+
+`norotyper` types **contigs or whole genomes, not sequencing reads.** For an
+Illumina run: map or BLAST reads against norovirus references, assemble or
+cluster the hits (for example `vsearch` at 99% identity), then pass the
+representative sequences to `norotyper`.
+
+### Speed
+
+About **0.5 s per whole genome on one core**; 100 genomes in 26 s and 400 in
+99 s on two cores. Queries are independent, so throughput scales with
+`--threads`.
+
+## Method
+
+1. **Genogroup** — `blastn` against whole genomes (`norotyper/data/database`).
+2. **Region selection** — a region is typed only if the BLAST hit overlaps the
+   annotated ORF1 or ORF2 by at least 100 nt.
+3. **Alignment** — the query is cropped to the ORF window (+/- 300 nt) and added
+   to the pre-aligned reference set with MAFFT
+   (`--addfragments --6merpair --keeplength`), so reference columns never move.
+4. **Tree** — Tamura-Nei distances, neighbour-joining.
+5. **Bootstrap** — 100 replicates. A type is assigned when the query forms a
+   clade with all references of exactly one type in >= 70% of replicates.
+
+Reference sets follow the 2019 classification (Chhabra *et al.*).
 
 ## Validation
-- `python tests/loo_validation.py`: leave-one-out on the bundled reference sets (no internet).
-- `scripts/fetch_rivm_test_set.sh` then `norotyper ... ` then `python scripts/validate_vs_rivm.py typed.tsv`: compares
-  with the 5,986 RIVM calls in `new_data/results_rivm.csv` (needs NCBI access; not yet run).
 
-## Known differences from RIVM (to check with the RIVM comparison)
-- Distance: Tamura-Nei (analytic) instead of PAUP* HKY85; tree: NJ, as RIVM describes, but tie-breaking and
-  distance estimation differ slightly.
-- "Assigned" is defined as the query forming a clade with all (up to 2) reference sequences of one type in >=70%
-  of replicates. RIVM's exact clade rule and its choice of representative references are not published; the
-  subset of 2 per type is inferred from their description and from leave-one-out accuracy.
-- GII.4 variant assignment (RIVM step 3) is not implemented. Reference sets are the 2019 (Chhabra) sets.
-- The ORF region windows are the full annotated ORFs, not RIVM's fixed typing windows.
-- Licence: none yet; to be set by UCD.
+**Leave-one-out on the bundled reference set** (`python tests/loo_validation.py`,
+no internet needed). Each reference ORF is typed against all other references of
+its genogroup; its own label is the answer.
 
-## Leave-one-out results (bundled references, 100 bootstraps, >=70% support, 2 references per type)
-| Region | Queries | Assigned | Correct | Wrong |
-|---|---|---|---|---|
-| ORF2 capsid (GI, GII) | 125 | 100% | 100% | 0 |
-| ORF1 P-type (GI, GII) | 147 | 93.9% | 93.2% | 1 (GII.PNA4 called GII.P11 at 99%) |
-## Speed (v0.3)
-| Version | Aligner | Time per whole genome (1 core) |
-|---|---|---|
-| 0.2 | ClustalW profile alignment, one call per query and region | about 10 s (ORF1 + ORF2) |
-| 0.3 | MAFFT `--addfragments --6merpair --keeplength`, queries batched per region/genogroup, cropped to the ORF window | about 0.5 s |
+| Region | Queries | Genogroups | Distinct types | Assigned | Correct | Wrong |
+|---|---|---|---|---|---|---|
+| ORF2 capsid | 125 | GI, GII | 42 | 100% | 100% | 0 |
+| ORF1 P-type | 147 | GI, GII | 49 | 93.9% | 93.2% | 1 |
 
-What changed in 0.3, with no change to the calls:
-- **MAFFT replaces ClustalW** as default. The reference alignment is never recomputed and its columns stay fixed. `--6merpair` matters: MAFFT's default pairwise mode took 52 s for 20 ORF queries, `--6merpair` took 0.23 s.
-- **Queries are cropped** to the ORF region (BLAST hit coordinates + 300 nt) before alignment, so whole genomes are no longer aligned in full.
-- **Bootstrap:** identical alignment columns are collapsed to weighted patterns, base indicators are precomputed once (float32; counts are integers, so exact), and neighbour-joining plus the clade test run in numba (optional; pure numpy fallback).
-- **Parallel:** BLAST uses `--threads`, and alignment and bootstrapping run in the same worker pool, in chunks.
+Two caveats that matter:
 
-Measured on a 2-core machine (100 bootstraps): 100 genomes in 26 s, 400 genomes in 99 s. Throughput scales with cores (each query is independent), so 16 cores should do 400 genomes in roughly 15 s.
+- **The single error is a confident one.** `AB074893.1` (true `GII.PNA4`) was
+  called `GII.P11` at **99% support**. The 70% threshold did not catch it, so
+  bootstrap support must not be read as a guarantee of correctness.
+- **Leave-one-out flatters the tool.** Queries are curated, full-length
+  reference sequences. It shows the method is wired up correctly; it does not
+  predict accuracy on partial, divergent or chimeric environmental contigs.
 
-Regression checks against the v0.2 ClustalW results: leave-one-out, 272 sequences, 0 differing calls (ORF1 93.9% assigned / 93.2% correct, ORF2 100% / 100%); the 400-genome CLI output was byte-identical before and after float32 indicators, cropping and chunked parallelism (compared with the MAFFT run before those changes). Use `--backend clustalw` in `tests/loo_validation.py` to reproduce the old path.
+**Not yet validated:** against RIVM's own calls; on any genogroup outside
+GI/GII; on assembled environmental or wastewater contigs.
 
-**Illumina runs:** the tool types contigs or genomes, not reads. Map or BLAST reads to norovirus references, assemble or cluster the hits (e.g. vsearch at 99%), then give the representatives to `norotyper`.
+### Running the RIVM comparison
+
+`validation/results_rivm.csv` holds RIVM Typing Tool calls for **4,392
+GenBank accessions** (1,868 of them GII.4). You do **not** need to run anything
+through the RIVM web tool — the calls are already here. You need
+`entrez-direct` and outbound NCBI access:
+
+```bash
+scripts/fetch_rivm_test_set.sh rivm_test_set.fasta    # ~4,392 sequences from GenBank
+norotyper rivm_test_set.fasta -o rivm_typed.tsv --threads 16
+python scripts/validate_vs_rivm.py rivm_typed.tsv     # -> results/rivm_comparison.csv
+```
+
+The comparison reports, per region, how often the two tools agree where both
+assign a type, plus the cases where only one of them does.
+
+## Known differences from RIVM
+
+- **Distance and tree**: Tamura-Nei computed analytically with neighbour-joining,
+  rather than PAUP\* HKY85. Tie-breaking and distance estimation differ slightly.
+- **Clade rule**: "assigned" means the query groups with all (up to 2) references
+  of one type in >= 70% of replicates. RIVM's exact clade rule and its choice of
+  representative references are not published; the subset of two per type was
+  inferred from their description and from leave-one-out accuracy.
+- **GII.4 variant assignment (RIVM step 3) is not implemented.** This matters:
+  GII.4 is the most common capsid type in surveillance data.
+- **ORF windows** are the full annotated ORFs, not RIVM's fixed typing windows.
+
+## Repository layout
+
+```
+norotyper/            the maintained package
+  data/               reference sequences and BLAST database (installed with the code)
+scripts/              the original upstream pipeline, kept for provenance
+tests/                unit tests, CLI tests, leave-one-out validation
+validation/           RIVM comparison calls and taxonomy tables
+results/              leave-one-out output
+```
+
+## Attribution and licence
+
+MIT licensed. This is a fork and substantial rewrite of
+[zhuzhanji/NorovirusGenotyping](https://github.com/zhuzhanji/NorovirusGenotyping)
+by Yang Ji, and it reimplements the method of the RIVM Norovirus Typing Tool.
+See **[ATTRIBUTION.md](ATTRIBUTION.md)** for what came from where, the citations
+for RIVM and the 2019 classification, and an important note on upstream
+licensing. `norotyper` is not affiliated with or endorsed by RIVM.

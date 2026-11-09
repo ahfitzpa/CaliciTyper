@@ -1,16 +1,37 @@
 [project]
 name = "norotyper"
-version = "0.3.0"
+version = "0.4.0"
 description = "Command-line norovirus genotyping following the RIVM typing tool method"
+readme = "README.md"
 requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Amy Fitzpatrick" }]
 dependencies = ["biopython", "numpy", "pandas"]
+classifiers = [
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
+  "Topic :: Scientific/Engineering :: Bio-Informatics",
+]
 [project.optional-dependencies]
 fast = ["numba"]
 test = ["pytest"]
+[project.urls]
+Homepage = "https://github.com/ahfitzpa/norotyper"
 [project.scripts]
 norotyper = "norotyper.cli:main"
 [build-system]
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
+
 [tool.setuptools]
 packages = ["norotyper"]
+
+# The reference data lives inside the package so that it is installed with the
+# code; without this a wheel would contain only the .py files and the tool
+# could not run outside a source checkout.
+[tool.setuptools.package-data]
+norotyper = [
+  "data/database/*",
+  "data/reference_sequences_RdRp/*",
+  "data/reference_sequences_VP1/*",
+]

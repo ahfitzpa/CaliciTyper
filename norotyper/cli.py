@@ -29,6 +29,7 @@ def main(argv=None):
     p.add_argument("--threads", type=int, default=1); p.add_argument("--seed", type=int, default=1)
     p.add_argument("--version", action="version", version=__version__)
     a = p.parse_args(argv)
+    ty.cg.check_data()          # clear error if the bundled reference data is missing
     recs = [(r.id, str(r.seq)) for r in SeqIO.parse(a.fasta, "fasta")]
     with tempfile.TemporaryDirectory(prefix="norotyper_") as td:
         q = os.path.join(td, "all.fa")

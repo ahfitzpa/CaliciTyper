@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare norotyper output with the RIVM Norovirus Typing Tool results in new_data/results_rivm.csv.
+"""Compare norotyper output with the RIVM Norovirus Typing Tool results in validation/results_rivm.csv.
 Usage: norotyper rivm_test_set.fasta -o norotyper_out.tsv --threads 8
        python scripts/validate_vs_rivm.py norotyper_out.tsv"""
 import argparse, re
@@ -11,7 +11,7 @@ def norm(x):
     return re.sub(r"\s*\(.*\)$", "", str(x).strip())      # 'GI.P10 (GI.Pa)' -> 'GI.P10'
 
 ap = argparse.ArgumentParser()
-ap.add_argument("norotyper_tsv"); ap.add_argument("--rivm", default="new_data/results_rivm.csv")
+ap.add_argument("norotyper_tsv"); ap.add_argument("--rivm", default="validation/results_rivm.csv")
 ap.add_argument("--out", default="results/rivm_comparison.csv")
 a = ap.parse_args()
 mine = pd.read_csv(a.norotyper_tsv, sep="\t", dtype=str)

@@ -1,14 +1,15 @@
 name: norotyper
-channels: [conda-forge, bioconda, defaults]
+channels: [conda-forge, bioconda]
 dependencies:
   - python>=3.10
   - numpy
   - pandas
   - biopython
-  - blast        # genogroup assignment
-  - mafft        # fast alignment of queries to the pre-aligned references (default)
-  - clustalw     # only needed for the legacy --backend clustalw path
-  - numba        # optional: ~10x faster NJ in the bootstrap (pure-numpy fallback if absent)
+  - blast          # genogroup assignment
+  - mafft          # aligns queries onto the pre-aligned references (default backend)
+  - clustalw       # only for the legacy --backend clustalw path
+  - numba          # optional: ~10x faster bootstrap (pure-numpy fallback if absent)
+  - entrez-direct  # only for scripts/fetch_rivm_test_set.sh (RIVM comparison set)
   - pytest
   - pip
   - pip:

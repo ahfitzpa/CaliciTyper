@@ -1,0 +1,42 @@
+cff-version: 1.2.0
+title: "norotyper: command-line norovirus genotyping following the RIVM method"
+message: "If you use this software, please cite it as below."
+type: software
+authors:
+  - family-names: Fitzpatrick
+    given-names: Amy
+    affiliation: University College Dublin
+version: 0.4.0
+license: MIT
+repository-code: "https://github.com/ahfitzpa/norotyper"
+abstract: >-
+  norotyper assigns norovirus genogroup, ORF1 polymerase (P-) type and ORF2
+  capsid type to assembled contigs or whole genomes, replicating the published
+  method of the RIVM Norovirus Typing Tool: BLAST genogroup assignment, MAFFT
+  profile alignment onto fixed reference columns, neighbour-joining phylogeny,
+  and 100 bootstrap replicates with a 70% support threshold for assignment.
+  It is a fork and substantial rewrite of the NorovirusGenotyping project by
+  Yang Ji (zhuzhanji).
+keywords:
+  - norovirus
+  - genotyping
+  - phylogenetics
+  - bioinformatics
+  - wastewater surveillance
+references:
+  - type: article
+    title: "An automated genotyping tool for enteroviruses and noroviruses"
+    authors:
+      - family-names: Kroneman
+        given-names: Annelies
+      - family-names: Vennema
+        given-names: Harry
+      - family-names: Koopmans
+        given-names: Marion
+    journal: "Journal of Clinical Virology"
+    volume: 51
+    issue: 2
+    start: 121
+    end: 125
+    year: 2011
+    doi: "10.1016/j.jcv.2011.03.006"
