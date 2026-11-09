@@ -13,15 +13,36 @@ from pathlib import Path
 
 ALL_METHODS = ("rdp", "geneconv", "bootscan", "maxchi", "chimaera", "siscan", "threeseq")
 
-# Norovirus ORF boundaries are strain-dependent; these are windows on a
-# typical GI/GII genome, used only to say whether a breakpoint falls somewhere
-# biologically interesting. They are deliberately generous.
-DEFAULT_REGIONS = {
+# Breakpoint regions, per virus. These say only whether a breakpoint falls
+# somewhere biologically interesting; boundaries are strain-dependent and the
+# windows are deliberately generous.
+#
+# Norovirus: ORF1 (nonstructural, including RdRp), ORF2 (VP1 capsid), ORF3
+# (VP2). The dominant recombination hotspot is the ORF1/ORF2 junction.
+#
+# Sapovirus is NOT the same shape and cannot reuse the norovirus model. ORF1
+# encodes the nonstructural proteins AND the major capsid VP1 as one
+# polyprotein; ORF2 encodes the minor capsid VP2. The hotspot is therefore the
+# NS7(RdRp)/VP1 junction, which lies INSIDE ORF1 rather than between two ORFs
+# -- a porcine GIII recombinant maps its breakpoint to nt 5139 at exactly that
+# boundary. Labelling that an "ORF1-ORF2 junction" would be wrong, even though
+# the coordinate happens to be similar.
+REGIONS_NOROVIRUS = {
     "ORF1-ORF2 junction": [4800, 5600],
-    "ORF1": [5, 5100],
-    "ORF2": [5000, 6800],
-    "ORF3": [6700, 7600],
+    "ORF1 (nonstructural)": [5, 5100],
+    "ORF2 (VP1 capsid)": [5000, 6800],
+    "ORF3 (VP2)": [6700, 7600],
 }
+
+REGIONS_SAPOVIRUS = {
+    "RdRp-VP1 junction": [4800, 5500],
+    "ORF1 nonstructural (NS1-NS7)": [10, 5100],
+    "ORF1 VP1 capsid": [5100, 6800],
+    "ORF2 (VP2)": [6700, 7200],
+}
+
+REGIONS_BY_VIRUS = {"norovirus": REGIONS_NOROVIRUS, "sapovirus": REGIONS_SAPOVIRUS}
+DEFAULT_REGIONS = REGIONS_NOROVIRUS
 
 
 @dataclass
@@ -70,13 +91,18 @@ class RecombConfig:
     # cannot localise it -- see segment_support().
     segment_window: int = 1000
     seed: int = 3
-    regions: dict = field(default_factory=lambda: dict(DEFAULT_REGIONS))
+    virus: str = "norovirus"              # norovirus | sapovirus
+    regions: dict = field(default_factory=dict)   # empty -> taken from `virus`
     scoring: Scoring = field(default_factory=Scoring)
     status_rules: StatusRules = field(default_factory=StatusRules)
     openrdp_exe: str = ""                                  # else $CALICITYPER_OPENRDP, else PATH
     hyphy_exe: str = ""
 
     def validate(self):
+        if self.virus not in REGIONS_BY_VIRUS:
+            raise ValueError(f"virus must be one of {sorted(REGIONS_BY_VIRUS)}, got {self.virus!r}")
+        if not self.regions:
+            self.regions = dict(REGIONS_BY_VIRUS[self.virus])
         self.scoring.validate()
         bad = [m for m in self.methods if m not in ALL_METHODS]
         if bad:

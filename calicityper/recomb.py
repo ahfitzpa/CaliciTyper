@@ -688,6 +688,10 @@ def analyse(alignment_path, queries, cfg, metadata_path=None, workdir=None,
         "tools_used": ([f"OpenRDP ({','.join(used)})"] if used else []),
         "tools_skipped": [{"tool": t, "reason": r} for t, r in skipped],
         "parameters": {
+            # the virus model changes the biological_plausibility term, so a
+            # result is not interpretable without knowing which one was used
+            "virus": cfg.virus,
+            "regions": {k: list(v) for k, v in cfg.regions.items()},
             "pvalue_threshold": cfg.pvalue_threshold,
             "multiple_testing_correction": cfg.multiple_testing_correction,
             "n_tests_for_correction": n_tests,

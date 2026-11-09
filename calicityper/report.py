@@ -25,7 +25,7 @@ try:
     from bokeh.layouts import column as bk_column
     from bokeh.models import ColumnDataSource, Range1d
     from bokeh.plotting import figure
-    from bokeh.resources import CDN
+    from bokeh.resources import CDN, INLINE
     HAVE_BOKEH = True
 except ImportError:                                     # pragma: no cover
     HAVE_BOKEH = False
@@ -176,11 +176,21 @@ def to_json(rows, path, meta=None):
     return path
 
 
+def _md_cell(x):
+    """Escape a value for a Markdown table cell.
+
+    Pipes are not decoration here: FASTA ids look like "GII|NC_029646.1" and the
+    runner-up column is "GII.P12:93.0|GII.P31:1.0". Unescaped, each one ends the
+    cell early and the whole table collapses into the wrong columns.
+    """
+    return str(x if x is not None else "").replace("|", "\\|").replace("\n", " ")
+
+
 def _md_table(rows, columns):
     out = ["| " + " | ".join(columns) + " |",
            "| " + " | ".join("---" for _ in columns) + " |"]
     for r in rows:
-        out.append("| " + " | ".join(str(r.get(c, "") or "") for c in columns) + " |")
+        out.append("| " + " | ".join(_md_cell(r.get(c, "")) for c in columns) + " |")
     return "\n".join(out)
 
 
@@ -240,8 +250,14 @@ tbody tr:hover { background:color-mix(in srgb, var(--accent) 7%, transparent) }
 """
 
 
-def to_html(rows, path, figures=None, meta=None, notes=()):
-    """Self-contained HTML report: table, alignment panels, trees."""
+def to_html(rows, path, figures=None, meta=None, notes=(), embed_js=True):
+    """HTML report: table, alignment panels, trees.
+
+    embed_js=True inlines BokehJS so the file genuinely stands alone -- it opens
+    with no network, which is what an archived surveillance report needs. It
+    costs roughly 3 MB. embed_js=False links the Bokeh CDN instead, giving a
+    much smaller file that needs internet to render.
+    """
     cols = ["query", "genogroup", "orf1_type", "orf1_support", "orf1_runners",
             "orf2_type", "orf2_support", "orf2_runners", "note"]
     figures = [f for f in (figures or []) if f is not None]
@@ -264,7 +280,8 @@ def to_html(rows, path, figures=None, meta=None, notes=()):
     body = "".join("<tr>" + "".join(f"<td>{esc(r.get(c, ''))}</td>" for c in cols) + "</tr>"
                    for r in rows)
     ggrows = "".join(f"<tr><td>{esc(k)}</td><td>{v}</td></tr>" for k, v in sorted(gg.items()))
-    bokeh_css = CDN.render() if (HAVE_BOKEH and figures) else ""
+    bokeh_css = ((INLINE if embed_js else CDN).render()
+                 if (HAVE_BOKEH and figures) else "")
     notes_html = "".join(f'<div class="warn">{esc(n)}</div>' for n in notes)
 
     doc = f"""<!doctype html>

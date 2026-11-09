@@ -11,3 +11,5 @@ validation/results_rivm.csv
 validation/test_result_3.csv
 validation/*.fasta
 missing_accessions.txt
+recomb_out/
+aligned.fasta

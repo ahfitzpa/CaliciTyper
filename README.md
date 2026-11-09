@@ -3,7 +3,7 @@
 [![Classification](https://img.shields.io/badge/classification-Chhabra_2019-green.svg)](https://doi.org/10.1099/jgv.0.001318)
 [![Status](https://img.shields.io/badge/status-research_code-orange.svg)](BENCHMARKING.md)
 
-# calicityper: command-line calicivirus genotyping and norovirus recombination analysis
+# calicityper: command-line calicivirus genotyping and recombination analysis
 
 `calicityper` assigns norovirus genogroup, ORF1 polymerase (P-) type and ORF2
 capsid type to assembled contigs and whole genomes, replicating the published
@@ -29,8 +29,8 @@ and it drops into a pipeline.
 | Norovirus genotyping (ORF1 + ORF2) | GI, GII | validated |
 | Norovirus genotyping | GIII-GX | returns a call, **not validated** |
 | GII.4 variant resolution | 11 variants | validated |
-| Recombination analysis | **norovirus only** | working, see caveats |
-| **Sapovirus genotyping** | GI-GXIX | **reference tables drafted, not yet built** |
+| Recombination analysis | norovirus, sapovirus | working, see caveats |
+| **Sapovirus genotyping** | GI-GXIX | **not implemented** -- tables drafted, reference sets not built |
 
 ---
 
@@ -191,8 +191,24 @@ threshold by two points and nothing else drew support.
 
 ### `calicityper recomb`
 
-Detects and scores recombination. **Norovirus only** -- the reference panels
-and the ORF1/ORF2 junction model are norovirus-specific.
+Detects and scores recombination in **norovirus or sapovirus** (`--virus`).
+
+This command does **not** use the bundled typing reference data at all: it
+works on an alignment you supply, so it is independent of whether a virus is
+genotypeable. That is why sapovirus recombination works while sapovirus
+genotyping does not.
+
+`--virus` selects the genome model used to judge whether a breakpoint is in a
+plausible place, and the two are genuinely different:
+
+| | Genome organisation | Recombination hotspot |
+|---|---|---|
+| norovirus | ORF1 nonstructural, ORF2 VP1, ORF3 VP2 | ORF1/ORF2 junction |
+| sapovirus | **ORF1 carries NS proteins *and* VP1**; ORF2 is VP2 | **RdRp(NS7)/VP1 junction, inside ORF1** |
+
+Labelling a sapovirus breakpoint an "ORF1-ORF2 junction" would be wrong even
+though the coordinate is similar, so the region model is per-virus and is
+recorded in the provenance block.
 
 #### Output files
 
@@ -318,10 +334,20 @@ and
 Every accession was verified against NCBI, which caught four transcription
 errors.
 
-**The reference alignments have not been built from them yet**, so
-`calicityper` does not currently assign sapovirus genotypes. Sapovirus
-sequences are detected to genus and genogroup only. The tables are marked
-DRAFT and need a human read-through before the sets are built.
+**Sapovirus genotyping is not implemented.** The tables are step one of five;
+the sequences have not been downloaded, ORFs not extracted, reference sets not
+built, and nothing in the typing path is sapovirus-aware. Sapovirus input is
+currently detected to genus and genogroup only.
+
+The remaining work is the same chain that produced the norovirus sets: fetch
+the 198 accessions, extract the RdRp and VP1 coordinates, build per-group
+FASTAs, align them, and wire the groups into the typing path. The two typed
+regions carry over unchanged -- `orf1` means "RdRp region, giving a P-type" and
+`orf2` means "capsid region, giving a genotype", which sapovirus has even
+though both sit inside ORF1 -- so only the coordinate extraction differs.
+
+The tables are marked DRAFT and need a human read-through of the genotype
+groupings before the sets are built from them.
 
 ---
 
@@ -386,8 +412,13 @@ the RIVM web tool.
 
 ## FAQ
 
-**Can it type sapovirus?** Not yet. It detects sapovirus to genogroup; the
-genotype reference sets are drafted but not built.
+**Can it type sapovirus?** No. It detects sapovirus to genogroup only. The
+genotype tables are transcribed and verified, but the reference sets have not
+been built and the typing path is not sapovirus-aware.
+
+**But `recomb --virus sapovirus` works?** Yes, and the two are independent:
+`recomb` scores an alignment you supply and never touches the bundled typing
+reference data.
 
 **Can it take FASTQ?** No. Assemble or cluster first.
 
@@ -449,7 +480,7 @@ data location is overridable with `CALICITYPER_DATA`.
 ```bibtex
 @software{fitzpatrick_calicityper,
   author = {Amy Heather Fitzpatrick},
-  title  = {calicityper: command-line calicivirus genotyping and norovirus recombination analysis},
+  title  = {calicityper: command-line calicivirus genotyping and recombination analysis},
   url    = {https://github.com/ahfitzpa/calicityper},
   year   = {2026}
 }

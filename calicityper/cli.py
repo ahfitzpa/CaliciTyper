@@ -49,6 +49,9 @@ def _add_type_args(p):
     r.add_argument("--report-max-panels", type=int, default=20, metavar="N",
                    help="most alignment panels to draw, highest-support calls first [default: 20]")
     r.add_argument("--no-tree", action="store_true", help="skip the per-region trees in the HTML report")
+    r.add_argument("--html-cdn", action="store_true",
+                   help="link BokehJS from a CDN instead of embedding it: a much smaller "
+                        "HTML file that needs internet to render [default: embed, stands alone]")
     return p
 
 
@@ -61,6 +64,10 @@ def _add_recomb_args(p):
                    help="output directory for the JSON and TSV [default: recomb_out]")
     p.add_argument("--reference-metadata", help="TSV/CSV/JSON mapping reference ids to lineages")
     p.add_argument("--config", help="YAML or TOML configuration file")
+    p.add_argument("--virus", choices=sorted(_rc.REGIONS_BY_VIRUS), default="norovirus",
+                   help="which genome model to score breakpoints against. Norovirus puts the "
+                        "hotspot at the ORF1/ORF2 junction; sapovirus encodes VP1 inside ORF1, "
+                        "so its hotspot is the RdRp/VP1 junction [default: norovirus]")
     p.add_argument("--threads", type=int, default=1)
     p.add_argument("--min-length", type=int, help="override min_sequence_length")
     p.add_argument("--pvalue-threshold", type=float, help="override pvalue_threshold")
@@ -85,7 +92,7 @@ def main(argv=None):
     top.add_argument("--version", action="version", version=__version__)
     sub = top.add_subparsers(dest="command", required=True, metavar="{type,recomb}")
     _add_type_args(sub.add_parser("type", help="assign genogroup, ORF1 P-type and ORF2 capsid type"))
-    _add_recomb_args(sub.add_parser("recomb", help="detect and score recombination (norovirus only)"))
+    _add_recomb_args(sub.add_parser("recomb", help="detect and score recombination (norovirus or sapovirus)"))
 
     a = top.parse_args(argv)
     if a.command == "recomb":
@@ -235,14 +242,22 @@ def _write_reports(a, rows, alns):
         if not report.HAVE_BOKEH:
             notes.append("bokeh is not installed, so no figures were drawn "
                          "(pip install bokeh).")
-        report.to_html(rows, a.html, figures=figs, meta=meta, notes=notes)
+        report.to_html(rows, a.html, figures=figs, meta=meta, notes=notes,
+                       embed_js=not a.html_cdn)
 
 
 def _run_recomb(a):
-    """`calicityper recomb`: scan an alignment for recombination. Norovirus only."""
+    """`calicityper recomb`: scan an alignment for recombination.
+
+    Norovirus and sapovirus; --virus selects the genome model used to judge
+    whether a breakpoint falls in a biologically plausible place.
+    """
     from . import recomb as R
 
     cfg = _rc.load(a.config)
+    if a.virus:
+        cfg.virus = a.virus
+        cfg.regions = {}            # re-resolved from `virus` by validate()
     if a.min_length is not None:
         cfg.min_sequence_length = a.min_length
     if a.pvalue_threshold is not None:
@@ -294,6 +309,7 @@ def _run_recomb(a):
         print(f"queries          : {len(queries)}")
         print(f"methods requested: {' '.join(cfg.methods) or '(none)'}")
         print(f"OpenRDP          : {exe or 'NOT FOUND (set $CALICITYPER_OPENRDP)'}")
+        print(f"virus model      : {cfg.virus}")
         print(f"segment trees    : {'yes' if cfg.build_segment_trees else 'no'}")
         print(f"GARD             : {'requested' if cfg.run_gard else 'off'}")
         for q in queries[:10]:
