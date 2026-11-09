@@ -28,7 +28,7 @@ needs_tools = pytest.mark.skipif(
 
 def run_cli(fasta, out, *extra):
     """Invoke the CLI as a subprocess, the way a user does."""
-    cmd = [sys.executable, "-m", "norotyper.cli", str(fasta), "-o", str(out), *extra]
+    cmd = [sys.executable, "-m", "norotyper.cli", "type", str(fasta), "-o", str(out), *extra]
     p = subprocess.run(cmd, capture_output=True, text=True)
     assert p.returncode == 0, f"norotyper failed:\n{p.stdout}\n{p.stderr}"
     with open(out) as fh:
