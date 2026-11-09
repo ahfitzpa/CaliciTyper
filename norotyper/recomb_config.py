@@ -65,6 +65,10 @@ class RecombConfig:
     build_segment_trees: bool = True
     segment_bootstraps: int = 100
     min_segment_sites: int = 100
+    # Columns either side of a breakpoint used for the phylogeny check.
+    # 0 means "use the whole segment", which confirms recombination but
+    # cannot localise it -- see segment_support().
+    segment_window: int = 1000
     seed: int = 3
     regions: dict = field(default_factory=lambda: dict(DEFAULT_REGIONS))
     scoring: Scoring = field(default_factory=Scoring)
