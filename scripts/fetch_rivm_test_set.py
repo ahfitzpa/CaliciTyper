@@ -31,15 +31,21 @@ EUTILS = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
 TOOL = "norotyper"
 
 
-def wanted_accessions():
+def wanted_accessions(every=False):
+    """Accessions to fetch.
+
+    By default only the records RIVM assigned a capsid or polymerase type
+    (4,392), which is what the genotype comparison needs. With `every`, all
+    5,986 records, including the non-norovirus caliciviruses -- needed to score
+    genogroup DETECTION, since that must also reject sapoviruses, lagoviruses
+    and vesiviruses correctly.
+    """
     with open(RIVM) as fh:
         rows = list(csv.DictReader(fh))
-    accs = {
-        r["name"].split(".")[0]
-        for r in rows
-        if (r.get("capsid type") or "").strip() or (r.get("polymerase type") or "").strip()
-    }
-    return sorted(accs)
+    if not every:
+        rows = [r for r in rows
+                if (r.get("capsid type") or "").strip() or (r.get("polymerase type") or "").strip()]
+    return sorted({r["name"].split(".")[0] for r in rows})
 
 
 def already_have(path):
@@ -81,10 +87,13 @@ def main():
     ap.add_argument("--batch", type=int, default=50, help="accessions per request (keeps the URL short)")
     ap.add_argument("--api-key", default=os.environ.get("NCBI_API_KEY", ""))
     ap.add_argument("--email", default=os.environ.get("NCBI_EMAIL", "norotyper@example.org"))
+    ap.add_argument("--all", action="store_true", dest="every",
+                    help="fetch all 5,986 RIVM records, not just the 4,392 with a type call "
+                         "(needed to score genogroup detection on non-norovirus caliciviruses)")
     a = ap.parse_args()
 
     out = Path(a.out)
-    accs = wanted_accessions()
+    accs = wanted_accessions(a.every)
     have = already_have(out)
     todo = [x for x in accs if x not in have]
     delay = 0.12 if a.api_key else 0.40           # stay under 10/s with a key, 3/s without

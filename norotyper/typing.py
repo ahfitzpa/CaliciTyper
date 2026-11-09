@@ -131,8 +131,8 @@ def region_overlap(hit, region):
 
 
 def type_query(rec_id, seq, hit, nrep=100, seed=1, min_support=70.0, max_refs_per_type=None):
-    row = dict(query=rec_id, genogroup="unassigned", orf1_type="", orf1_support="", orf2_type="", orf2_support="",
-               note="")
+    row = dict(query=rec_id, genogroup="unassigned", orf1_type="", orf1_support="", orf1_runners="",
+               orf2_type="", orf2_support="", orf2_runners="", note="")
     if hit is None:
         row["note"] = "no BLAST hit (not a norovirus / Caliciviridae sequence in reference set)"
         return row
@@ -180,8 +180,8 @@ def orf_window(hit, region):
 
 def plan_query(rec_id, seq, hit):
     """Decide what to do with one query. Returns (row, jobs) where jobs = [(region, group, oriented_seq)]."""
-    row = dict(query=rec_id, genogroup="unassigned", orf1_type="", orf1_support="", orf2_type="", orf2_support="",
-               note="")
+    row = dict(query=rec_id, genogroup="unassigned", orf1_type="", orf1_support="", orf1_runners="",
+               orf2_type="", orf2_support="", orf2_runners="", note="")
     if hit is None:
         row["note"] = "no BLAST hit (not a norovirus / Caliciviridae sequence in reference set)"
         return row, []
@@ -208,9 +208,23 @@ def plan_query(rec_id, seq, hit):
     return row, jobs
 
 
+MAX_RUNNERS = 3          # how many ranked types to report per region
+
+
+def format_runners(supports, n=MAX_RUNNERS):
+    """'GII.P31:97.0|GII.P16:2.0' -- the n best-supported types, best first.
+
+    assign() already ranks these; they were computed and then discarded.
+    Useful for near-threshold calls, where the runner-up is the real question.
+    """
+    ranked = sorted((supports or {}).items(), key=lambda kv: (-kv[1], kv[0]))[:n]
+    return "|".join(f"{t}:{v:.1f}" for t, v in ranked)
+
+
 def apply_result(row, region, res, min_support):
     row[f"{region}_type"] = res["type"] or "unassigned"
     row[f"{region}_support"] = round(res["support"], 1)
+    row[f"{region}_runners"] = format_runners(res.get("supports"))
     if res["type"] is None:
         extra = f"{region}: best {res.get('best_type', '-')} {res['support']:.0f}% < {min_support:.0f}%"
         row["note"] = "; ".join(x for x in (row["note"], extra) if x)

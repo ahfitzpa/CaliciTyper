@@ -62,6 +62,32 @@ def rivm_variant(x):
     return re.sub(r"_\d{4}[a-z]?$", "", s)
 
 
+NOROVIRUS_RE = re.compile(r"^caliciviridae[ _]norovirus[ _](g[ivx]+)$", re.I)
+
+
+def genogroup_label(x):
+    """Reduce either tool's genogroup to one comparable label.
+
+    RIVM reports it in the `BLAST` column as a lineage string
+    ("Caliciviridae Norovirus GII", "Caliciviridae Sapovirus GI",
+    "Caliciviridae Lagovirus unclassified"). norotyper reports the subject
+    prefix of its BLAST database, which is a bare genogroup for norovirus
+    ("GII") and an underscored lineage for everything else
+    ("Caliciviridae_Sapovirus_GI"). Both collapse to the same form here:
+    norovirus -> "GII"; anything else -> "Sapovirus GI", "Lagovirus unclassified".
+    """
+    if pd.isna(x) or str(x).strip().lower() in UNASSIGNED:
+        return "unassigned"
+    s = re.sub(r"[_]+", " ", str(x).strip())
+    s = re.sub(r"\s+", " ", s)
+    m = NOROVIRUS_RE.match(s)
+    if m:
+        return m.group(1).upper()
+    if re.fullmatch(r"g[ivx]+", s, re.I):             # norotyper's bare norovirus genogroup
+        return s.upper()
+    return re.sub(r"^caliciviridae ", "", s, flags=re.I)
+
+
 def summarise(d, label):
     both = d[(d.nt != "unassigned") & (d.rivm != "unassigned")]
     return dict(
@@ -102,6 +128,22 @@ def main():
         rows.append(summarise(d, label))
         d[d.nt != d.rivm][["query", "nt", "rivm", ms, rs]].to_csv(
             a.out.replace(".csv", f"_{label.split()[0]}_discordant.csv"), index=False)
+
+    # Genogroup detection, scored against RIVM's BLAST lineage column. This
+    # covers every matched record, including the non-norovirus caliciviruses,
+    # so it is a wider test than genotyping (which needs a curated alignment).
+    d = m.copy()
+    d["nt"] = d["genogroup"].map(genogroup_label)
+    d["rivm"] = d["BLAST"].map(genogroup_label)
+    d = d[(d.nt != "unassigned") | (d.rivm != "unassigned")]
+    rows.insert(0, summarise(d, "Genogroup"))
+    d[d.nt != d.rivm][["query", "nt", "rivm"]].to_csv(
+        a.out.replace(".csv", "_Genogroup_discordant.csv"), index=False)
+
+    # Genogroup restricted to the sequences RIVM calls norovirus at all.
+    nv = d[d.rivm.str.fullmatch(r"G[IVX]+", na=False)]
+    if len(nv):
+        rows.insert(1, summarise(nv, "Genogroup (norovirus only)"))
 
     # GII.4 variant, compared against RIVM's separate subtype column.
     g = m[m["capsid type"].map(genotype) == "GII.4"].copy()
