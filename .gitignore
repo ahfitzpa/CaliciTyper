@@ -7,3 +7,7 @@ dist/
 *.whl
 results/*.log
 rivm_test_set.fasta
+validation/results_rivm.csv
+validation/test_result_3.csv
+validation/*.fasta
+missing_accessions.txt

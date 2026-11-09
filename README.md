@@ -105,15 +105,17 @@ GI/GII; on assembled environmental or wastewater contigs.
 
 ### Running the RIVM comparison
 
-`validation/results_rivm.csv` holds RIVM Typing Tool calls for **4,392
-GenBank accessions** (1,868 of them GII.4). You do **not** need to run anything
-through the RIVM web tool — the calls are already here. You need
-`entrez-direct` and outbound NCBI access:
+The answer set is RIVM Typing Tool calls for **4,392 GenBank accessions**
+(1,868 of them GII.4). You do **not** need to run anything through the RIVM web
+tool to use it — but the file is **not redistributed in this repository**; see
+[validation/README.md](validation/README.md) for where to get it and put it.
+
+With `validation/results_rivm.csv` in place, and outbound NCBI access:
 
 ```bash
-scripts/fetch_rivm_test_set.sh rivm_test_set.fasta    # ~4,392 sequences from GenBank
+python scripts/fetch_rivm_test_set.py rivm_test_set.fasta   # ~4,392 seqs from GenBank
 norotyper rivm_test_set.fasta -o rivm_typed.tsv --threads 16
-python scripts/validate_vs_rivm.py rivm_typed.tsv     # -> results/rivm_comparison.csv
+python scripts/validate_vs_rivm.py rivm_typed.tsv           # -> results/rivm_comparison.csv
 ```
 
 The comparison reports, per region, how often the two tools agree where both
@@ -138,7 +140,7 @@ norotyper/            the maintained package
   data/               reference sequences and BLAST database (installed with the code)
 scripts/              the original upstream pipeline, kept for provenance
 tests/                unit tests, CLI tests, leave-one-out validation
-validation/           RIVM comparison calls and taxonomy tables
+validation/           taxonomy tables; RIVM comparison inputs go here (untracked)
 results/              leave-one-out output
 ```
 
