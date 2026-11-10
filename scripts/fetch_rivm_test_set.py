@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 """Fetch the GenBank sequences that the RIVM Typing Tool called, for comparison.
 
-Reads the accessions out of validation/results_rivm.csv (every row carrying a
-polymerase or capsid call) and downloads them from NCBI into one FASTA.
+Reads the versioned accessions from validation/rivm_accessions.tsv (shipped in
+the repository) and downloads exactly those versions from NCBI into one FASTA.
+Versions matter: GenBank records are revised, and a bare accession returns the
+newest version, which is not necessarily the sequence RIVM typed. RIVM's own
+calls (validation/results_rivm.csv, not redistributed) are only needed to
+score the run afterwards, not to fetch it.
 
 Why not entrez-direct: `efetch` POSTs batches and NCBI drops those connections
 under throttling ("SSL_read: unexpected eof"), which fails silently per batch.
@@ -26,7 +30,7 @@ import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-RIVM = ROOT / "validation" / "results_rivm.csv"
+ACCESSIONS = ROOT / "validation" / "rivm_accessions.tsv"
 EUTILS = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
 TOOL = "calicityper"
 
@@ -40,23 +44,22 @@ def wanted_accessions(every=False):
     genogroup DETECTION, since that must also reject sapoviruses, lagoviruses
     and vesiviruses correctly.
     """
-    with open(RIVM) as fh:
-        rows = list(csv.DictReader(fh))
+    with open(ACCESSIONS) as fh:
+        rows = list(csv.DictReader(fh, delimiter="\t"))
     if not every:
-        rows = [r for r in rows
-                if (r.get("capsid type") or "").strip() or (r.get("polymerase type") or "").strip()]
-    return sorted({r["name"].split(".")[0] for r in rows})
+        rows = [r for r in rows if r["genotype_set"] == "yes"]
+    return sorted({r["accession"] for r in rows})
 
 
 def already_have(path):
-    """Accessions already present in a partially written FASTA, for resuming."""
+    """Versioned accessions already present in a partially written FASTA, for resuming."""
     if not path.exists():
         return set()
     have = set()
     with open(path) as fh:
         for line in fh:
             if line.startswith(">"):
-                have.add(line[1:].split()[0].split(".")[0])
+                have.add(line[1:].split()[0])
     return have
 
 

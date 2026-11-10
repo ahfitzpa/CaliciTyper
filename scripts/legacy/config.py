@@ -1,5 +1,5 @@
 import os, shutil
-_D = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # repository root
+_D = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # repository root
 paths = {
     # annotation file for blast ref seq
     "annotation": _D+"/calicityper/data/database/refseq_annotation.csv",

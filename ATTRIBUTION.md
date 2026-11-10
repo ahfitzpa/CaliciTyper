@@ -9,7 +9,7 @@ a University College Dublin diploma project by **Yang Ji** (GitHub:
 
 What came from upstream:
 
-- The original pipeline, retained unchanged in `scripts/` for provenance
+- The original pipeline, retained in `scripts/legacy/` for provenance (unchanged apart from relative paths, adjusted one level for the move)
   (`DataPreparation.py`, `workflow.py`, `clustalw.py`, `blastn.py`, `phylo.R`,
   `makedb.sh`, `msa_reference_data.py`, `utils.py`, `config.py`).
 - The curated norovirus reference sequence sets and BLAST database now in

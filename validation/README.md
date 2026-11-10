@@ -50,6 +50,6 @@ comparison). Accession IDs are public GenBank identifiers; RIVM's calls are
 not included.
 
 `rdrp_taxonomy.csv` and `vp1_taxonomy.csv` (about 7 kB each) stay tracked.
-They are not validation data: the legacy `scripts/msa_reference_data.py` reads
+They are not validation data: the legacy `scripts/legacy/msa_reference_data.py` reads
 them to rebuild the reference sequence sets, so they are inputs to the
 reference data rather than test fixtures.

@@ -15,7 +15,7 @@ if __name__ == "__main__":
   utl.Clustalw(sequences = path2 + '.orf', output = path2 + '.aln')
   
   # pre-align all orf1, pre-align all orf2
-  path2 = "./../calicityper/data/reference_sequences_RdRp/all"
+  path2 = "./../../calicityper/data/reference_sequences_RdRp/all"
   utl.Clustalw(sequences = path2 + '.orf', output = path2 + '.aln')
-  path2 = "./../calicityper/data/reference_sequences_VP1/all"
+  path2 = "./../../calicityper/data/reference_sequences_VP1/all"
   utl.Clustalw(sequences = path2 + '.orf', output = path2 + '.aln')

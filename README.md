@@ -536,14 +536,12 @@ reference set contains the right answer. GIII has two or three references.
 **Do I need OpenRDP?** Only for `recomb`. Without it the command still runs and
 reports every method it skipped.
 
-**Why is it slow?** Most often it's BLAS thread oversubscription: with
-`--threads` above 1, each worker's NumPy starts its own thread pool and they
-fight over the cores. Pinning them was **63x faster** in a controlled test, with
-identical calls. Set these before running:
-
-```bash
-export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1
-```
+**Why is it slow?** Before 0.6.0 it was usually BLAS thread
+oversubscription: with `--threads` above 1, each worker's NumPy started its
+own thread pool and they fought over the cores. Pinning them was **63x
+faster** in a controlled test, with identical calls, and calicityper now pins
+them itself (a value you export still wins). If you import calicityper as a
+library after NumPy, export `OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1` yourself.
 
 Beyond that, the bootstrap is ~95% of runtime and its cost scales with the
 square of the genogroup's reference count, so GII is much slower than GI.

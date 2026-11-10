@@ -245,8 +245,11 @@ Pinning does not change any result; it only removes the contention. At the
 pinned rate, the 4,392-sequence RIVM set projects to about 21 minutes on 16
 cores.
 
-**Until this is fixed inside the package, set these before running
-`calicityper`:**
+**Fixed in 0.6.0:** `calicityper` now sets these to 1 itself, at import,
+before NumPy loads, so the default is the fast path. A value you export
+yourself still wins. Checked: 100 sequences on 4 threads with nothing
+exported ran in 19 s, with output identical to a manually pinned run. If you
+use calicityper as a library and import NumPy first, set them yourself:
 
 ```bash
 export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1

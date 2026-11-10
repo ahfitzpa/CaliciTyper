@@ -14,7 +14,7 @@ Entrez.email = "foreexample@ucdconnect.ie"
 # Download reference sequences from GenBank
 # Write these fasta into refseq_2.fasta
 def DownloadFastaFromGenbak():  
-    wholef = open('./../calicityper/data/database/refseq_2.fasta', 'w') 
+    wholef = open('./../../calicityper/data/database/refseq_2.fasta', 'w') 
     for group, nums in cg.numbers.items():
         for id in nums:
             handle = Entrez.efetch(db="sequences", id = id, rettype="fasta", retmode="text")
@@ -134,8 +134,8 @@ def ExtractOrfs():
             file.close()
             
     # writing all orfs into ofr1/orf2 file, for pre-MSA
-    file1 = open('./../calicityper/data/reference_sequences_RdRp/all.orf', 'w') 
-    file2 = open('./../calicityper/data/reference_sequences_VP1/all.orf', 'w') 
+    file1 = open('./../../calicityper/data/reference_sequences_RdRp/all.orf', 'w') 
+    file2 = open('./../../calicityper/data/reference_sequences_VP1/all.orf', 'w') 
 
     for group, p in cg.paths['prefix'].items():
         if os.path.isfile(p[0] + '.orf'):
@@ -155,7 +155,7 @@ def ExtractOrfs():
 
 def TranslateORF2():
     taxfile2 = pd.read_csv(cg.paths['taxonomy']['vp1'], sep=",",skiprows = 1)
-    orf2pall = open("./../calicityper/data/reference_sequences_VP1/all.pro", 'w')
+    orf2pall = open("./../../calicityper/data/reference_sequences_VP1/all.pro", 'w')
     for group, paths in cg.paths['prefix'].items():
         if os.path.isfile(paths[1] + '.orf'):
             orf2p = open(paths[1] + '.pro', 'w')
