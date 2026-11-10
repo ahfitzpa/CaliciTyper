@@ -40,6 +40,15 @@ Only the small summary written to `results/` is committed, not the inputs.
 
 ### Kept in git
 
+`rivm_accessions.tsv` lists every accession in the RIVM benchmark, all 5,986
+of them, **with the GenBank version** (`MW460210.1`, not `MW460210`). GenBank
+records get revised, and a fetch by bare accession returns the newest version,
+which is not necessarily the one RIVM typed. `genotype_set` is `yes` for the
+4,392 records that have a capsid or polymerase call (the genotype comparison)
+and `no` for the rest (non-norovirus caliciviruses, used in the genogroup
+comparison). Accession IDs are public GenBank identifiers; RIVM's calls are
+not included.
+
 `rdrp_taxonomy.csv` and `vp1_taxonomy.csv` (about 7 kB each) stay tracked.
 They are not validation data: the legacy `scripts/msa_reference_data.py` reads
 them to rebuild the reference sequence sets, so they are inputs to the

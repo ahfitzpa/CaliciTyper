@@ -13,10 +13,10 @@ evidence than they are.
 | Test | What it measures | Scope | Status |
 |---|---|---|---|
 | [Leave-one-out](#1-leave-one-out-on-the-bundled-references) | internal consistency of the typing method | 272 queries, GI + GII | complete |
-| [RIVM genotype comparison](#2-rivm-genotype-comparison) | agreement with the reference implementation | 4,392 GenBank accessions | running |
+| [RIVM genotype comparison](#2-rivm-genotype-comparison) | agreement with the reference implementation | 4,392 GenBank accessions | not yet completed |
 | [RIVM genogroup comparison](#3-rivm-genogroup-comparison) | genogroup detection, including rejecting non-noroviruses | 5,986 accessions | queued |
 | [Synthetic recombination](#4-synthetic-recombination-datasets) | recombination sensitivity and specificity | 6 generated datasets | complete |
-| [Performance](#5-performance) | runtime and where it goes | profiling + end-to-end | partial |
+| [Performance](#5-performance) | runtime and where it goes | profiling + controlled A/B | complete |
 
 ---
 
@@ -84,7 +84,9 @@ The comparison therefore scores genotype agreement on the genotype stem
 (`GII.4_Sydney` -> `GII.4`) and reports the GII.4 variant separately against
 RIVM's subtype column, with the emergence year stripped.
 
-**Result: not yet available.** The run has not completed.
+**Result: not yet available.** Earlier attempts did not finish. They ran with
+default BLAS threading, which made each sequence about 60x slower than
+necessary (see [Performance](#5-performance)), and two were interrupted.
 
 ---
 
@@ -220,14 +222,38 @@ reference count, so genogroup drives runtime:
 
 **Replacing MAFFT is not worth doing** -- a perfect aligner saves under 5%.
 
-### Unresolved
+### BLAS thread oversubscription (resolved)
 
-An earlier figure of 0.5 s per genome was measured on GI and does not
-generalise; real data is overwhelmingly GII. A full run of 4,391 mostly-GII
-sequences on 16 cores took far longer than the per-component measurements
-predict, and **that discrepancy is not yet explained**. A controlled A/B test of
-BLAS thread pinning is pending. Until it resolves, treat the per-step table as
-reliable and any end-to-end projection as optimistic.
+End-to-end runs were far slower than the per-step profile predicts. The cause
+is thread oversubscription. `--threads N` starts N worker processes, and by
+default each one's numerical library (OpenBLAS/MKL via NumPy) starts its own
+pool of threads, one per core. On 16 cores that is about 16 x 16 threads
+competing for 16 cores. Almost all the CPU time goes on contention rather than
+work.
+
+Controlled A/B test: same 100 sequences from the RIVM test set (92 GII, 8 GI),
+same node (16 cores), `--threads 16`, only the BLAS thread setting changed.
+
+| | Wall time | Per sequence | Calls |
+|---|---|---|---|
+| A: default BLAS threading | 1,823 s | 18.2 s | |
+| B: BLAS pinned to 1 thread per worker | **29 s** | **0.29 s** | byte-identical to A |
+| Speedup | **62.9x** | | |
+
+Pinning does not change any result; it only removes the contention. At the
+pinned rate, the 4,392-sequence RIVM set projects to about 21 minutes on 16
+cores.
+
+**Until this is fixed inside the package, set these before running
+`calicityper`:**
+
+```bash
+export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1
+```
+
+The per-step table above was measured single-process, so oversubscription does
+not affect it. The earlier figure of 0.5 s per genome was measured on GI and
+understates GII, which is the bulk of real data.
 
 Install `numba`; without it the bootstrap is roughly 8x slower.
 

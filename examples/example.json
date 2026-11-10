@@ -1,0 +1,99 @@
+{
+  "tool": "calicityper",
+  "generated": "2026-11-10T11:07:38+00:00",
+  "n_queries": 3,
+  "meta": {
+    "bootstraps": 100,
+    "min_support": 70.0,
+    "max_refs_per_type": 2,
+    "seed": 1,
+    "input": "example.fasta"
+  },
+  "results": [
+    {
+      "query": "MW305639.1",
+      "genogroup": "GII",
+      "orf1_type": "unassigned",
+      "orf1_support": 65.0,
+      "orf1_runners": [
+        {
+          "type": "GII.P16",
+          "support": 65.0
+        },
+        {
+          "type": "GII.P1",
+          "support": 0.0
+        },
+        {
+          "type": "GII.P11",
+          "support": 0.0
+        }
+      ],
+      "orf2_type": "GII.4_Sydney",
+      "orf2_support": 100.0,
+      "orf2_runners": [
+        {
+          "type": "GII.4_Sydney",
+          "support": 100.0
+        },
+        {
+          "type": "GII.1",
+          "support": 0.0
+        },
+        {
+          "type": "GII.10",
+          "support": 0.0
+        }
+      ],
+      "note": "orf1: best GII.P16 65% < 70%"
+    },
+    {
+      "query": "MT451991.1",
+      "genogroup": "GI",
+      "orf1_type": "GI.P13",
+      "orf1_support": 100.0,
+      "orf1_runners": [
+        {
+          "type": "GI.P13",
+          "support": 100.0
+        },
+        {
+          "type": "GI.P1",
+          "support": 0.0
+        },
+        {
+          "type": "GI.P10",
+          "support": 0.0
+        }
+      ],
+      "orf2_type": "GI.3",
+      "orf2_support": 100.0,
+      "orf2_runners": [
+        {
+          "type": "GI.3",
+          "support": 100.0
+        },
+        {
+          "type": "GI.1",
+          "support": 0.0
+        },
+        {
+          "type": "GI.2",
+          "support": 0.0
+        }
+      ],
+      "note": ""
+    },
+    {
+      "query": "MN509084.1",
+      "genogroup": "Caliciviridae_Sapovirus_GII",
+      "orf1_type": "",
+      "orf1_support": "",
+      "orf1_runners": [],
+      "orf2_type": "",
+      "orf2_support": "",
+      "orf2_runners": [],
+      "note": "other Caliciviridae: genogroup only"
+    }
+  ]
+}

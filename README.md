@@ -75,6 +75,19 @@ OpenRDP is unpackaged (no PyPI or bioconda release), so pin the git SHA for a
 reproducible deployment. Without it, `recomb` still runs and reports which
 methods were skipped and why.
 
+## Quick start
+
+Type the three bundled example genomes (two noroviruses, one sapovirus):
+
+```bash
+calicityper type examples/example.fasta -o example_typed.tsv --threads 4 --report example
+```
+
+This takes under a minute. Compare your `example_typed.tsv` with
+[examples/example_typed.tsv](examples/example_typed.tsv); they should match
+exactly, because the bootstrap is seeded. [examples/README.md](examples/README.md)
+explains each row.
+
 ## Test
 
 ```bash
@@ -161,17 +174,20 @@ Assigns genogroup and, for norovirus, ORF1 and ORF2 types.
 | `orf2_runners` | as `orf1_runners` |
 | `note` | why a region was not typed: no BLAST hit, `<100 nt` ORF overlap, support below threshold |
 
-Example:
+Example, the real output for [examples/example.fasta](examples/example.fasta)
+(runner-up columns shortened to the top two):
 
-| query | genogroup | orf1_type | orf1_support | orf1_runners | orf2_type | note |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| NC_001959.2 | GI | GI.P1 | 100.0 | `GI.P1:100.0\|GI.P10:0.0` | GI.1 | |
-| NC_039476.1 | GII | GII.P16 | 72.0 | `GII.P16:72.0\|GII.P1:0.0` | GII.2 | |
-| frag_07 | GII | | | | GII.3 | orf1: <100 nt overlap |
-| junk_01 | unassigned | | | | | no BLAST hit |
+| query | genogroup | orf1_type | orf1_support | orf1_runners | orf2_type | orf2_support | note |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| MW305639.1 | GII | unassigned | 65.0 | `GII.P16:65.0\|GII.P1:0.0` | GII.4_Sydney | 100.0 | orf1: best GII.P16 65% < 70% |
+| MT451991.1 | GI | GI.P13 | 100.0 | `GI.P13:100.0\|GI.P1:0.0` | GI.3 | 100.0 | |
+| MN509084.1 | Caliciviridae_Sapovirus_GII | | | | | | other Caliciviridae: genogroup only |
 
-The second row is what the runner-up column is for: `GII.P16` cleared the 70%
-threshold by two points and nothing else drew support.
+The first row is what the runner-up column is for. RIVM calls this genome
+GII.4 Sydney[P16]. `calicityper` agrees on the capsid, but `GII.P16` reached
+only 65% bootstrap support, so ORF1 is left `unassigned` rather than called. The
+runner-up column still shows the best candidate, and `note` gives the reason.
+The `.json` and `.md` reports for the same run are in [examples/](examples/).
 
 #### Options
 
@@ -388,9 +404,9 @@ Two caveats that matter:
   called `GII.P11` at **99% support**. Bootstrap support is not a guarantee of
   correctness.
 
-The comparison against RIVM's own calls for 4,392 accessions is **running**;
-the genogroup comparison over all 5,986 is **queued**. Neither number is
-available yet.
+The comparison against RIVM's own calls for 4,392 accessions has **not yet
+completed**, and the genogroup comparison over all 5,986 is **queued**. Neither
+number is available yet.
 
 ---
 
@@ -433,9 +449,19 @@ reference set contains the right answer. GIII has two or three references.
 **Do I need OpenRDP?** Only for `recomb`. Without it the command still runs and
 reports every method it skipped.
 
-**Why is it slow?** The bootstrap is ~95% of runtime, and cost scales with the
+**Why is it slow?** Most often it's BLAS thread oversubscription: with
+`--threads` above 1, each worker's NumPy starts its own thread pool and they
+fight over the cores. Pinning them was **63x faster** in a controlled test, with
+identical calls. Set these before running:
+
+```bash
+export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1
+```
+
+Beyond that, the bootstrap is ~95% of runtime and its cost scales with the
 square of the genogroup's reference count, so GII is much slower than GI.
-Install `numba`; without it the bootstrap is roughly 8x slower.
+Install `numba`; without it the bootstrap is roughly 8x slower. See
+[BENCHMARKING.md](BENCHMARKING.md#5-performance).
 
 ---
 
@@ -474,6 +500,38 @@ data location is overridable with `CALICITYPER_DATA`.
 - Distribution via PyPI and bioconda.
 
 ---
+
+## Resources
+
+### Papers
+
+- **Typing method** this tool reimplements: Kroneman *et al.* 2011, *J Clin
+  Virol* 51:121-125. [doi:10.1016/j.jcv.2011.03.006](https://doi.org/10.1016/j.jcv.2011.03.006)
+- **Norovirus classification** (genogroups, P-types, capsid types; the
+  reference strains bundled here): Chhabra *et al.* 2019, *J Gen Virol*
+  100:1393-1406. [doi:10.1099/jgv.0.001318](https://doi.org/10.1099/jgv.0.001318)
+
+### Related tools
+
+- [RIVM Norovirus Typing Tool](https://www.rivm.nl/mpf/typingtool/norovirus/):
+  the web tool whose method and calls `calicityper` is benchmarked against.
+- [OpenRDP](https://github.com/PoonLab/OpenRDP): the recombination scanners
+  behind `calicityper recomb`.
+- [zhuzhanji/NorovirusGenotyping](https://github.com/zhuzhanji/NorovirusGenotyping):
+  the upstream project this repository was forked from.
+
+### Datasets
+
+| Data | Where | Notes |
+|---|---|---|
+| Typing reference sequences | `calicityper/data/` (installed with the package) | from Chhabra *et al.* 2019 |
+| Example input and outputs | [examples/](examples/) | three public GenBank genomes |
+| RIVM benchmark accession list | [validation/rivm_accessions.tsv](validation/rivm_accessions.tsv) | 5,986 versioned GenBank accessions; `genotype_set` marks the 4,392 used for the genotype comparison |
+| RIVM's calls for those accessions | not redistributed; see [validation/README.md](validation/README.md) | required to score a benchmark run |
+
+The benchmark sequences themselves are not stored here. They are public
+GenBank records, so the accession list is enough to download them;
+[BENCHMARKING.md](BENCHMARKING.md) has the commands and the results.
 
 ## Citation
 
