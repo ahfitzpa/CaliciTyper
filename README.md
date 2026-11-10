@@ -23,13 +23,7 @@ genomes for recombination and reports evidence-weighted events rather than a
 yes/no answer.
 
 Every other norovirus typing tool we are aware of -- the RIVM tool, CDC's
-HuCaT -- is web-only. `calicityper` is the scriptable equivalent: no uploading
-surveillance sequences to a third-party form, reproducible with a fixed seed,
-and it drops into a pipeline.
-
-> **Status: research code.** Genotyping is validated for norovirus GI and GII
-> only. Read [Genogroup and genotype coverage](#genogroup-and-genotype-coverage)
-> and [BENCHMARKING.md](BENCHMARKING.md) before trusting a call.
+HuCaT -- is web-only. 
 
 ### What works today
 
@@ -69,9 +63,7 @@ with no database build step.
 
 ### OpenRDP (only for `calicityper recomb`)
 
-OpenRDP pins `numpy<2` while `calicityper` needs `numpy>=2`, so **it cannot
-share the environment**. Install it separately and point at the CLI, the same
-way BLAST and MAFFT are found:
+OpenRDP pins `numpy<2` while `calicityper` needs `numpy>=2`. Install it separately. 
 
 ```bash
 conda create -n openrdp -c conda-forge python=3.11 "numpy<2" "scipy>=1.5" "h5py>=3.8,<3.11"
@@ -82,9 +74,7 @@ conda deactivate
 export CALICITYPER_OPENRDP=$(conda info --base)/envs/openrdp/bin/openrdp
 ```
 
-OpenRDP is unpackaged (no PyPI or bioconda release), so pin the git SHA for a
-reproducible deployment. Without it, `recomb` still runs and reports which
-methods were skipped and why.
+OpenRDP is unpackaged (no PyPI or bioconda release). 
 
 ## Quick start
 
@@ -97,8 +87,7 @@ calicityper type examples/example.fasta -o example_typed.tsv --threads 4 --repor
 
 This takes under a minute. Compare your `example_typed.tsv` with
 [examples/example_typed.tsv](examples/example_typed.tsv); they should match
-exactly, because the bootstrap is seeded. [examples/README.md](examples/README.md)
-explains each row.
+exactly. 
 
 ## Test
 
@@ -110,38 +99,23 @@ python tests/putative_novel_validation.py   # putative novel ORF1/ORF2 type scre
 
 ---
 
-## Invoking calicityper
+## Running CaliciTyper
 
-### Typing: the common case
+### Simple taxonomy assignment
 
 ```bash
 % calicityper type contigs.fasta -o typed.tsv --threads 8
 ```
 
-### Typing with a visual report
+### Taxonomy assignment with visual report
 
 ```bash
 # also writes run01.md, run01.json and run01.html
 % calicityper type contigs.fasta -o typed.tsv --threads 8 --report run01
 ```
 
-The HTML has:
-
-- the calls table, with any row flagged as a
-  [putative novel ORF1/ORF2 type](#putative-novel-orf1orf2-types) highlighted, and
-  the flags listed above it;
-- **one alignment panel for every typed region**, assigned or not: the query
-  against its single closest reference (by p-distance, over the columns the
-  query covers). Identical stretches are a grey bar; only the differences are
-  drawn, as labelled bases, with query deletions in dark grey. Hover a cell for
-  its column; zoom to read the bases. The title gives the call, the closest
-  reference and its type, and the number of differences;
-- a neighbour-joining tree per region placing the queries among the references.
-
-A bootstrap percentage cannot be inspected; the alignment behind it can. Each
-panel is about 20 KB, so very large runs make large pages: cap them with
-`--report-max-panels`, and use `--html-cdn` to link Bokeh instead of embedding
-its ~4 MB.
+For very large runs cap alignments with
+`--report-max-panels`, and use `--html-cdn` to link Bokeh instead of embedding. 
 
 ### Recombination, from an alignment
 
@@ -156,7 +130,7 @@ its ~4 MB.
 % calicityper recomb --input samples.fasta -o recomb_out/ --threads 8
 ```
 
-### Check what would run, without running it
+### Overview to CaliciTyper commands
 
 ```bash
 % calicityper recomb --alignment panel.fasta --query SAMPLE_01 --dry-run
@@ -176,7 +150,7 @@ OpenRDP          : /path/to/openrdp
 
 ### `calicityper type`
 
-Assigns genogroup and, for norovirus, ORF1 and ORF2 types.
+Assigns genus for Caliciviridae and for performs dual-genotyping for norovirus and sapovirus. 
 
 #### Output files
 
@@ -205,9 +179,6 @@ Assigns genogroup and, for norovirus, ORF1 and ORF2 types.
 | `orf2_putative_novel` | as `orf1_putative_novel`, for ORF2 (VP1): genotype and genogroup |
 | `orf2_putative_novel_detail` | as `orf1_putative_novel_detail` |
 
-The four putative-novel columns come last, so scripts that read columns by
-position keep working.
-
 Example, the real output for [examples/example.fasta](examples/example.fasta)
 (runner-up columns shortened to the top two; detail columns omitted):
 
@@ -218,15 +189,11 @@ Example, the real output for [examples/example.fasta](examples/example.fasta)
 | MN509084.1 | Caliciviridae_Sapovirus_GII | | | | not_assessable | | | not_assessable | other Caliciviridae: genogroup only |
 | AB242258.2 | GII | GII.P21 | 100.0 | `GII.P21:100.0\|GII.P1:0.0` | **putative_novel_type** | GII.3 | 100.0 | known | |
 
-The last row is a flag, and a borderline one. AB242258.2 is typed GII.P21 at
-100%, as RIVM types it, yet its RdRp is on average 0.047 (nt) from the GII.P21
-references, just outside that cluster's bound of 0.044. GII.P21's references are
-very close to each other, so its bound is tight. The two answers ask different
-questions: typing asks *which type does the tree support*, the screen asks *is
-it outside every known cluster*. A flag that sits this close to the bound,
-on a sequence that types cleanly, is the screen's main false-positive mode. The
-`.json`, `.md` and `.html` reports for the same run are in
-[examples/](examples/), with notes on each row.
+#### Borderline flag: AB242258.2
+
+**AB242258.2** types as **GII.P21** at 100%, matching RIVM, but its RdRp is 0.047 nt from the GII.P21 references—just outside the cluster bound of 0.044.
+
+GII.P21 references are very close together, so the cluster bound is tight. Typing asks which type the tree supports; the screen asks whether the sequence falls outside every known cluster. A clean-typing sequence this close to the bound is the screen’s main false-positive mode.
 
 #### Options
 
@@ -248,22 +215,16 @@ on a sequence that types cleanly, is the screen's main false-positive mode. The
 
 Detects and scores recombination in **norovirus or sapovirus** (`--virus`).
 
-This command does **not** use the bundled typing reference data at all: it
-works on an alignment you supply, so it is independent of whether a virus is
-genotypeable. That is why sapovirus recombination works while sapovirus
-genotyping does not.
+This command works on an alignment you supply, so it is independent of whether a virus is
+genotypeable.
 
 `--virus` selects the genome model used to judge whether a breakpoint is in a
-plausible place, and the two are genuinely different:
+plausible place. 
 
 | | Genome organisation | Recombination hotspot |
 |---|---|---|
 | norovirus | ORF1 nonstructural, ORF2 VP1, ORF3 VP2 | ORF1/ORF2 junction |
 | sapovirus | **ORF1 carries NS proteins *and* VP1**; ORF2 is VP2 | **RdRp(NS7)/VP1 junction, inside ORF1** |
-
-Labelling a sapovirus breakpoint an "ORF1-ORF2 junction" would be wrong even
-though the coordinate is similar, so the region model is per-virus and is
-recorded in the provenance block.
 
 #### Output files
 
@@ -324,12 +285,10 @@ and pass your own with `--config`.
 
 ---
 
-## Input must be assembled
+## Input must be a fasta file
 
-`calicityper` types **contigs and genomes, not sequencing reads.** There is no
-FASTQ mode. For an Illumina run: map or BLAST reads against norovirus
-references, assemble or cluster the hits (for example `vsearch` at 99%
-identity), and pass the representatives in.
+`calicityper` types **contigs and genomes, not raw sequencing reads.**. 
+
 
 Recombination analysis additionally needs **near-complete genomes**: the
 default `min_sequence_length` is 5,000 nt and `min_informative_sites` 500.
@@ -343,14 +302,9 @@ Two different steps, with very different reliability.
 
 **Genogroup detection works across Caliciviridae.** It is a BLAST search
 against 60 whole genomes -- 30 norovirus GI-GX and 30 other genera (Sapovirus
-GI-GXII, Lagovirus, Vesivirus, Nebovirus, Nacovirus, Recovirus, Valovirus) --
-so non-noroviruses are *rejected* rather than forced into a norovirus
-genogroup.
+GI-GXII, Lagovirus, Vesivirus, Nebovirus, Nacovirus, Recovirus, Valovirus). 
 
-**Genotype assignment is validated for norovirus GI and GII only.** Typing
-needs a curated reference alignment and only GI and GII have one. Everything
-else falls back to `all.aln`, a mixed alignment in which they are represented
-by a handful of sequences:
+**Genotype assignment is validated for norovirus GI and GII only.** 
 
 | Genogroup | ORF1 refs | ORF2 refs | Genotyping |
 |---|---|---|---|
@@ -364,12 +318,6 @@ by a handful of sequences:
 | GVIII | - | 2 | ORF2 only, not validated |
 | GIX | - | 2 | ORF2 only, not validated |
 | GX | 2 | 2 | returns a call, not validated |
-
-A query outside GI/GII **will** return a genotype and a confident-looking
-percentage. Treat it as unverified: two or three references cannot support a
-reliable assignment. This is adequate for human and wastewater surveillance
-(GI, GII, GIX) and **not** for the animal genogroups: GIII (bovine), GV
-(murine), GVI/GVII (canine), GX (bat).
 
 ### GII.4 variants
 
@@ -393,17 +341,6 @@ errors.
 the sequences have not been downloaded, ORFs not extracted, reference sets not
 built, and nothing in the typing path is sapovirus-aware. Sapovirus input is
 currently detected to genus and genogroup only.
-
-The remaining work is the same chain that produced the norovirus sets: fetch
-the 198 accessions, extract the RdRp and VP1 coordinates, build per-group
-FASTAs, align them, and wire the groups into the typing path. The two typed
-regions carry over unchanged -- `orf1` means "RdRp region, giving a P-type" and
-`orf2` means "capsid region, giving a genotype", which sapovirus has even
-though both sit inside ORF1 -- so only the coordinate extraction differs.
-
-The tables are marked DRAFT and need a human read-through of the genotype
-groupings before the sets are built from them.
-
 ---
 
 ## Method
@@ -439,7 +376,7 @@ Applied to one query:
    `putative_novel_type` (a putative novel RdRp P-type or VP1 genotype) if it
    is outside every genotype's; `putative_novel_group` (P-group or VP1
    genogroup) if it is also outside every genogroup's.
-4. It is `not_assessable` if it lacks what the rule is defined on: a complete
+4. It is `not_assessable` if it lacks a complete
    VP1 open reading frame (ATG to stop, no internal stop, within 10% of the
    reference lengths), or at least 95% of the RdRp typing region.
 
@@ -451,7 +388,7 @@ alone would otherwise absorb most queries). The per-cluster table ships as
 `calicityper/data/putative_novel_bounds.tsv` and is rebuilt by
 `scripts/build_putative_novel_bounds.py`.
 
-**Read a flag as "look at this one", never as "this is new".** The paper names
+**Read a flag as "putative"** The paper names
 a cluster from a single sequence, or from one location, as not assigned (NA).
 A flag can also sit just outside a very tight cluster's bound, as in the
 AB242258.2 example above, or point at a problem in the reference set itself:
@@ -467,16 +404,6 @@ How well it works, from leaving each reference out in turn
 | RdRp P-type | 96% | 50% |
 | VP1 genogroup | | 18% |
 
-The VP1 genotype screen is the reliable part. The RdRp and genogroup screens
-miss about half or more of novel types, because partial-RdRp P-types and VP1 genogroups genuinely
-overlap: Chhabra *et al.* needed complete ORF1 sequences to confirm their own
-P-type reclassifications, and GIX was GII.15 until 2019. A `known` RdRp or
-genogroup result is therefore weak evidence; a flag is stronger.
-
-Sapovirus is not screened yet. Its criteria are published (Zhao *et al.* 2024:
-complete VP1 nucleotide p-distance < 0.161 for the same genotype and < 0.503
-for the same genogroup; RdRp < 0.266 for the same P-type and < 0.531 for the
-same P-group), but the sapovirus VP1 and RdRp reference sets are not built.
 
 ### Recombination
 
@@ -506,8 +433,7 @@ Two caveats that matter:
   correctness.
 
 The comparison against RIVM's own calls for 4,392 accessions has **not yet
-completed**, and the genogroup comparison over all 5,986 is **queued**. Neither
-number is available yet.
+completed**, and the genogroup comparison over all 5,986 is **queued**.
 
 ---
 
@@ -534,33 +460,20 @@ genotype tables are transcribed and verified, but the reference sets have not
 been built and the typing path is not sapovirus-aware.
 
 **But `recomb --virus sapovirus` works?** Yes, and the two are independent:
-`recomb` scores an alignment you supply and never touches the bundled typing
-reference data.
+`recomb` scores an user provided alignment. 
 
 **Can it take FASTQ?** No. Assemble or cluster first.
 
 **Why did recombination return `insufficient_sequence`?** The sequence is under
 5,000 nt or has fewer than 500 informative sites. The classical scanners cannot
-say anything useful below that, and guessing would be worse.
+say anything useful below that.
 
 **Why is a GIII call untrustworthy when it shows 98% support?** Support
 measures how often the bootstrap recovers the same grouping, not whether the
-reference set contains the right answer. GIII has two or three references.
+reference set contains the right answer.
 
 **Do I need OpenRDP?** Only for `recomb`. Without it the command still runs and
 reports every method it skipped.
-
-**Why is it slow?** Before 0.6.0 it was usually BLAS thread
-oversubscription: with `--threads` above 1, each worker's NumPy started its
-own thread pool and they fought over the cores. Pinning them was **63x
-faster** in a controlled test, with identical calls, and calicityper now pins
-them itself (a value you export still wins). If you import calicityper as a
-library after NumPy, export `OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1` yourself.
-
-Beyond that, the bootstrap is ~95% of runtime and its cost scales with the
-square of the genogroup's reference count, so GII is much slower than GI.
-Install `numba`; without it the bootstrap is roughly 8x slower. See
-[BENCHMARKING.md](BENCHMARKING.md#5-performance).
 
 ---
 
