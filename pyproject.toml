@@ -1,9 +1,9 @@
 [project]
 name = "calicityper"
 version = "0.6.0"
-description = "Command-line norovirus genotyping following the RIVM typing tool method"
+description = "CaliciTyper: command-line typing for Caliciviridae"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [{ name = "Amy Fitzpatrick" }]
 dependencies = ["biopython", "numpy", "pandas"]
@@ -11,6 +11,9 @@ classifiers = [
   "Intended Audience :: Science/Research",
   "License :: OSI Approved :: MIT License",
   "Topic :: Scientific/Engineering :: Bio-Informatics",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.12",
 ]
 [project.optional-dependencies]
 fast = ["numba"]

@@ -1,15 +1,21 @@
 <p align="center">
-  <img src="assets/calicityper-lockup-horizontal.png" width="420" alt="CaliciTyper">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/calicityper-lockup-horizontal-dark.png">
+    <img src="assets/calicityper-lockup-horizontal.png" width="420" alt="CaliciTyper">
+  </picture>
 </p>
 
+<p align="center">Command-line typing for <em>Caliciviridae</em></p>
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
+[![CI tested](https://img.shields.io/badge/CI-3.10%20%7C%203.12-blue.svg)](.github/workflows/ci.yml)
 [![Classification](https://img.shields.io/badge/classification-Chhabra_2019-green.svg)](https://doi.org/10.1099/jgv.0.001318)
 [![Status](https://img.shields.io/badge/status-research_code-orange.svg)](BENCHMARKING.md)
 
-# calicityper: command-line calicivirus genotyping and recombination analysis
+# CaliciTyper: command-line calicivirus genotyping and recombination analysis
 
-`calicityper` assigns norovirus genogroup, ORF1 polymerase (P-) type and ORF2
+CaliciTyper (command: `calicityper`) assigns norovirus genogroup, ORF1 polymerase (P-) type and ORF2
 capsid type to assembled contigs and whole genomes, replicating the published
 method of the [RIVM Norovirus Typing
 Tool](https://www.rivm.nl/mpf/typingtool/norovirus/). It also scans norovirus

@@ -1,5 +1,5 @@
 cff-version: 1.2.0
-title: "calicityper: command-line norovirus genotyping following the RIVM method"
+title: "CaliciTyper: command-line typing for Caliciviridae"
 message: "If you use this software, please cite it as below."
 type: software
 authors:
