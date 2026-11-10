@@ -20,7 +20,7 @@ from calicityper import config as cg
 
 COLUMNS = ["query", "genogroup", "orf1_type", "orf1_support", "orf1_runners",
            "orf2_type", "orf2_support", "orf2_runners", "note",
-           "orf1_novelty", "orf1_novelty_detail", "orf2_novelty", "orf2_novelty_detail"]
+           "orf1_putative_novel", "orf1_putative_novel_detail", "orf2_putative_novel", "orf2_putative_novel_detail"]
 
 needs_tools = pytest.mark.skipif(
     not (shutil.which("blastn") and shutil.which("mafft")),
@@ -211,7 +211,7 @@ def test_difference_figure_draws_only_differences():
 
 
 def test_complete_vp1_requires_start_stop_and_length():
-    from calicityper import novelty as nv
+    from calicityper import putative_novel as nv
     lens = [540, 560]
     orf = "ATG" + "GCT" * 549 + "TAA"                      # 550 aa, complete
     assert len(nv.complete_vp1("CC" + orf + "GG", lens)) == 550
@@ -220,25 +220,25 @@ def test_complete_vp1_requires_start_stop_and_length():
 
 
 def test_classify_follows_per_cluster_bounds():
-    from calicityper import novelty as nv
+    from calicityper import putative_novel as nv
     t = {("orf2", "genotype", "GII.4"): 0.10, ("orf2", "genotype", "*pooled*"): 0.13,
          ("orf2", "genogroup", "GII"): 0.44, ("orf2", "genogroup", "*pooled*"): 0.44}
     assert nv.classify("orf2", {"GII.4": 0.05}, None, t)[0] == nv.KNOWN
-    assert nv.classify("orf2", {"GII.4": 0.20}, {"GII": 0.30}, t)[0] == nv.NEW_TYPE
-    assert nv.classify("orf2", {"GII.4": 0.50}, {"GII": 0.50}, t)[0] == nv.NEW_GROUP
+    assert nv.classify("orf2", {"GII.4": 0.20}, {"GII": 0.30}, t)[0] == nv.NOVEL_TYPE
+    assert nv.classify("orf2", {"GII.4": 0.50}, {"GII": 0.50}, t)[0] == nv.NOVEL_GROUP
     # an unlisted (small/tentative) cluster falls back to the pooled bound
     assert nv.classify("orf2", {"GII.NA1": 0.12}, None, t)[0] == nv.KNOWN
 
 
-def test_novelty_columns_and_sapovirus_not_assessed(tmp_path):
-    """Every row carries the novelty columns; non-noroviruses are not assessed."""
+def test_putative_novel_columns_and_sapovirus_not_assessed(tmp_path):
+    """Every row carries the putative novel columns; non-noroviruses are not assessed."""
     import pandas as pd
-    from calicityper import novelty as nv
+    from calicityper import putative_novel as nv
     ex = Path(__file__).resolve().parent.parent / "examples" / "example.fasta"
     out = tmp_path / "t.tsv"
     run_cli(ex, out)
     d = pd.read_csv(out, sep="\t", dtype=str).fillna("").set_index("query")
-    for c in ("orf1_novelty", "orf2_novelty", "orf1_novelty_detail", "orf2_novelty_detail"):
+    for c in ("orf1_putative_novel", "orf2_putative_novel", "orf1_putative_novel_detail", "orf2_putative_novel_detail"):
         assert c in d.columns
-    assert d.loc["MN509084.1", "orf2_novelty"] == nv.NA
-    assert d.loc["MT451991.1", "orf2_novelty"] == nv.KNOWN
+    assert d.loc["MN509084.1", "orf2_putative_novel"] == nv.NA
+    assert d.loc["MT451991.1", "orf2_putative_novel"] == nv.KNOWN

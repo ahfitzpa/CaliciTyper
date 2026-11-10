@@ -106,7 +106,7 @@ def _run_type(a):
         a.md = a.md or f"{a.report}.md"
         a.json = a.json or f"{a.report}.json"
         a.html = a.html or f"{a.report}.html"
-    a._want_aln = True                  # the novelty screen needs the alignment, not only the HTML
+    a._want_aln = True                  # the putative novel type screen needs the alignment, not only the HTML
     ty.cg.check_data()          # clear error if the bundled reference data is missing
     recs = [(r.id, str(r.seq)) for r in SeqIO.parse(a.fasta, "fasta")]
     with tempfile.TemporaryDirectory(prefix="calicityper_") as td:
@@ -134,31 +134,31 @@ def _run_type(a):
         ty.apply_result(rows[i], region, res, a.min_support)
         if aln is not None:
             alns[(i, region)] = aln
-    _screen_novelty(rows, alns, todo)
+    _screen_putative_novel(rows, alns, todo)
     ordered = [rows[i] for i in range(len(recs))]
     df = pd.DataFrame(ordered)
     (df.to_csv(sys.stdout, sep="\t", index=False) if a.out == "-" else df.to_csv(a.out, sep="\t", index=False))
     if a.md or a.json or a.html:
         _write_reports(a, ordered, alns)
 
-def _screen_novelty(rows, alns, todo):
-    """Add orf1/orf2 novelty flags (2x SD screen) to every row; see novelty.py."""
-    from . import novelty
+def _screen_putative_novel(rows, alns, todo):
+    """Add putative novel ORF1/ORF2 type flags (2x SD screen) to every row; see putative_novel.py."""
+    from . import putative_novel
     subs = {(i, region): seq for (region, g), lst in todo.items() for i, seq in lst}
     for i, row in rows.items():
         for region in ("orf1", "orf2"):
-            row[f"{region}_novelty"], row[f"{region}_novelty_detail"] = "", ""
+            row[f"{region}_putative_novel"], row[f"{region}_putative_novel_detail"] = "", ""
             if (i, region) in alns:
                 g, qa = alns[(i, region)]
-                res = novelty.assess(region, g, qa, subs.get((i, region), ""))
-                row[f"{region}_novelty"], row[f"{region}_novelty_detail"] = res["flag"], res["detail"]
+                res = putative_novel.assess(region, g, qa, subs.get((i, region), ""))
+                row[f"{region}_putative_novel"], row[f"{region}_putative_novel_detail"] = res["flag"], res["detail"]
             elif row.get("genogroup") not in ("", "unassigned") \
                     and row["genogroup"] not in ty.cg.NOROVIRUS_GROUPS:
-                row[f"{region}_novelty"] = novelty.NA
-                row[f"{region}_novelty_detail"] = novelty.NOT_NOROVIRUS
+                row[f"{region}_putative_novel"] = putative_novel.NA
+                row[f"{region}_putative_novel_detail"] = putative_novel.NOT_NOROVIRUS
             elif row.get(f"{region}_type") in ("", None) and row.get("genogroup") != "unassigned":
-                row[f"{region}_novelty"] = novelty.NA
-                row[f"{region}_novelty_detail"] = "region not present in the query"
+                row[f"{region}_putative_novel"] = putative_novel.NA
+                row[f"{region}_putative_novel_detail"] = "region not present in the query"
 
 
 def _support(row, region):
@@ -192,8 +192,9 @@ def _panels(a, rows, alns):
         called = row.get(f"{region}_type") or "untyped"
         sup = (f" ({_support(row, region):.0f}% support)"
                if row.get(f"{region}_support") not in (None, "") else "")
-        nov = row.get(f"{region}_novelty") or ""
-        tag = (f"\u2691 {report.NOVELTY_LABEL[nov].upper()} \u00b7 " if nov in report.NOVELTY_LABEL else "")
+        nov = row.get(f"{region}_putative_novel") or ""
+        tag = (f"\u2691 {report.novel_label(region, nov).upper()} \u00b7 "
+               if nov in report.NOVEL_FLAGS else "")
         title = (f"{tag}{row['query']} \u2014 {region.upper()} \u2192 {called}{sup} \u00b7 "
                  f"closest {ref.names[k]} ({ref.types[k]}): {ndiff} differences "
                  f"in {n} nt, p = {pdist:.3f}")

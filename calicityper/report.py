@@ -269,24 +269,34 @@ def to_json(rows, path, meta=None):
     return path
 
 
-CALL_COLUMNS = ["query", "genogroup", "orf1_type", "orf1_support", "orf1_runners", "orf1_novelty",
-                "orf2_type", "orf2_support", "orf2_runners", "orf2_novelty", "note"]
-NOVELTY_LABEL = {"putative_new_genotype": "putative new genotype",
-                 "putative_new_genogroup": "putative new genogroup"}
-NOVELTY_NOTE = ("The novelty screen applies the 2x SD criterion of Chhabra et al. 2019 "
-                "(complete VP1 amino acids; partial RdRp nucleotides) against the bundled "
-                "references. A flag marks one sequence outside every known cluster: worth a "
-                "closer look, tentative (NA) at most, never a new designation.")
+CALL_COLUMNS = ["query", "genogroup", "orf1_type", "orf1_support", "orf1_runners", "orf1_putative_novel",
+                "orf2_type", "orf2_support", "orf2_runners", "orf2_putative_novel", "note"]
+NOVEL_FLAGS = ("putative_novel_type", "putative_novel_group")
+NOVEL_LABEL = {("orf1", "putative_novel_type"): "putative novel RdRp P-type",
+               ("orf1", "putative_novel_group"): "putative novel RdRp P-group",
+               ("orf2", "putative_novel_type"): "putative novel VP1 genotype",
+               ("orf2", "putative_novel_group"): "putative novel VP1 genogroup"}
+NOVEL_HEADING = "Putative novel ORF1/ORF2 types"
+NOVEL_NONE = "No query fell outside every known ORF1 (RdRp) or ORF2 (VP1) type."
+NOVEL_NOTE = ("Putative novel ORF1/ORF2 types are screened with the 2x SD criterion of "
+              "Chhabra et al. 2019 (complete VP1 amino acids for ORF2; partial RdRp "
+              "nucleotides for ORF1) against the bundled references. A flag marks one "
+              "sequence outside every known cluster: worth a closer look, tentative (NA) "
+              "at most, never a new designation.")
+
+
+def novel_label(region, flag):
+    return NOVEL_LABEL.get((region, flag), "")
 
 
 def flagged(rows):
-    """[(query, region, flag, detail)] for every putative new genotype/genogroup."""
+    """[(query, region, flag, detail)] for every putative novel ORF1/ORF2 type."""
     out = []
     for r in rows:
         for region in ("orf1", "orf2"):
-            f = r.get(f"{region}_novelty") or ""
-            if f in NOVELTY_LABEL:
-                out.append((r["query"], region, f, r.get(f"{region}_novelty_detail") or ""))
+            f = r.get(f"{region}_putative_novel") or ""
+            if f in NOVEL_FLAGS:
+                out.append((r["query"], region, f, r.get(f"{region}_putative_novel_detail") or ""))
     return out
 
 
@@ -323,12 +333,12 @@ def to_markdown(rows, path, meta=None):
         "",
         _md_table([{"genogroup": k, "n": v} for k, v in sorted(gg.items())], ["genogroup", "n"]),
         "",
-        "## Novelty screen",
+        f"## {NOVEL_HEADING}",
         "",
-        *([f"- **{q}** {reg.upper()}: {NOVELTY_LABEL[f]} -- {d}" for q, reg, f, d in flagged(rows)]
-          or ["No query fell outside every known genotype or genogroup."]),
+        *([f"- **{q}** {reg.upper()}: {novel_label(reg, f)} -- {d}" for q, reg, f, d in flagged(rows)]
+          or [NOVEL_NONE]),
         "",
-        f"> {NOVELTY_NOTE}",
+        f"> {NOVEL_NOTE}",
         "",
         "## Calls",
         "",
@@ -403,18 +413,18 @@ def to_html(rows, path, figures=None, meta=None, notes=(), embed_js=True):
     head = "".join(f"<th>{esc(c)}</th>" for c in cols)
     def cell(r, c):
         v = r.get(c, "")
-        if c.endswith("_novelty") and v in NOVELTY_LABEL:
-            return f'<td class="flag">&#9873; {esc(NOVELTY_LABEL[v])}</td>'
+        if c.endswith("_putative_novel") and v in NOVEL_FLAGS:
+            return f'<td class="flag">&#9873; {esc(novel_label(c[:4], v))}</td>'
         return f"<td>{esc(v)}</td>"
 
     def is_flagged(r):
-        return any((r.get(f"{g}_novelty") or "") in NOVELTY_LABEL for g in ("orf1", "orf2"))
+        return any((r.get(f"{g}_putative_novel") or "") in NOVEL_FLAGS for g in ("orf1", "orf2"))
 
     flag_items = "".join(f"<li><strong>{esc(q)}</strong> {reg.upper()}: "
-                         f"{esc(NOVELTY_LABEL[f])} &mdash; {esc(d)}</li>"
+                         f"{esc(novel_label(reg, f))} &mdash; {esc(d)}</li>"
                          for q, reg, f, d in flagged(rows))
-    novelty_html = (f'<div class="flagbox"><ul>{flag_items}</ul></div>' if flag_items else
-                    '<p class="note">No query fell outside every known genotype or genogroup.</p>')
+    novel_html = (f'<div class="flagbox"><ul>{flag_items}</ul></div>' if flag_items else
+                  f'<p class="note">{esc(NOVEL_NONE)}</p>')
     body = "".join(('<tr class="flagged">' if is_flagged(r) else "<tr>")
                    + "".join(cell(r, c) for c in cols) + "</tr>"
                    for r in rows)
@@ -438,9 +448,9 @@ correctness &mdash; check the runner-up column for near-threshold calls.</div>
 {notes_html}
 <h2>Genogroups</h2><div class="tblwrap"><table><thead><tr><th>genogroup</th><th>n</th></tr>
 </thead><tbody>{ggrows}</tbody></table></div>
-<h2>Novelty screen</h2>
-{novelty_html}
-<p class="note">{esc(NOVELTY_NOTE)}</p>
+<h2>{NOVEL_HEADING}</h2>
+{novel_html}
+<p class="note">{esc(NOVEL_NOTE)}</p>
 <h2>Calls</h2><div class="tblwrap"><table><thead><tr>{head}</tr></thead>
 <tbody>{body}</tbody></table></div>
 <h2>Alignments and trees</h2>

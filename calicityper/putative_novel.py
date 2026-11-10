@@ -1,4 +1,4 @@
-"""Screen calls for putative new genotypes and genogroups (2x SD criterion).
+"""Screen calls for putative novel ORF1 (RdRp) and ORF2 (VP1) types (2x SD criterion).
 
 Norovirus classification (Chhabra et al. 2019, J Gen Virol 100:1393) assigns
 capsid genotypes and genogroups on uncorrected p-distances of the **complete
@@ -14,13 +14,13 @@ This module applies that rule as a screen, per cluster:
         bound_C = mean within-C distance + 2 x SD of within-C distances
   a query is placed by its average distance to the members of C
   it is `known` if that average is within the bound of some genotype;
-  otherwise `putative_new_genotype`, or `putative_new_genogroup` if it also
+  otherwise `putative_novel_type`, or `putative_novel_group` if it also
   falls outside every genogroup's bound.
 
 Clusters with fewer than three references have at most one within-cluster
 distance, so no SD of their own; they borrow the pooled SD of all clusters at
 that level (far outliers, beyond Q3 + 3 IQR, dropped), and a singleton also
-borrows the pooled mean. `scripts/build_novelty_bounds.py` writes the
+borrows the pooled mean. `scripts/build_putative_novel_bounds.py` writes the
 per-cluster table this reads, recording which clusters borrowed.
 
 A flagged query is one sequence, and the paper names a cluster from a single
@@ -44,7 +44,7 @@ from Bio.Seq import Seq
 
 from . import config as cg
 
-BOUNDS_FILE = cg.DATA / "novelty_bounds.tsv"
+BOUNDS_FILE = cg.DATA / "putative_novel_bounds.tsv"
 
 # What each region's criterion is defined on.
 REGION = {
@@ -55,9 +55,9 @@ VP1_LEN_TOL = 0.10        # complete VP1 must be within 10% of the reference len
 RDRP_MIN_COVER = 0.95     # fraction of the RdRp typing region the query must cover
 RDRP_OCCUPANCY = 0.90     # a column belongs to the typing region if >= 90% of references cover it
 
-KNOWN, NEW_TYPE, NEW_GROUP, NA = ("known", "putative_new_genotype",
-                                  "putative_new_genogroup", "not_assessable")
-FLAGGED = (NEW_TYPE, NEW_GROUP)
+KNOWN, NOVEL_TYPE, NOVEL_GROUP, NA = ("known", "putative_novel_type",
+                                  "putative_novel_group", "not_assessable")
+FLAGGED = (NOVEL_TYPE, NOVEL_GROUP)
 NOT_NOROVIRUS = ("not a norovirus: sapovirus cut-offs are published (Zhao et al. 2024) "
                  "but no sapovirus VP1/RdRp reference sets are bundled yet")
 
@@ -274,7 +274,7 @@ def within_pairs(meta, D, level, skip=None):
 
 def build_bounds():
     """Per-cluster bound table for both regions and both levels.
-    Used by scripts/build_novelty_bounds.py; the result ships as BOUNDS_FILE."""
+    Used by scripts/build_putative_novel_bounds.py; the result ships as BOUNDS_FILE."""
     rows = []
     blocks = {"orf2": [vp1_distance_matrix()], "orf1": list(rdrp_distance_blocks())}
     for region, blks in blocks.items():
@@ -326,10 +326,10 @@ def classify(region, type_avg, group_avg, table=None):
     if inside:
         best = min(inside, key=type_avg.get)
         return KNOWN, best, type_avg[best], bound_of(region, "genotype", best, table)
-    flag = NEW_TYPE
+    flag = NOVEL_TYPE
     if group_avg is not None and not any(
             d <= bound_of(region, "genogroup", g, table) for g, d in group_avg.items()):
-        flag = NEW_GROUP
+        flag = NOVEL_GROUP
     return flag, t_near, type_avg[t_near], bound_of(region, "genotype", t_near, table)
 
 
@@ -378,7 +378,7 @@ def assess(region, group, qa, sub):
         # other genogroups' RdRp sits in different alignments, so the P-group
         # level is judged against the query's own genogroup only
         return _result(region, flag, t, d, b, f" (P-group compared within {group} only)"
-                       if flag == NEW_GROUP else "")
+                       if flag == NOVEL_GROUP else "")
 
     refs = vp1_references()
     vp1 = complete_vp1(sub, [len(s) for *_, s in refs])

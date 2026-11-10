@@ -6,7 +6,7 @@ authors:
   - family-names: Fitzpatrick
     given-names: Amy
     affiliation: University College Dublin
-version: 0.6.0
+version: 0.6.1
 license: MIT
 repository-code: "https://github.com/ahfitzpa/calicityper"
 abstract: >-

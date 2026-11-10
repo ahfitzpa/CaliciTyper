@@ -1,6 +1,6 @@
 [project]
 name = "calicityper"
-version = "0.6.0"
+version = "0.6.1"
 description = "CaliciTyper: command-line typing for Caliciviridae"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -38,5 +38,5 @@ calicityper = [
   "data/database/*",
   "data/reference_sequences_RdRp/*",
   "data/reference_sequences_VP1/*",
-  "data/novelty_bounds.tsv",
+  "data/putative_novel_bounds.tsv",
 ]

@@ -17,7 +17,7 @@ evidence than they are.
 | [RIVM genogroup comparison](#3-rivm-genogroup-comparison) | genogroup detection, including rejecting non-noroviruses | 5,986 accessions | queued |
 | [Synthetic recombination](#4-synthetic-recombination-datasets) | recombination sensitivity and specificity | 6 generated datasets | complete |
 | [Performance](#5-performance) | runtime and where it goes | profiling + controlled A/B | complete |
-| [Novelty screen](#6-novelty-screen) | detecting a query outside every known genotype / genogroup | leave-one-out on 166 VP1 + 176 RdRp references; 100 GenBank genomes | complete |
+| [Putative novel ORF1/ORF2 types](#6-putative-novel-orf1orf2-types) | detecting a query outside every known RdRp P-type or VP1 genotype / genogroup | leave-one-out on 166 VP1 + 176 RdRp references; 100 GenBank genomes | complete |
 
 ---
 
@@ -37,7 +37,7 @@ No internet required.
 | Region | Queries | Genogroups | Distinct types | Assigned | Correct | Wrong |
 |---|---|---|---|---|---|---|
 | ORF2 capsid | 125 | GI (34), GII (91) | 42 | 100% | 100% | 0 |
-| ORF1 P-type | 147 | GI (36), GII (111) | 49 | 93.9% | 93.2% | 1 |
+| ORF1 P-type | 147 | GI (36), GII (111) | 49 | 97.3% | 96.6% | 1 |
 
 GII.4 is resolved to variant level; all 17 evaluable GII.4 references are
 called correctly at 81-100% support.
@@ -50,7 +50,7 @@ correctly. It does not estimate accuracy on real data, and it cannot, by
 construction.
 
 **The one error is a confident error.** `AB074893.1` (true `GII.PNA4`) was
-called `GII.P11` at **99% support**. The 70% threshold did not catch it.
+called `GII.P11` at **100% support**. The 70% threshold did not catch it.
 Bootstrap support is not a guarantee of correctness, and no threshold makes it
 one. Check the runner-up columns on any call that matters.
 
@@ -263,31 +263,33 @@ Install `numba`; without it the bootstrap is roughly 8x slower.
 
 ---
 
-## 6. Novelty screen
+## 6. Putative novel ORF1/ORF2 types
 
-The screen (README, [Novelty screen](README.md#novelty-screen)) applies the
-2x SD rule of Chhabra *et al.* 2019 per cluster: a query is `known` if its
-average distance to the members of some genotype is within that genotype's
-mean + 2 SD, otherwise flagged. VP1 is complete amino acid sequence, RdRp the
+The screen (README, [Putative novel ORF1/ORF2 types](README.md#putative-novel-orf1orf2-types))
+applies the 2x SD rule of Chhabra *et al.* 2019 per cluster: a query is
+`known` if its average distance to the members of some genotype is within that
+genotype's mean + 2 SD, otherwise flagged as a putative novel RdRp P-type or
+VP1 genotype (`putative_novel_type`), or P-group / VP1 genogroup
+(`putative_novel_group`). VP1 is complete amino acid sequence, RdRp the
 nucleotide typing region.
 
 ### Leave-one-out on the references
 
 ```bash
-python tests/novelty_validation.py      # about a minute, no internet
+python tests/putative_novel_validation.py      # about a minute, no internet
 ```
 
 Each reference is screened as a query, with every bound recomputed without it,
 in three scenarios. Genogroup removal is VP1-only, because RdRp distances exist
 only inside one genogroup's alignment.
 
-| Region | Scenario | n | `known` | `putative_new_genotype` | `putative_new_genogroup` |
+| Region | Scenario | n | `known` | `putative_novel_type` | `putative_novel_group` |
 |---|---|---|---|---|---|
 | VP1 | own genotype present | 159 | **148 (93%)** | 11 (7%) | 0 |
 | VP1 | own genotype removed | 166 | 8 (5%) | **151 (91%)** | 7 (4%) |
 | VP1 | own genogroup removed | 166 | 0 | 136 (82%) | **30 (18%)** |
-| RdRp | own P-type present | 163 | **154 (94%)** | 6 (4%) | 3 (2%) |
-| RdRp | own P-type removed | 176 | 87 (49%) | **86 (49%)** | 3 (2%) |
+| RdRp | own P-type present | 163 | **157 (96%)** | 5 (3%) | 1 (1%) |
+| RdRp | own P-type removed | 176 | 88 (50%) | **87 (49%)** | 1 (1%) |
 
 Bold is the right answer. The VP1 genotype screen is reliable: 93% specific,
 95% sensitive (any flag). The RdRp P-type and VP1 genogroup screens are not
@@ -311,21 +313,55 @@ established types by RIVM:
 | Region | `known` | flagged | `not_assessable` |
 |---|---|---|---|
 | VP1 | 94 | 0 | 6 |
-| RdRp | 71 | 2 | 27 |
+| RdRp | 72 | 1 | 27 |
 
-Both RdRp flags are informative failures. `AB039780.1` (RIVM: GII.P8) is 0.190
-nt from its nearest P-type: the bundled GII.P8 references are not close to it,
-so the flag exposes a gap in the reference set. `AB242258.2` (GII.P21) sits at
-0.047 against a bound of 0.044, a borderline call against a very tight cluster.
+The one flag, `AB242258.2` (typed GII.P21 at 100%, as RIVM), is 0.047 nt on
+average from the GII.P21 references against a bound of 0.044: a borderline
+call against a very tight cluster, the screen's main false-positive mode.
+
+### Reference-set correction (0.6.1)
+
+Before 0.6.1 the screen also flagged `AB039780.1` (Saitama U25), which is
+Chhabra *et al.*'s own GII.8 / GII.P8 reference strain and is in the bundled
+set. A reference cannot be novel relative to itself, so this was a bug. It led
+to two corrupted RdRp references:
+
+| Reference | Type | What was stored | Correct typing region |
+|---|---|---|---|
+| `JX846926.1` (Hu/GII.7/CHDC3936/1988/USA) | GII.P8 | the record's first CDS, `1..442`, a 5' fragment | `3774..4535` (end of ORF1 CDS `923..4535`); 95.0% identical to AB039780.1 |
+| `JX289822.1` (Hu/GII.1/7EK/Hawaii/1971/USA) | GII.P1 | the end of the first CDS, `1..1555` | `3054..3815` (end of ORF1 CDS `2086..3815`); 100% identical to U07611.2 |
+
+Both are partial genomes with several CDS features; when the reference set
+was built, ORF1 was taken to be the first CDS. The stored rows were about 0.60
+nt from every other reference, including their own type, so:
+
+- no GII.P8 or GII.P1 query could reach bootstrap support, because the clade
+  test needs the query to group with both of a type's references;
+- they distorted neighbouring trees: on the 100 genomes above, fixing them
+  changed five P-type calls, all five to RIVM's answer (AB039780.1 unassigned
+  at 0% to GII.P8 at 100%; three GII.P4 and one GII.P12 previously unassigned
+  at 56-67%). The example genome MW305639.1 likewise went from unassigned
+  (GII.P16 at 65%) to GII.P16 at 100%;
+- leave-one-out P-type assignment (section 1) rose from 93.9% to 97.3%, and
+  correct calls from 93.2% to 96.6%;
+- they were the "divergent within-P-type pairs (up to 0.64 nt)" that the
+  method history below attributes to the data. They were not biology.
+
+`scripts/fix_rdrp_references.py` re-extracts the two regions from GenBank and
+records exactly what changed. An audit of every RdRp reference's distance to
+its nearest neighbour found no other row above 0.36 nt; the next most isolated
+are a tentative P-type (GII.PNA4) and the murine GV references, all plausible.
+The VP1 set has not yet had the same audit.
 
 ### How the method was arrived at
 
-Recorded because each step changed the numbers above.
+Recorded because each step changed the numbers above. Steps 1-4 were run on
+the reference set before the 0.6.1 correction.
 
 1. **One global cut-off** (pooled within-type mean + 2 SD, distance to the
    single closest reference). VP1 genotype was already good, but RdRp flagged
-   only 15% of removed P-types: six divergent within-P-type pairs (up to 0.64
-   nt) inflated the pooled SD.
+   only 15% of removed P-types: within-P-type pairs up to 0.64 nt inflated the
+   pooled SD. Those pairs turned out to be the two corrupted references above.
 2. **Trimming far outliers** (beyond Q3 + 3 IQR) from the pooled distribution:
    RdRp to 48%.
 3. **The paper's per-cluster rule** (average distance to the cluster's
@@ -334,12 +370,12 @@ Recorded because each step changed the numbers above.
    two references 0.45 nt apart, took 51 RdRp queries; GVI took 137 of 166 VP1
    genogroup queries.
 4. **Small and tentative clusters on the pooled distribution**, and genogroups
-   always pooled: the current results. This follows the paper, which says the
+   always pooled: the current method. This follows the paper, which says the
    2x SD criterion cannot be applied to a cluster with too few sequences or to
    the NA clusters.
 
 Per-cluster bounds, and which clusters borrowed the pooled SD, are in
-`calicityper/data/novelty_bounds.tsv` (`sd_source`).
+`calicityper/data/putative_novel_bounds.tsv` (`sd_source`).
 
 ---
 
@@ -349,7 +385,7 @@ Per-cluster bounds, and which clusters borrowed the pooled SD, are in
 conda env create -f environment.yml && conda activate calicityper
 pytest tests/ -v                                   # unit, CLI and regression tests
 python tests/loo_validation.py --threads 8         # section 1
-python tests/novelty_validation.py                 # section 6
+python tests/putative_novel_validation.py          # section 6
 python scripts/fetch_rivm_test_set.py rivm.fasta   # sections 2-3 (needs NCBI)
 ```
 

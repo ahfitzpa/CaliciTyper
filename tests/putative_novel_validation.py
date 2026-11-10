@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Leave-one-out check of the novelty screen (per-cluster 2x SD rule) on the
+"""Leave-one-out check of the putative novel ORF1/ORF2 type screen (per-cluster 2x SD rule) on the
 bundled references.
 
 Each reference is screened as a query, with the cluster bounds recomputed
@@ -8,12 +8,12 @@ without it, in three scenarios:
   own genotype present   its genotype's other members remain   -> expect `known`
   own genotype removed   every member of its genotype removed  -> expect a flag
   own genogroup removed  (VP1 only) its whole genogroup removed -> expect
-                         `putative_new_genogroup`
+                         `putative_novel_group`
 
 RdRp distances exist only within one genogroup's alignment, so the genogroup
 scenario is VP1-only. Run time: about a minute.
 
-    python tests/novelty_validation.py
+    python tests/putative_novel_validation.py
 """
 import sys
 from collections import Counter, defaultdict
@@ -22,7 +22,7 @@ from pathlib import Path
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from calicityper import novelty as nv  # noqa: E402
+from calicityper import putative_novel as nv  # noqa: E402
 
 
 def table_without(region, blocks, drop):
@@ -71,7 +71,7 @@ tally = defaultdict(Counter)
 run("orf2", [nv.vp1_distance_matrix()], tally, genogroup_scenario=True)
 run("orf1", list(nv.rdrp_distance_blocks()), tally, genogroup_scenario=False)
 
-order = [nv.KNOWN, nv.NEW_TYPE, nv.NEW_GROUP]
+order = [nv.KNOWN, nv.NOVEL_TYPE, nv.NOVEL_GROUP]
 print("region\tscenario\tn\t" + "\t".join(order))
 for (region, scen), c in tally.items():
     n = sum(c.values())
