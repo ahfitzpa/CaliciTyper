@@ -29,6 +29,7 @@ and it drops into a pipeline.
 | Norovirus genotyping (ORF1 + ORF2) | GI, GII | validated |
 | Norovirus genotyping | GIII-GX | returns a call, **not validated** |
 | GII.4 variant resolution | 11 variants | validated |
+| Novelty screen (putative new genotype / genogroup) | norovirus | working, see [caveats](#novelty-screen) |
 | Recombination analysis | norovirus, sapovirus | working, see caveats |
 | **Sapovirus genotyping** | GI-GXIX | **not implemented** -- tables drafted, reference sets not built |
 
@@ -77,7 +78,8 @@ methods were skipped and why.
 
 ## Quick start
 
-Type the three bundled example genomes (two noroviruses, one sapovirus):
+Type the four bundled example genomes (three noroviruses, one of them flagged
+by the novelty screen, and one sapovirus):
 
 ```bash
 calicityper type examples/example.fasta -o example_typed.tsv --threads 4 --report example
@@ -93,6 +95,7 @@ explains each row.
 ```bash
 pytest tests/ -v                      # unit, CLI and regression tests
 python tests/loo_validation.py        # leave-one-out, no internet needed
+python tests/novelty_validation.py    # novelty screen, leave-one-out
 ```
 
 ---
@@ -112,9 +115,22 @@ python tests/loo_validation.py        # leave-one-out, no internet needed
 % calicityper type contigs.fasta -o typed.tsv --threads 8 --report run01
 ```
 
-The HTML carries Bokeh alignment panels (query against the references of its
-assigned type *and* of the runner-up) and a neighbour-joining tree per region.
-A bootstrap percentage cannot be inspected; the alignment behind it can.
+The HTML has:
+
+- the calls table, with any row the [novelty screen](#novelty-screen) flagged
+  highlighted, and the flags listed above it;
+- **one alignment panel for every typed region**, assigned or not: the query
+  against its single closest reference (by p-distance, over the columns the
+  query covers). Identical stretches are a grey bar; only the differences are
+  drawn, as labelled bases, with query deletions in dark grey. Hover a cell for
+  its column; zoom to read the bases. The title gives the call, the closest
+  reference and its type, and the number of differences;
+- a neighbour-joining tree per region placing the queries among the references.
+
+A bootstrap percentage cannot be inspected; the alignment behind it can. Each
+panel is about 20 KB, so very large runs make large pages: cap them with
+`--report-max-panels`, and use `--html-cdn` to link Bokeh instead of embedding
+its ~4 MB.
 
 ### Recombination, from an alignment
 
@@ -173,21 +189,34 @@ Assigns genogroup and, for norovirus, ORF1 and ORF2 types.
 | `orf2_support` | bootstrap % for the ORF2 call |
 | `orf2_runners` | as `orf1_runners` |
 | `note` | why a region was not typed: no BLAST hit, `<100 nt` ORF overlap, support below threshold |
+| `orf1_novelty` | novelty screen for the P-type: `known`, `putative_new_genotype`, `putative_new_genogroup`, `not_assessable` (see [Novelty screen](#novelty-screen)) |
+| `orf1_novelty_detail` | the distance, the nearest cluster and its bound, or why it was not assessable |
+| `orf2_novelty` | as `orf1_novelty`, for the capsid genotype and genogroup |
+| `orf2_novelty_detail` | as `orf1_novelty_detail` |
+
+The four novelty columns come last, so scripts that read columns by position
+keep working.
 
 Example, the real output for [examples/example.fasta](examples/example.fasta)
-(runner-up columns shortened to the top two):
+(runner-up columns shortened to the top two; detail columns omitted):
 
-| query | genogroup | orf1_type | orf1_support | orf1_runners | orf2_type | orf2_support | note |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| MW305639.1 | GII | unassigned | 65.0 | `GII.P16:65.0\|GII.P1:0.0` | GII.4_Sydney | 100.0 | orf1: best GII.P16 65% < 70% |
-| MT451991.1 | GI | GI.P13 | 100.0 | `GI.P13:100.0\|GI.P1:0.0` | GI.3 | 100.0 | |
-| MN509084.1 | Caliciviridae_Sapovirus_GII | | | | | | other Caliciviridae: genogroup only |
+| query | genogroup | orf1_type | orf1_support | orf1_runners | orf1_novelty | orf2_type | orf2_support | orf2_novelty | note |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| MW305639.1 | GII | unassigned | 65.0 | `GII.P16:65.0\|GII.P1:0.0` | known | GII.4_Sydney | 100.0 | known | orf1: best GII.P16 65% < 70% |
+| MT451991.1 | GI | GI.P13 | 100.0 | `GI.P13:100.0\|GI.P1:0.0` | known | GI.3 | 100.0 | known | |
+| MN509084.1 | Caliciviridae_Sapovirus_GII | | | | not_assessable | | | not_assessable | other Caliciviridae: genogroup only |
+| AB039780.1 | GII | unassigned | 0.0 | `GII.P1:0.0\|GII.P11:0.0` | **putative_new_genotype** | GII.8 | 100.0 | known | orf1: best GII.P1 0% < 70% |
 
 The first row is what the runner-up column is for. RIVM calls this genome
 GII.4 Sydney[P16]. `calicityper` agrees on the capsid, but `GII.P16` reached
 only 65% bootstrap support, so ORF1 is left `unassigned` rather than called. The
 runner-up column still shows the best candidate, and `note` gives the reason.
-The `.json` and `.md` reports for the same run are in [examples/](examples/).
+
+The last row is a flag. AB039780.1's RdRp is on average 0.190 (nt) from the
+nearest P-type, outside that cluster's bound of 0.127. RIVM calls it GII.P8;
+the bundled GII.P8 references are not close to it, so this flag points at a gap
+in the reference set, not a new virus. The `.json`, `.md` and `.html` reports
+for the same run are in [examples/](examples/), with notes on each row.
 
 #### Options
 
@@ -202,7 +231,7 @@ The `.json` and `.md` reports for the same run are in [examples/](examples/).
 | `--seed` | int | bootstrap seed, for reproducibility [1] |
 | `--report` | prefix | write `.md`, `.json` and `.html` as well |
 | `--json` / `--md` / `--html` | path | write one format individually |
-| `--report-max-panels` | int | most alignment panels to draw [20] |
+| `--report-max-panels` | int | cap on alignment panels, in input order [no cap: every call] |
 | `--no-tree` | flag | skip the per-region trees in the HTML |
 
 ### `calicityper recomb`
@@ -379,6 +408,64 @@ groupings before the sets are built from them.
 5. **Bootstrap** -- 100 replicates; a type is assigned when the query forms a
    clade with all references of exactly one type in >= 70% of them.
 
+### Novelty screen
+
+Every typed region is also checked for whether it falls **outside every known
+genotype or genogroup**, using the classification rule of Chhabra *et al.*
+2019. That paper assigns capsid genotypes and genogroups on uncorrected
+p-distances of the **complete VP1 amino acid** sequence and P-types on
+**partial RdRp nucleotide** sequence, and recognises a new cluster when "the
+average distance between all sequences within a new genogroup or genotype and
+its nearest cluster(s) should not overlap within two standard deviations".
+
+Applied to one query:
+
+1. Each reference genotype and genogroup has a bound: the mean distance between
+   its members + 2 SD.
+2. The query is placed by its **average distance to the members** of each
+   cluster.
+3. It is `known` if that average is inside some genotype's bound;
+   `putative_new_genotype` if it is outside every genotype's;
+   `putative_new_genogroup` if it is also outside every genogroup's.
+4. It is `not_assessable` if it lacks what the rule is defined on: a complete
+   VP1 open reading frame (ATG to stop, no internal stop, within 10% of the
+   reference lengths), or at least 95% of the RdRp typing region.
+
+Clusters with fewer than three references, and the tentative (NA) clusters,
+have no SD of their own; they use the pooled distribution of all clusters at
+that level, with far outliers dropped. Genogroups always use the pooled bound,
+because their internal diversity varies too much between so few groups (GVI
+alone would otherwise absorb most queries). The per-cluster table ships as
+`calicityper/data/novelty_bounds.tsv` and is rebuilt by
+`scripts/build_novelty_bounds.py`.
+
+**Read a flag as "look at this one", never as "this is new".** The paper names
+a cluster from a single sequence, or from one location, as not assigned (NA).
+A flag can also mean the bundled reference set is thin for that type, as in
+the AB039780.1 example above.
+
+How well it works, from leaving each reference out in turn
+([BENCHMARKING.md](BENCHMARKING.md#6-novelty-screen)):
+
+| | Known type correctly `known` | Removed type correctly flagged |
+|---|---|---|
+| VP1 genotype | 93% | 95% |
+| RdRp P-type | 94% | 51% |
+| VP1 genogroup | | 18% |
+
+The VP1 genotype screen is the reliable part. The RdRp and genogroup screens
+miss most novelty, because partial-RdRp P-types and VP1 genogroups genuinely
+overlap: Chhabra *et al.* needed complete ORF1 sequences to confirm their own
+P-type reclassifications, and GIX was GII.15 until 2019. A `known` RdRp or
+genogroup result is therefore weak evidence; a flag is stronger.
+
+Sapovirus is not screened yet. Its criteria are published (Zhao *et al.* 2024:
+complete VP1 nucleotide p-distance < 0.161 for the same genotype and < 0.503
+for the same genogroup; RdRp < 0.266 for the same P-type and < 0.531 for the
+same P-group), but the sapovirus VP1 and RdRp reference sets are not built.
+
+### Recombination
+
 For recombination: sanitise and validate the alignment, run the OpenRDP
 scanners, cluster hits into candidate events by breakpoint proximity, infer
 parents, test segment phylogenies either side of each breakpoint, score, and
@@ -510,6 +597,11 @@ data location is overridable with `CALICITYPER_DATA`.
 - **Norovirus classification** (genogroups, P-types, capsid types; the
   reference strains bundled here): Chhabra *et al.* 2019, *J Gen Virol*
   100:1393-1406. [doi:10.1099/jgv.0.001318](https://doi.org/10.1099/jgv.0.001318)
+- **Novelty criterion** (2x SD rule, NA clusters): as above, Chhabra *et al.*
+  2019, Methods and Results.
+- **Sapovirus dual typing** (VP1 and RdRp genogroups, genotypes and their
+  cut-offs): Zhao *et al.* 2024, *BMC Genomics* 25:1131.
+  [doi:10.1186/s12864-024-11048-w](https://doi.org/10.1186/s12864-024-11048-w)
 
 ### Related tools
 

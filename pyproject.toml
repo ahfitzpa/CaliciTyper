@@ -35,4 +35,5 @@ calicityper = [
   "data/database/*",
   "data/reference_sequences_RdRp/*",
   "data/reference_sequences_VP1/*",
+  "data/novelty_bounds.tsv",
 ]

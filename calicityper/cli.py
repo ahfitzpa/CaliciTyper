@@ -46,8 +46,9 @@ def _add_type_args(p):
     r.add_argument("--md", metavar="PATH", help="write a Markdown report")
     r.add_argument("--html", metavar="PATH",
                    help="write a self-contained HTML report with Bokeh alignment panels and trees")
-    r.add_argument("--report-max-panels", type=int, default=20, metavar="N",
-                   help="most alignment panels to draw, highest-support calls first [default: 20]")
+    r.add_argument("--report-max-panels", type=int, default=None, metavar="N",
+                   help="cap the number of alignment panels, in input order "
+                        "[default: one per typed region, every call]")
     r.add_argument("--no-tree", action="store_true", help="skip the per-region trees in the HTML report")
     r.add_argument("--html-cdn", action="store_true",
                    help="link BokehJS from a CDN instead of embedding it: a much smaller "
@@ -105,7 +106,7 @@ def _run_type(a):
         a.md = a.md or f"{a.report}.md"
         a.json = a.json or f"{a.report}.json"
         a.html = a.html or f"{a.report}.html"
-    a._want_aln = bool(a.html)          # alignments/trees are only needed for the HTML
+    a._want_aln = True                  # the novelty screen needs the alignment, not only the HTML
     ty.cg.check_data()          # clear error if the bundled reference data is missing
     recs = [(r.id, str(r.seq)) for r in SeqIO.parse(a.fasta, "fasta")]
     with tempfile.TemporaryDirectory(prefix="calicityper_") as td:
@@ -133,11 +134,32 @@ def _run_type(a):
         ty.apply_result(rows[i], region, res, a.min_support)
         if aln is not None:
             alns[(i, region)] = aln
+    _screen_novelty(rows, alns, todo)
     ordered = [rows[i] for i in range(len(recs))]
     df = pd.DataFrame(ordered)
     (df.to_csv(sys.stdout, sep="\t", index=False) if a.out == "-" else df.to_csv(a.out, sep="\t", index=False))
     if a.md or a.json or a.html:
         _write_reports(a, ordered, alns)
+
+def _screen_novelty(rows, alns, todo):
+    """Add orf1/orf2 novelty flags (2x SD screen) to every row; see novelty.py."""
+    from . import novelty
+    subs = {(i, region): seq for (region, g), lst in todo.items() for i, seq in lst}
+    for i, row in rows.items():
+        for region in ("orf1", "orf2"):
+            row[f"{region}_novelty"], row[f"{region}_novelty_detail"] = "", ""
+            if (i, region) in alns:
+                g, qa = alns[(i, region)]
+                res = novelty.assess(region, g, qa, subs.get((i, region), ""))
+                row[f"{region}_novelty"], row[f"{region}_novelty_detail"] = res["flag"], res["detail"]
+            elif row.get("genogroup") not in ("", "unassigned") \
+                    and row["genogroup"] not in ty.cg.NOROVIRUS_GROUPS:
+                row[f"{region}_novelty"] = novelty.NA
+                row[f"{region}_novelty_detail"] = novelty.NOT_NOROVIRUS
+            elif row.get(f"{region}_type") in ("", None) and row.get("genogroup") != "unassigned":
+                row[f"{region}_novelty"] = novelty.NA
+                row[f"{region}_novelty_detail"] = "region not present in the query"
+
 
 def _support(row, region):
     try:
@@ -147,35 +169,37 @@ def _support(row, region):
 
 
 def _panels(a, rows, alns):
-    """One alignment panel per call: the query against the references of the type
-    it was assigned, plus the references of the runner-up type for contrast."""
+    """One panel per typed region, assigned or not: the query against its single
+    closest reference (uncorrected p-distance), drawing only the differences.
+
+    Every region that reached the alignment step gets one, including
+    `unassigned` calls -- those are the ones most worth inspecting. Order is
+    input order, ORF1 before ORF2. --report-max-panels caps the count if set.
+    """
     from . import report
-    want = [(k, _support(rows[k[0]], k[1])) for k in alns
-            if (rows[k[0]].get(f"{k[1]}_type") or "") not in ("", "unassigned")]
-    want.sort(key=lambda kv: -kv[1])
+    keys = sorted(alns, key=lambda k: (k[0], k[1]))
+    if a.report_max_panels is not None:
+        keys = keys[:max(0, a.report_max_panels)]
     figs = []
-    for (i, region), _ in want[:max(0, a.report_max_panels)]:
+    for i, region in keys:
         g, qa = alns[(i, region)]
         ref = align.refset(region, g)
-        row = rows[i]
-        called = row.get(f"{region}_type")
-        runner = next((t for t, _ in (_parse_runners(row.get(f"{region}_runners")) or [])
-                       if t != called), None)
-        names, seqs = [str(row["query"])[:38]], [qa]
-        for t, tag in ((called, ""), (runner, " (runner-up)")):
-            if not t:
-                continue
-            for nm, sq, ty_ in zip(ref.names, ref.seqs, ref.types):
-                if ty_ == t and len(names) < 12:
-                    names.append(f"{nm} {t}{tag}")
-                    seqs.append(sq)
-        if len(seqs) < 2:
+        best = report.closest_reference(qa, ref.seqs)
+        if best is None:
             continue
-        figs.append(report.alignment_figure(
-            names, seqs,
-            f"{row['query']} \u2014 {region.upper()} \u2192 {called} "
-            f"({_support(row, region):.0f}% support)",
-            highlight=names[0]))
+        k, pdist, n, ndiff = best
+        row = rows[i]
+        called = row.get(f"{region}_type") or "untyped"
+        sup = (f" ({_support(row, region):.0f}% support)"
+               if row.get(f"{region}_support") not in (None, "") else "")
+        nov = row.get(f"{region}_novelty") or ""
+        tag = (f"\u2691 {report.NOVELTY_LABEL[nov].upper()} \u00b7 " if nov in report.NOVELTY_LABEL else "")
+        title = (f"{tag}{row['query']} \u2014 {region.upper()} \u2192 {called}{sup} \u00b7 "
+                 f"closest {ref.names[k]} ({ref.types[k]}): {ndiff} differences "
+                 f"in {n} nt, p = {pdist:.3f}")
+        figs.append(report.difference_figure(
+            str(row["query"])[:38], qa, f"{ref.names[k]} {ref.types[k]}"[:38],
+            ref.seqs[k], title))
     return [f for f in figs if f is not None]
 
 

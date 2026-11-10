@@ -11,6 +11,7 @@ import csv
 import shutil
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 from Bio import SeqIO
@@ -18,7 +19,8 @@ from Bio import SeqIO
 from calicityper import config as cg
 
 COLUMNS = ["query", "genogroup", "orf1_type", "orf1_support", "orf1_runners",
-           "orf2_type", "orf2_support", "orf2_runners", "note"]
+           "orf2_type", "orf2_support", "orf2_runners", "note",
+           "orf1_novelty", "orf1_novelty_detail", "orf2_novelty", "orf2_novelty_detail"]
 
 needs_tools = pytest.mark.skipif(
     not (shutil.which("blastn") and shutil.which("mafft")),
@@ -183,3 +185,60 @@ def test_report_module_works_without_bokeh(tmp_path, monkeypatch):
     report.to_html(rows, tmp_path / "r.html", figures=[])
     assert (tmp_path / "r.md").stat().st_size > 0
     assert "GII.4_Sydney" in (tmp_path / "r.html").read_text()
+
+
+def test_closest_reference_ignores_uncovered_columns():
+    """A partial query is compared only where it has bases: the reference that is
+    identical over the covered span wins even if it differs elsewhere."""
+    from calicityper import report
+
+    q = "----ACGTACGT----"
+    refs = ["TTTTACGTACGTTTTT",      # identical over the covered 8 columns
+            "ACGTACGAACGTACGT"]      # one difference inside the covered span
+    k, p, n, diff = report.closest_reference(q, refs)
+    assert (k, p, n, diff) == (0, 0.0, 8, 0)
+    assert report.closest_reference("-" * 16, refs) is None
+
+
+def test_difference_figure_draws_only_differences():
+    from calicityper import report
+    if not report.HAVE_BOKEH:
+        return
+    fig = report.difference_figure("q", "--ACGTTCGT-A", "r", "AAACGTACGTCA", "t")
+    cells = [r for r in fig.renderers if "rect" in type(r.glyph).__name__.lower()][0]
+    # one substitution (col 7) and one query deletion (col 11), each drawn in both rows
+    assert sorted(set(cells.data_source.data["col"])) == [7, 11]
+
+
+def test_complete_vp1_requires_start_stop_and_length():
+    from calicityper import novelty as nv
+    lens = [540, 560]
+    orf = "ATG" + "GCT" * 549 + "TAA"                      # 550 aa, complete
+    assert len(nv.complete_vp1("CC" + orf + "GG", lens)) == 550
+    assert nv.complete_vp1("CC" + orf[:-3] + "GCT", lens) is None      # no stop: truncated
+    assert nv.complete_vp1("ATG" + "GCT" * 100 + "TAA", lens) is None  # far too short
+
+
+def test_classify_follows_per_cluster_bounds():
+    from calicityper import novelty as nv
+    t = {("orf2", "genotype", "GII.4"): 0.10, ("orf2", "genotype", "*pooled*"): 0.13,
+         ("orf2", "genogroup", "GII"): 0.44, ("orf2", "genogroup", "*pooled*"): 0.44}
+    assert nv.classify("orf2", {"GII.4": 0.05}, None, t)[0] == nv.KNOWN
+    assert nv.classify("orf2", {"GII.4": 0.20}, {"GII": 0.30}, t)[0] == nv.NEW_TYPE
+    assert nv.classify("orf2", {"GII.4": 0.50}, {"GII": 0.50}, t)[0] == nv.NEW_GROUP
+    # an unlisted (small/tentative) cluster falls back to the pooled bound
+    assert nv.classify("orf2", {"GII.NA1": 0.12}, None, t)[0] == nv.KNOWN
+
+
+def test_novelty_columns_and_sapovirus_not_assessed(tmp_path):
+    """Every row carries the novelty columns; non-noroviruses are not assessed."""
+    import pandas as pd
+    from calicityper import novelty as nv
+    ex = Path(__file__).resolve().parent.parent / "examples" / "example.fasta"
+    out = tmp_path / "t.tsv"
+    run_cli(ex, out)
+    d = pd.read_csv(out, sep="\t", dtype=str).fillna("").set_index("query")
+    for c in ("orf1_novelty", "orf2_novelty", "orf1_novelty_detail", "orf2_novelty_detail"):
+        assert c in d.columns
+    assert d.loc["MN509084.1", "orf2_novelty"] == nv.NA
+    assert d.loc["MT451991.1", "orf2_novelty"] == nv.KNOWN

@@ -1,7 +1,7 @@
 {
   "tool": "calicityper",
-  "generated": "2026-11-10T11:07:38+00:00",
-  "n_queries": 3,
+  "generated": "2026-11-10T12:29:51+00:00",
+  "n_queries": 4,
   "meta": {
     "bootstraps": 100,
     "min_support": 70.0,
@@ -45,7 +45,11 @@
           "support": 0.0
         }
       ],
-      "note": "orf1: best GII.P16 65% < 70%"
+      "note": "orf1: best GII.P16 65% < 70%",
+      "orf1_novelty": "known",
+      "orf1_novelty_detail": "RdRp nt: average p = 0.078 to GII.P16, within its 2x SD bound 0.109",
+      "orf2_novelty": "known",
+      "orf2_novelty_detail": "VP1 aa: average p = 0.049 to GII.4, within its 2x SD bound 0.094"
     },
     {
       "query": "MT451991.1",
@@ -82,7 +86,11 @@
           "support": 0.0
         }
       ],
-      "note": ""
+      "note": "",
+      "orf1_novelty": "known",
+      "orf1_novelty_detail": "RdRp nt: average p = 0.069 to GI.P13, within its 2x SD bound 0.111",
+      "orf2_novelty": "known",
+      "orf2_novelty_detail": "VP1 aa: average p = 0.121 to GI.3, within its 2x SD bound 0.223"
     },
     {
       "query": "MN509084.1",
@@ -93,7 +101,52 @@
       "orf2_type": "",
       "orf2_support": "",
       "orf2_runners": [],
-      "note": "other Caliciviridae: genogroup only"
+      "note": "other Caliciviridae: genogroup only",
+      "orf1_novelty": "not_assessable",
+      "orf1_novelty_detail": "not a norovirus: sapovirus cut-offs are published (Zhao et al. 2024) but no sapovirus VP1/RdRp reference sets are bundled yet",
+      "orf2_novelty": "not_assessable",
+      "orf2_novelty_detail": "not a norovirus: sapovirus cut-offs are published (Zhao et al. 2024) but no sapovirus VP1/RdRp reference sets are bundled yet"
+    },
+    {
+      "query": "AB039780.1",
+      "genogroup": "GII",
+      "orf1_type": "unassigned",
+      "orf1_support": 0.0,
+      "orf1_runners": [
+        {
+          "type": "GII.P1",
+          "support": 0.0
+        },
+        {
+          "type": "GII.P11",
+          "support": 0.0
+        },
+        {
+          "type": "GII.P12",
+          "support": 0.0
+        }
+      ],
+      "orf2_type": "GII.8",
+      "orf2_support": 100.0,
+      "orf2_runners": [
+        {
+          "type": "GII.8",
+          "support": 100.0
+        },
+        {
+          "type": "GII.1",
+          "support": 0.0
+        },
+        {
+          "type": "GII.10",
+          "support": 0.0
+        }
+      ],
+      "note": "orf1: best GII.P1 0% < 70%",
+      "orf1_novelty": "putative_new_genotype",
+      "orf1_novelty_detail": "RdRp nt: average p = 0.190 to GII.P6, outside its 2x SD bound 0.127; single sequence, so tentative (NA) at most",
+      "orf2_novelty": "known",
+      "orf2_novelty_detail": "VP1 aa: average p = 0.008 to GII.8, within its 2x SD bound 0.129"
     }
   ]
 }
