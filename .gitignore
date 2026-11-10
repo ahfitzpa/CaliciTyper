@@ -13,3 +13,6 @@ validation/*.fasta
 missing_accessions.txt
 recomb_out/
 aligned.fasta
+
+# brand asset bundle as delivered; its contents live in assets/
+*.zip

@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/calicityper-lockup-horizontal.png" width="420" alt="CaliciTyper">
+</p>
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/)
 [![Classification](https://img.shields.io/badge/classification-Chhabra_2019-green.svg)](https://doi.org/10.1099/jgv.0.001318)
@@ -650,6 +654,9 @@ underlying methods.
 ## Licence
 
 MIT. See [LICENSE](LICENSE).
+
+> The CaliciTyper name and logo are © A. H. Fitzpatrick and are not covered by
+> the software licence. See [assets/NOTICE.md](assets/NOTICE.md).
 
 ## Attribution
 
