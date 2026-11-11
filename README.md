@@ -329,18 +329,28 @@ the variant in a separate column.
 
 ### Sapovirus typing: in preparation, not yet available
 
-Reference tables have been transcribed from the BMC Genomics dual VP1/RdRp
-typing proposal -- 54 VP1 genotypes and 46 RdRp P-types over 198 accessions, in
+Reference tables are built directly from Supplemental Table 1 of Zhao *et al.*
+2024 (BMC Genomics 25:1131) by
+[`scripts/build_sapovirus_taxonomy.py`](scripts/build_sapovirus_taxonomy.py):
+53 VP1 genotypes over 156 strains and 45 RdRp P-types over 139 strains, in
 [`validation/sapovirus_vp1_taxonomy.csv`](validation/sapovirus_vp1_taxonomy.csv)
 and
 [`validation/sapovirus_rdrp_taxonomy.csv`](validation/sapovirus_rdrp_taxonomy.csv).
-Every accession was verified against NCBI, which caught four transcription
-errors.
+
+Generating them from the spreadsheet rather than transcribing matters: an
+earlier hand-transcription put six accessions in the wrong genotype or changed
+a character, and a test now fails if the CSVs drift from the published table.
+Every accession was also checked against NCBI, which found four errors in the
+published table itself (`L504335`, `KC215898`, `KC469052` and `LC215696` are
+not sapovirus records; the `note` column gives each correction) and one that
+cannot be resolved: `KC309412`, listed for VP1 genogroup GXXVI, is a 366 nt
+*Pseudomonas aeruginosa* 16S record. It stays flagged and is excluded from any
+reference set.
 
 **Sapovirus genotyping is not implemented.** The tables are step one of five;
-the sequences have not been downloaded, ORFs not extracted, reference sets not
-built, and nothing in the typing path is sapovirus-aware. Sapovirus input is
-currently detected to genus and genogroup only.
+the sequences have not had their ORFs extracted, reference sets are not built,
+and nothing in the typing path is sapovirus-aware. Sapovirus input is currently
+detected to genus and genogroup only.
 ---
 
 ## Method

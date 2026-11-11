@@ -274,3 +274,35 @@ def test_p_distance_tolerates_ambiguous_residues():
     assert pn.p_distance("MXKAAA", "MLKAAA", "aa") == (0.0, 5)
     assert pn.p_distance("MLKAAA", "MLKAAA", "aa") == (0.0, 6)
     assert pn.sanitise_aa("MJKBZX*-l") == "MXKXXXXXL"
+
+
+def test_sapovirus_taxonomy_csvs_match_the_published_table():
+    """The CSVs must stay a faithful read of Supplemental Table 1, not a
+    hand-transcription: an earlier transcription put six accessions in the wrong
+    row. Regenerating must be a no-op."""
+    import subprocess
+    root = Path(__file__).resolve().parent.parent
+    csvs = [root / "validation" / "sapovirus_vp1_taxonomy.csv",
+            root / "validation" / "sapovirus_rdrp_taxonomy.csv"]
+    if not (root / "validation" / "12864_2024_11048_MOESM1_ESM.xlsx").exists():
+        return                                  # source spreadsheet not distributed
+    before = [p.read_text() for p in csvs]
+    subprocess.run([sys.executable, str(root / "scripts" / "build_sapovirus_taxonomy.py")],
+                   check=True, capture_output=True)
+    for p, was in zip(csvs, before):
+        assert p.read_text() == was, f"{p.name} differs from the published table"
+
+
+def test_sapovirus_tables_have_the_published_counts():
+    """53 VP1 genotypes / 156 strains and 45 P-types / 139 strains, per the paper."""
+    root = Path(__file__).resolve().parent.parent
+    for name, key, labels, accs in (("sapovirus_vp1_taxonomy.csv", "genotype", 53, 156),
+                                    ("sapovirus_rdrp_taxonomy.csv", "ptype", 45, 139)):
+        rows = [r for r in csv.DictReader(
+            l for l in open(root / "validation" / name) if not l.startswith("#"))]
+        assert len(rows) == accs, (name, len(rows))
+        assert len({r[key] for r in rows}) == labels, (name, len({r[key] for r in rows}))
+        # the one unusable accession stays flagged rather than silently dropped
+        if key == "genotype":
+            bad = [r for r in rows if r["note"].startswith("UNRESOLVED")]
+            assert [r["accession"] for r in bad] == ["KC309412"], bad
