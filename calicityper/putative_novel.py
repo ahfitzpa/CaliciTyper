@@ -78,16 +78,40 @@ def _aligner(alphabet):
     return a
 
 
+AA_ALPHABET = "ACDEFGHIKLMNPQRSTVWY"
+AMBIGUOUS_AA = frozenset("XBZJ")     # X plus Asx / Glx / Xle
+
+
+def sanitise_aa(seq):
+    """Map anything outside the 20 standard residues to 'X'.
+
+    Translating an ambiguous codon yields an ambiguity letter, and BLOSUM62 has
+    no row for all of them: 'MTA' (Ile or Leu) becomes 'J', which makes the
+    pairwise aligner raise "sequence contains letters not in the alphabet" and
+    ends the whole run. Ambiguous codons are normal in GenBank records (329 N,
+    219 Y, 173 R across the 5,986-record RIVM set), not bad input.
+    """
+    return "".join(c if c in AA_ALPHABET else "X" for c in seq.upper())
+
+
 def p_distance(x, y, alphabet):
     """Uncorrected p-distance after pairwise alignment, with pairwise deletion:
     mismatches / positions where neither sequence has a gap (as MEGA does).
-    Returns (p, n_compared)."""
+
+    Positions where either sequence is ambiguous are skipped too, so an N-rich
+    stretch lowers the number compared rather than inflating the distance --
+    the same rule msa_distances() applies to nucleotides.
+    """
+    if alphabet == "aa":
+        x, y = sanitise_aa(x), sanitise_aa(y)
     aln = _aligner(alphabet).align(x, y)[0]
     n = diff = 0
     for (a0, a1), (b0, b1) in zip(*aln.aligned):
-        sa, sb = x[a0:a1], y[b0:b1]
-        n += len(sa)
-        diff += sum(c != d for c, d in zip(sa, sb))
+        for c, d in zip(x[a0:a1], y[b0:b1]):
+            if c in AMBIGUOUS_AA or d in AMBIGUOUS_AA:
+                continue
+            n += 1
+            diff += c != d
     return (diff / n if n else float("nan")), n
 
 

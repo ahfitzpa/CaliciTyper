@@ -54,7 +54,12 @@ def _mafft(ref, queries, exclude, threads):
                 fh.write(f">q{i}\n{str(s).upper().replace('U', 'T')}\n")
         cmd = [cg.exe("mafft"), "--quiet", "--thread", str(max(1, threads)), "--keeplength", "--6merpair",
                "--addfragments", qf, rf]
-        out = subprocess.run(cmd, check=True, capture_output=True, text=True).stdout
+        p = subprocess.run(cmd, capture_output=True, text=True)
+        if p.returncode != 0:
+            err = (p.stderr or "").strip()[-2000:] or "(no stderr)"
+            raise RuntimeError(f"MAFFT failed (exit {p.returncode}) aligning {len(queries)} queries "
+                               f"to {ref.aln_path}:\n{err}")
+        out = p.stdout
     got = {}
     name, buf = None, []
     for line in out.splitlines():

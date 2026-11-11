@@ -285,14 +285,16 @@ only inside one genogroup's alignment.
 
 | Region | Scenario | n | `known` | `putative_novel_type` | `putative_novel_group` |
 |---|---|---|---|---|---|
-| VP1 | own genotype present | 159 | **148 (93%)** | 11 (7%) | 0 |
-| VP1 | own genotype removed | 166 | 8 (5%) | **151 (91%)** | 7 (4%) |
+| VP1 | own genotype present | 159 | **149 (94%)** | 10 (6%) | 0 |
+| VP1 | own genotype removed | 166 | 9 (5%) | **150 (90%)** | 7 (4%) |
 | VP1 | own genogroup removed | 166 | 0 | 136 (82%) | **30 (18%)** |
 | RdRp | own P-type present | 163 | **157 (96%)** | 5 (3%) | 1 (1%) |
 | RdRp | own P-type removed | 176 | 88 (50%) | **87 (49%)** | 1 (1%) |
 
-Bold is the right answer. The VP1 genotype screen is reliable: 93% specific,
-95% sensitive (any flag). The RdRp P-type and VP1 genogroup screens are not
+Bold is the right answer. The VP1 genotype screen is reliable: 94% specific,
+95% sensitive (any flag). Distances skip positions where either sequence is
+ambiguous, so an N-rich stretch lowers the number of residues compared instead
+of inflating the distance. The RdRp P-type and VP1 genogroup screens are not
 sensitive, and that reflects the data rather than a tuning choice:
 
 - **Partial-RdRp P-types overlap.** Between-P-type distances in the typing

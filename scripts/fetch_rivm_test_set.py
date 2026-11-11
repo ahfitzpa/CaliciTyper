@@ -51,6 +51,25 @@ def wanted_accessions(every=False):
     return sorted({r["accession"] for r in rows})
 
 
+def drop_unterminated_tail(path):
+    """If an interrupted run left the last record without a final newline, cut it off.
+
+    That record may be truncated, and already_have() would count it as fetched;
+    the next appended header would also land on the same line, merging two
+    records (KJ955493.1 / KM025143.1, job 1097930, 2026-11-09).
+    """
+    if not path.exists() or path.stat().st_size == 0:
+        return None
+    data = path.read_bytes()
+    if data.endswith(b"\n"):
+        return None
+    start = data.rfind(b"\n>") + 1          # 0 if the only record is the broken one
+    acc = data[start + 1:].split(None, 1)[0].decode(errors="replace") if data[start:start + 1] == b">" else "?"
+    with open(path, "r+b") as fh:
+        fh.truncate(start)
+    return acc
+
+
 def already_have(path):
     """Versioned accessions already present in a partially written FASTA, for resuming."""
     if not path.exists():
@@ -97,6 +116,9 @@ def main():
 
     out = Path(a.out)
     accs = wanted_accessions(a.every)
+    cut = drop_unterminated_tail(out)
+    if cut:
+        print(f"dropped unterminated last record {cut} (interrupted run); refetching it")
     have = already_have(out)
     todo = [x for x in accs if x not in have]
     delay = 0.12 if a.api_key else 0.40           # stay under 10/s with a key, 3/s without

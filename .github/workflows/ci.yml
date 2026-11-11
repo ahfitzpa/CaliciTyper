@@ -71,7 +71,7 @@ jobs:
           rs = list(SeqIO.parse("calicityper/data/database/refseq_2.fasta", "fasta"))
           SeqIO.write(rs[:2], "ci_query.fa", "fasta")
           PY
-          calicityper ci_query.fa -o ci_out.tsv --threads 2
+          calicityper type ci_query.fa -o ci_out.tsv --threads 2
           cat ci_out.tsv
           python - <<'PY'
           import csv

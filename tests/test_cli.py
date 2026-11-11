@@ -108,6 +108,24 @@ def test_every_input_record_yields_exactly_one_row(tmp_path):
 
 
 @needs_tools
+def test_merged_fasta_record_is_flagged_not_fatal(tmp_path):
+    """A header merged into a sequence line (an interrupted download) must not
+    crash MAFFT for the whole chunk: that record is reported untyped, the rest
+    are typed. Regression for KJ955493.1 in the RIVM set (job 1110626)."""
+    recs = reference_genomes(2)
+    s = str(recs[1].seq)
+    q = tmp_path / "merged.fa"
+    q.write_text(f">{recs[0].id}\n{recs[0].seq}\n"
+                 f">broken\n{s[:5000]}>XX000001.1 Norovirus GII, partial cds\n{s[5000:]}\n")
+    rows = run_cli(q, tmp_path / "out.tsv", "--threads", "2")
+
+    assert [r["query"] for r in rows] == [recs[0].id, "broken"]
+    assert rows[0]["orf1_type"] or rows[0]["orf2_type"]
+    assert rows[1]["genogroup"] == "unassigned"
+    assert "non-nucleotide" in rows[1]["note"]
+
+
+@needs_tools
 def test_results_are_deterministic_for_a_fixed_seed(tmp_path):
     """The bootstrap is seeded, so two identical runs must agree exactly."""
     q = tmp_path / "q.fa"
@@ -242,3 +260,17 @@ def test_putative_novel_columns_and_sapovirus_not_assessed(tmp_path):
         assert c in d.columns
     assert d.loc["MN509084.1", "orf2_putative_novel"] == nv.NA
     assert d.loc["MT451991.1", "orf2_putative_novel"] == nv.KNOWN
+
+
+def test_p_distance_tolerates_ambiguous_residues():
+    """An ambiguous codon translates to an ambiguity letter BLOSUM62 has no row
+    for ('MTA' -> 'J'), which used to raise and end a whole run. Ambiguous
+    positions are skipped rather than counted as mismatches."""
+    from Bio.Seq import Seq
+    from calicityper import putative_novel as pn
+
+    assert "J" in str(Seq("ATGMTAAAA").translate())          # the real input case
+    assert pn.p_distance("MJKAAA", "MLKAAA", "aa") == (0.0, 5)
+    assert pn.p_distance("MXKAAA", "MLKAAA", "aa") == (0.0, 5)
+    assert pn.p_distance("MLKAAA", "MLKAAA", "aa") == (0.0, 6)
+    assert pn.sanitise_aa("MJKBZX*-l") == "MXKXXXXXL"

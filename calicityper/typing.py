@@ -178,10 +178,26 @@ def orf_window(hit, region):
     return max(0, int(lo) - CROP_PAD - 1), int(hi) + CROP_PAD
 
 
+NUCLEOTIDES = frozenset("ACGTURYKMSWBDHVN-")     # IUPAC codes plus gap
+
+
+def invalid_characters(seq):
+    """Characters in seq that are not IUPAC nucleotide codes (case-insensitive), sorted."""
+    return sorted(set(str(seq).upper()) - NUCLEOTIDES)
+
+
 def plan_query(rec_id, seq, hit):
     """Decide what to do with one query. Returns (row, jobs) where jobs = [(region, group, oriented_seq)]."""
     row = dict(query=rec_id, genogroup="unassigned", orf1_type="", orf1_support="", orf1_runners="",
                orf2_type="", orf2_support="", orf2_runners="", note="")
+    bad = invalid_characters(seq)
+    if bad:
+        # Typically two FASTA records merged onto one line (a header inside the
+        # sequence). MAFFT rejects these, and one such query would otherwise take
+        # down the whole alignment chunk it shares with other queries.
+        shown = "".join(bad[:10]) + ("..." if len(bad) > 10 else "")
+        row["note"] = f"not typed: sequence contains non-nucleotide characters ({shown!r}); check the FASTA is well formed"
+        return row, []
     if hit is None:
         row["note"] = "no BLAST hit (not a norovirus / Caliciviridae sequence in reference set)"
         return row, []

@@ -1,6 +1,6 @@
 # calicityper results
 
-Generated 2026-11-10T16:21:17+00:00  
+Generated 2026-11-11T21:38:36+00:00  
 Queries: **4**
 
 ## Genogroups

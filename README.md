@@ -400,7 +400,7 @@ How well it works, from leaving each reference out in turn
 
 | | Known type correctly `known` | Removed type correctly flagged |
 |---|---|---|
-| VP1 genotype | 93% | 95% |
+| VP1 genotype | 94% | 95% |
 | RdRp P-type | 96% | 50% |
 | VP1 genogroup | | 18% |
 
