@@ -272,3 +272,91 @@ def test_unknown_query_id_is_an_error(tmp_path, cfg):
     synthetic.non_recombinant(str(p))
     with pytest.raises(R.AlignmentError):
         R.analyse(str(p), ["not_in_alignment"], cfg, workdir=str(tmp_path / "w"))
+
+
+# ------------------------------------------------------------------ sapovirus
+
+SAPO_JUNCTION = synthetic.SAPOVIRUS_RDRP_VP1_JUNCTION
+
+
+@pytest.fixture
+def sapo_cfg():
+    cfg = RC.load(None)
+    cfg.virus = "sapovirus"
+    cfg.regions = {}                 # re-resolved from `virus` by validate()
+    cfg.validate()
+    return cfg
+
+
+def test_sapovirus_model_is_selected_and_differs_from_norovirus(sapo_cfg, cfg):
+    assert sapo_cfg.virus == "sapovirus"
+    assert any("RdRp-VP1" in r for r in sapo_cfg.regions)
+    assert not any("RdRp-VP1" in r for r in cfg.regions)
+    assert sapo_cfg.regions != cfg.regions
+
+
+def test_sapovirus_junction_is_labelled_as_such_not_as_orf1_orf2(sapo_cfg, cfg):
+    """The point of a per-virus model. Both viruses score nt 5139 as a hotspot,
+    but in sapovirus VP1 sits inside ORF1, so calling it an 'ORF1-ORF2
+    junction' would be wrong even though the coordinate is similar."""
+    s_score, s_where = R.biological_plausibility_score(
+        SAPO_JUNCTION, SAPO_JUNCTION, synthetic.SAPOVIRUS_LENGTH, sapo_cfg)
+    n_score, n_where = R.biological_plausibility_score(
+        SAPO_JUNCTION, SAPO_JUNCTION, synthetic.SAPOVIRUS_LENGTH, cfg)
+    assert s_score == 1.0 and "RdRp-VP1" in s_where
+    assert n_score == 1.0 and "ORF1-ORF2" in n_where          # same score, wrong name
+    assert s_where != n_where
+
+
+def test_sapovirus_mid_ns_breakpoint_is_not_rewarded_as_a_junction(sapo_cfg):
+    hot, _ = R.biological_plausibility_score(
+        SAPO_JUNCTION, SAPO_JUNCTION, synthetic.SAPOVIRUS_LENGTH, sapo_cfg)
+    mid, where = R.biological_plausibility_score(
+        synthetic.SAPOVIRUS_MID_NS, synthetic.SAPOVIRUS_MID_NS,
+        synthetic.SAPOVIRUS_LENGTH, sapo_cfg)
+    assert mid < hot
+    assert "nonstructural" in where.lower(), where
+
+
+def test_sapovirus_vp1_region_lies_inside_orf1(sapo_cfg):
+    """A coordinate in VP1 must report a VP1 region that is part of ORF1, not
+    a separate ORF2 the way norovirus has."""
+    _, where = R.biological_plausibility_score(
+        6000, 6000, synthetic.SAPOVIRUS_LENGTH, sapo_cfg)
+    assert "VP1" in where and "ORF1" in where, where
+
+
+@needs_openrdp
+@pytest.mark.parametrize("name,expect_detected", [
+    ("sapovirus_non_recombinant", False),
+    ("sapovirus_clear_recombinant", True),
+    ("sapovirus_mid_ns_recombinant", True),
+])
+def test_sapovirus_synthetic_end_to_end(name, expect_detected, tmp_path, sapo_cfg):
+    p = tmp_path / f"{name}.fasta"
+    _, truth = getattr(synthetic, name)(str(p))
+    aln = R.read_alignment(str(p))
+    results, _ = R.analyse(str(p), [aln.names[-1]], sapo_cfg,
+                           workdir=str(tmp_path / "work"))
+    rec = results[0]["recombination"]
+    if not expect_detected:
+        assert rec["status"] in ("none", "weak"), rec
+        return
+    assert rec["status"] in ("possible", "likely", "strong"), rec
+    starts = [e["breakpoint"]["query_start"] for e in rec["events"]
+              if e.get("breakpoint", {}).get("query_start")]
+    assert starts, rec["events"]
+    assert min(abs(s - truth["breakpoint"]) for s in starts) <= \
+        sapo_cfg.max_breakpoint_distance, (starts, truth)
+
+
+@needs_openrdp
+def test_sapovirus_junction_event_carries_the_sapovirus_region_name(tmp_path, sapo_cfg):
+    p = tmp_path / "s.fasta"
+    synthetic.sapovirus_clear_recombinant(str(p))
+    aln = R.read_alignment(str(p))
+    results, provenance = R.analyse(str(p), [aln.names[-1]], sapo_cfg,
+                                    workdir=str(tmp_path / "w"))
+    regions = [e.get("biological_region", "") for e in results[0]["recombination"]["events"]]
+    assert any("RdRp-VP1" in r for r in regions), regions
+    assert provenance["parameters"]["virus"] == "sapovirus"

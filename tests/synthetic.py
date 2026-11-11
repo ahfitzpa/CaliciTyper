@@ -134,3 +134,56 @@ ALL = {
     "orf_mismatch_only": orf_mismatch_only,
     "too_short": too_short,
 }
+
+
+# Sapovirus is a different genome shape: ORF1 encodes the nonstructural
+# proteins AND the VP1 capsid as one polyprotein, so the recombination hotspot
+# is the NS7(RdRp)/VP1 junction INSIDE ORF1, not a junction between two ORFs.
+# A porcine GIII recombinant maps its breakpoint to nt 5139, at exactly that
+# boundary, which is the coordinate used here. Genome length 7200 matches the
+# complete sapovirus records in GenBank (7162-7430 nt).
+SAPOVIRUS_RDRP_VP1_JUNCTION = 5139
+SAPOVIRUS_LENGTH = 7200
+# Mid-NS region: a breakpoint here is inside ORF1 but nowhere near the
+# hotspot, so it must not score as a junction.
+SAPOVIRUS_MID_NS = 2500
+
+
+def sapovirus_non_recombinant(path, seed=7, length=SAPOVIRUS_LENGTH):
+    """Sapovirus-shaped negative control: one lineage, no recombination."""
+    rng = np.random.default_rng(seed)
+    lin = _panel(rng, 4, length, 0.08)
+    q = _mutate(lin["lineage0"][0], rng, 0.002)
+    recs = _records(lin) + [("QUERY", q)]
+    return write_fasta(path, recs), {"truth": "non_recombinant", "breakpoint": None}
+
+
+def sapovirus_clear_recombinant(path, seed=8, length=SAPOVIRUS_LENGTH,
+                                breakpoint=SAPOVIRUS_RDRP_VP1_JUNCTION):
+    """Query is lineage0 left of the RdRp/VP1 junction and lineage2 right of it.
+
+    The same construction as clear_recombinant, at the sapovirus hotspot. What
+    this tests beyond the norovirus case is the per-virus region model: the
+    event must be labelled an RdRp-VP1 junction, not an ORF1-ORF2 junction.
+    """
+    rng = np.random.default_rng(seed)
+    lin = _panel(rng, 4, length, 0.08)
+    a, b = lin["lineage0"][0], lin["lineage2"][0]
+    q = _mutate(a[:breakpoint] + b[breakpoint:], rng, 0.002)
+    recs = _records(lin) + [("QUERY", q)]
+    return write_fasta(path, recs), {"truth": "recombinant", "breakpoint": breakpoint}
+
+
+def sapovirus_mid_ns_recombinant(path, seed=9, length=SAPOVIRUS_LENGTH,
+                                 breakpoint=SAPOVIRUS_MID_NS):
+    """A real breakpoint in mid-NS, away from the hotspot.
+
+    Detection should still work; the biological-plausibility component should
+    not reward it the way it rewards a junction breakpoint.
+    """
+    rng = np.random.default_rng(seed)
+    lin = _panel(rng, 4, length, 0.08)
+    a, b = lin["lineage0"][0], lin["lineage3"][0]
+    q = _mutate(a[:breakpoint] + b[breakpoint:], rng, 0.002)
+    recs = _records(lin) + [("QUERY", q)]
+    return write_fasta(path, recs), {"truth": "recombinant", "breakpoint": breakpoint}
