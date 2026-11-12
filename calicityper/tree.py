@@ -167,6 +167,34 @@ def _clades_python(D, G):
     return np.array(res)
 
 
+def nearest_reference(names, query, codes):
+    """(name, identity) of the reference most identical to the query.
+
+    Identity is counted over the columns where BOTH have a base, so a short
+    query is not penalised for the reference's extra length -- it answers
+    "how close is the query to this reference where they overlap", which is
+    what a reader wants beside a genotype call.
+    """
+    qi = names.index(query)
+    q = codes[qi]
+    best, best_id, best_n = "", 0.0, 0
+    for i, name in enumerate(names):
+        if i == qi:
+            continue
+        r = codes[i]
+        both = (q < 4) & (r < 4)
+        n = int(both.sum())
+        if n < MIN_IDENTITY_SITES:
+            continue
+        ident = float((q[both] == r[both]).sum()) / n
+        if ident > best_id:
+            best, best_id, best_n = name, ident, n
+    return best, round(100 * best_id, 2), best_n
+
+
+MIN_IDENTITY_SITES = 50
+
+
 def assign(names, types, query, codes, nrep=100, seed=1, min_support=70.0, max_refs_per_type=None):
     """names: aligned sequence names (references + query); types: {ref_name: type}; query: its name.
     Returns dict(type, support, supports, n_sites, n_refs)."""

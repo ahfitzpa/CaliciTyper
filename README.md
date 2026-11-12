@@ -174,13 +174,18 @@ Assigns genus for Caliciviridae and for performs dual-genotyping for norovirus a
 |---|---|
 | `query` | FASTA record id |
 | `genogroup` | `GI`-`GX`, a non-norovirus lineage, or `unassigned` |
-| `orf1_type` | P-type, `unassigned`, or empty if the region was not typeable |
+| `orf1_type` | P-type (always the best-supported one), or empty if the region was not typeable |
 | `orf1_support` | bootstrap % for the ORF1 call |
 | `orf1_runners` | up to 3 best-supported types, best first: `GII.P31:97.0\|GII.P16:2.0` |
+| `orf1_sites` | aligned informative sites the call was made on |
+| `orf1_nearest` / `orf1_nearest_identity` | the single most identical reference and its % identity over the columns they share |
+| `orf1_nearest_type` | that reference's type (may differ from the call, which is tree-based, not nearest-neighbour) |
+| `orf1_accepted` | `accepted`, or `rejected: ...` naming each unmet condition |
 | `orf2_type` | capsid type (variant-level for GII.4) |
 | `orf2_support` | bootstrap % for the ORF2 call |
 | `orf2_runners` | as `orf1_runners` |
-| `note` | why a region was not typed: no BLAST hit, `<100 nt` ORF overlap, support below threshold |
+| `orf2_sites`, `orf2_nearest`, `orf2_nearest_identity`, `orf2_nearest_type`, `orf2_accepted` | as for ORF1 |
+| `note` | why a region was not typed or not accepted: no BLAST hit, `<100 nt` ORF overlap, support or sites below threshold |
 | `orf1_putative_novel` | putative novel ORF1 (RdRp) type: `known`, `putative_novel_type` (P-type), `putative_novel_group` (P-group), `not_assessable` (see [Putative novel ORF1/ORF2 types](#putative-novel-orf1orf2-types)) |
 | `orf1_putative_novel_detail` | the distance, the nearest cluster and its bound, or why it was not assessable |
 | `orf2_putative_novel` | as `orf1_putative_novel`, for ORF2 (VP1): genotype and genogroup |
@@ -219,6 +224,34 @@ GII.P21 references are very close together, so the cluster bound is tight. Typin
 | `--json` / `--md` / `--html` | path | write one format individually |
 | `--report-max-panels` | int | cap on alignment panels, in input order [no cap: every call] |
 | `--no-tree` | flag | skip the per-region trees in the HTML |
+
+### `calicityper novel`
+
+The Chhabra et al. 2019 2x SD screen as a command of its own, **norovirus
+only**. The bounds are norovirus bounds: sapovirus has its own published
+cut-offs (Zhao et al. 2024, on nucleotide distances), so a sapovirus is
+declined rather than measured against the wrong criterion.
+
+```bash
+calicityper novel sequences.fasta -o novel.tsv            # both regions
+calicityper novel sequences.fasta --region orf2 -o vp1.tsv
+```
+
+The paper defines the rule on complete sequence, and this command enforces
+that instead of screening whatever it is handed:
+
+| Region | What is required | Distances on |
+|---|---|---|
+| ORF2 capsid genotype | a complete VP1 reading frame, ATG to stop, within 10% of the reference lengths | the **amino acid** translation |
+| ORF1 P-type | >= 95% of the 762 nt 3' RdRp typing region | **nucleotides** — the paper's P-types are not amino acid based |
+
+Anything else is `not_assessable`, with the reason. Output: one row per query
+per region, with `flag`, `closest_type`, `distance`, its `bound`, `basis` and
+`detail`, alongside the type, support and nearest reference.
+
+A flag is tentative by construction. Designating a genotype needs at least two
+non-identical sequences from geographically distinct locations; a single
+sequence is what the paper itself labels not assigned (NA).
 
 ### `calicityper recomb`
 
@@ -336,11 +369,33 @@ New_Orleans, Sydney. The variant is carried **inside** `orf2_type`
 (`GII.4_Sydney`); strip the suffix for genotype-level labels, as RIVM reports
 the variant in a separate column.
 
-### Typing windows and when a call is withheld
+### When a call is accepted
 
-Three windows decide whether the evidence supports a call. Each is a set of
-columns in the reference alignment, so an insertion in a few references cannot
-shift a window the way genomic coordinates would.
+**A genotype is always reported.** Whether it can be relied on is a separate
+column, `orf1_accepted` / `orf2_accepted`, which is `accepted` or names every
+condition it failed. Blanking the call hid the one thing needed to judge a
+borderline result, and forced a second run at a lower threshold to see it.
+
+Two conditions, both measured rather than assumed:
+
+| Condition | Default | Where it comes from |
+|---|---|---|
+| bootstrap support | >= 70% | RIVM/NoroNet's own threshold; among accepted calls, leave-one-out accuracy is 99.1-100% at every sequence length |
+| aligned informative sites | >= 300 | the truncation leave-one-out curve: F1 reaches 97% at 300 sites (ORF1 97.4, ORF2 98.2) and is 96.7/96.9 at 250 |
+
+Set with `--min-support` and `CALICITYPER_MIN_SITES`. Input under 100 nt is
+rejected outright, because below that there are too few aligned sites for the
+tree at all — at 80 nt nothing was assignable in the harness.
+
+A rejected call is where `calicityper novel` earns its place: an unsupported
+type is exactly the case where "this may be something not in the reference
+set" is the useful answer, so the 2x SD screen runs there by default.
+
+### Typing windows: reported, not enforced
+
+Three windows describe where the operational typing signal sits. Each is a set
+of columns in the reference alignment, so an insertion in a few references
+cannot shift a window the way genomic coordinates would.
 
 | Window | Region | Length | Used for |
 |---|---|---|---|
@@ -356,28 +411,17 @@ cannot support a variant call however long it is. P2 alone (aa 279-405) holds
 41% of those columns; P2 through the C-terminus holds 70%, which is the window
 used.
 
-Three rules follow:
+Coverage of each is reported in `orf1_window_cov`, `orf2_window_cov` and
+`gii4_window_cov` as `covered/window`. **It does not withhold a call.** RIVM
+needs window coverage because RIVM types *on* the window; this tool types on
+every aligned column, so a fragment displaced off the window still carries the
+signal — in the truncation harness such fragments typed at 99-100% precision
+while an 80% gate withheld all of them. The same measurement found an 80%
+variant-window floor withholding 86 of 103 correct GII.4 variant assignments
+and preventing no error.
 
-- **Input shorter than 172 nt is rejected** before BLAST, with the reason. No
-  window can be covered, so nothing can be typed.
-- **A call is withheld when its window is under 80% covered.** A 3' VP1
-  fragment that misses region C entirely gets no capsid type, even if it
-  matches a reference closely — RIVM could not type that input either.
-- **A GII.4 variant is reported only when the variant window is covered.**
-  Otherwise the genotype stem is returned: `GII.4`, not `GII.4_Sydney`.
-
-Coverage is reported per call in `orf1_window_cov`, `orf2_window_cov` and
-`gii4_window_cov` as `covered/window`, so a withheld call can be understood
-without rerunning. The 80% floor is set by `CALICITYPER_MIN_WINDOW_COVERAGE`
-and is provisional until the truncation leave-one-out curve fixes it.
-
-Worked example, one GII.4 Sydney genome cut three ways:
-
-| Input | region C | variant window | Call |
-|---|---|---|---|
-| region C only (360 nt) | 241/252 | — | `unassigned` (bootstrap 69% < 70%) |
-| region C + P2 (1,340 nt) | 241/252 | 508/789 (64%) | **`GII.4`** — variant withheld |
-| complete VP1 (1,690 nt) | 241/252 | 775/789 (98%) | `GII.4_Sydney` |
+`CALICITYPER_RIVM_WINDOW_MODE=1` restores the gate, for replicating RIVM's own
+decisions rather than maximising correct calls.
 
 ### Genotyping is restricted to GI and GII
 
@@ -450,6 +494,11 @@ Applied to one query:
 4. It is `not_assessable` if it lacks a complete
    VP1 open reading frame (ATG to stop, no internal stop, within 10% of the
    reference lengths), or at least 95% of the RdRp typing region.
+
+Run it on its own with [`calicityper novel`](#calicityper-novel). Inside
+`calicityper type` the screen runs only on calls the bootstrap did **not**
+accept, since a well-supported type is a known type by definition; `--screen-all`
+restores screening every call.
 
 Clusters with fewer than three references, and the tentative (NA) clusters,
 have no SD of their own; they use the pooled distribution of all clusters at

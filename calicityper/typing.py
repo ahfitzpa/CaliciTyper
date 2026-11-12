@@ -64,6 +64,9 @@ def _type_region_clustalw(seq, group, region, exclude=(), nrep=100, seed=1, min_
                     note="too few aligned sites")
     res = tree.assign(names, types, "QUERY", codes[:, cols], nrep=nrep, seed=seed, min_support=min_support,
                       max_refs_per_type=max_refs_per_type)
+    acc, ident, n_ident = tree.nearest_reference(names, "QUERY", codes[:, cols])
+    res.update(nearest=acc.split("|")[-1], nearest_identity=ident, nearest_sites=n_ident,
+               nearest_type=types.get(acc, ""))
     return res
 
 
@@ -79,8 +82,12 @@ def type_aligned(ref, qaln, exclude=(), nrep=100, seed=1, min_support=70.0, max_
     if cols.sum() < MIN_OVERLAP:
         return dict(type=None, support=0.0, supports={}, n_sites=int(cols.sum()), n_refs=len(types),
                     note="too few aligned sites")
-    return tree.assign(names, types, "QUERY", codes[:, cols], nrep=nrep, seed=seed, min_support=min_support,
-                       max_refs_per_type=max_refs_per_type)
+    res = tree.assign(names, types, "QUERY", codes[:, cols], nrep=nrep, seed=seed, min_support=min_support,
+                      max_refs_per_type=max_refs_per_type)
+    acc, ident, n_ident = tree.nearest_reference(names, "QUERY", codes[:, cols])
+    res.update(nearest=acc, nearest_identity=ident, nearest_sites=n_ident,
+               nearest_type=types.get(acc, ""))
+    return res
 
 
 def type_region(seq, group, region, exclude=(), nrep=100, seed=1, min_support=70.0, max_refs_per_type=None,
@@ -247,12 +254,36 @@ def format_runners(supports, n=MAX_RUNNERS):
 
 
 def apply_result(row, region, res, min_support):
-    row[f"{region}_type"] = res["type"] or "unassigned"
+    """Write one region's result onto the row.
+
+    The best-supported type is ALWAYS reported, and whether it may be relied on
+    is carried in its own `_accepted` column rather than by blanking the call.
+    Withholding the type hid the one thing a reader needs in order to judge a
+    borderline case -- what the tool actually found -- and forced anyone
+    wanting it to re-run with a lower threshold. Acceptance has two conditions,
+    both measured in this harness: at least `min_support`% bootstrap support,
+    and at least cg.MIN_INFORMATIVE_SITES aligned sites, the point at which
+    leave-one-out F1 reaches 97% (see docs/figures/truncation_f1.png).
+    """
+    best = res.get("best_type") or res.get("type") or ""
+    sites = int(res.get("n_sites") or 0)
+    row[f"{region}_type"] = best or "unassigned"
     row[f"{region}_support"] = round(res["support"], 1)
     row[f"{region}_runners"] = format_runners(res.get("supports"))
-    if res["type"] is None:
-        extra = f"{region}: best {res.get('best_type', '-')} {res['support']:.0f}% < {min_support:.0f}%"
-        row["note"] = "; ".join(x for x in (row["note"], extra) if x)
+    row[f"{region}_sites"] = sites
+    row[f"{region}_nearest"] = res.get("nearest", "")
+    row[f"{region}_nearest_identity"] = res.get("nearest_identity", "")
+    row[f"{region}_nearest_type"] = res.get("nearest_type", "")
+    why = []
+    if not best:
+        why.append("no type could be computed")
+    if res["support"] < min_support:
+        why.append(f"support {res['support']:.0f}% < {min_support:.0f}%")
+    if sites < cg.MIN_INFORMATIVE_SITES:
+        why.append(f"{sites} aligned sites < {cg.MIN_INFORMATIVE_SITES}")
+    row[f"{region}_accepted"] = "accepted" if not why else "rejected: " + "; ".join(why)
+    if why:
+        row["note"] = "; ".join(x for x in (row["note"], f"{region}: " + "; ".join(why)) if x)
 
 
 # ---------------------------------------------- RIVM operational typing windows

@@ -20,6 +20,10 @@ from calicityper import config as cg
 
 COLUMNS = ["query", "genogroup", "orf1_type", "orf1_support", "orf1_runners",
            "orf2_type", "orf2_support", "orf2_runners", "note",
+           "orf1_sites", "orf1_nearest", "orf1_nearest_identity", "orf1_nearest_type",
+           "orf1_accepted",
+           "orf2_sites", "orf2_nearest", "orf2_nearest_identity", "orf2_nearest_type",
+           "orf2_accepted",
            "orf1_window_cov", "orf2_window_cov", "gii4_window_cov",
            "orf1_putative_novel", "orf1_putative_novel_detail",
            "orf2_putative_novel", "orf2_putative_novel_detail"]
@@ -35,6 +39,14 @@ def run_cli(fasta, out, *extra):
     cmd = [sys.executable, "-m", "calicityper.cli", "type", str(fasta), "-o", str(out), *extra]
     p = subprocess.run(cmd, capture_output=True, text=True)
     assert p.returncode == 0, f"calicityper failed:\n{p.stdout}\n{p.stderr}"
+    with open(out) as fh:
+        return list(csv.DictReader(fh, delimiter="\t"))
+
+
+def run_novel(fasta, out, *extra):
+    cmd = [sys.executable, "-m", "calicityper.cli", "novel", str(fasta), "-o", str(out), *extra]
+    p = subprocess.run(cmd, capture_output=True, text=True)
+    assert p.returncode == 0, f"calicityper novel failed:\n{p.stdout}\n{p.stderr}"
     with open(out) as fh:
         return list(csv.DictReader(fh, delimiter="\t"))
 
@@ -326,28 +338,62 @@ def test_rivm_windows_resolve_to_the_published_lengths():
     assert orf1.max() >= len(align.refset("orf1", "GII").seqs[0]) - 20
 
 
-def test_input_shorter_than_the_shortest_window_is_rejected(tmp_path):
-    """172 nt is the shortest RIVM window, so nothing below it can be typed."""
+def test_short_input_is_typed_but_not_accepted(tmp_path):
+    """150 nt is below the validated range, so the type is reported and the
+    acceptance column says why it should not be relied on.
+
+    The old behaviour rejected anything under 172 nt outright, on the grounds
+    that no RIVM window could be covered. The truncation harness measured that
+    assumption and it was wrong: 100-171 nt typed at 96-100% precision, so the
+    sequence is informative, just below the 300-site mark where leave-one-out
+    F1 reaches 97%."""
     from calicityper import config as cg
-    assert cg.MIN_INPUT_NT == 172
+    assert cg.MIN_INPUT_NT == 100 and cg.MIN_INFORMATIVE_SITES == 300
     ref = reference_genomes(1)[0]
     q = tmp_path / "short.fa"
-    SeqIO.write([ref[5200:5350]], q, "fasta")       # 150 nt
-    rows = run_cli(q, tmp_path / "out.tsv")
-    assert rows[0]["genogroup"] == "unassigned"
-    assert "rejected" in rows[0]["note"] and "172" in rows[0]["note"], rows[0]["note"]
+    SeqIO.write([ref[5200:5350]], q, "fasta")       # 150 nt, inside RdRp
+    r = run_cli(q, tmp_path / "out.tsv")[0]
+    assert r["genogroup"] == "GI", r
+    assert r["orf1_type"] not in ("", "unassigned"), r      # the call is still shown
+    assert r["orf1_accepted"].startswith("rejected"), r["orf1_accepted"]
+    assert "300" in r["orf1_accepted"], r["orf1_accepted"]
 
 
-def test_a_call_is_withheld_when_the_window_is_not_covered(tmp_path):
-    """A VP1 fragment that misses region C entirely must not yield a capsid
-    type, however well it matches: RIVM types on region C."""
+def test_input_below_the_alignment_minimum_is_rejected(tmp_path):
+    """Under 100 nt there are too few aligned sites for the tree, measured:
+    nothing was assignable at 80 nt in the truncation harness."""
+    ref = reference_genomes(1)[0]
+    q = tmp_path / "tiny.fa"
+    SeqIO.write([ref[5200:5280]], q, "fasta")       # 80 nt
+    r = run_cli(q, tmp_path / "out.tsv")[0]
+    assert r["genogroup"] == "unassigned"
+    assert "rejected" in r["note"], r["note"]
+
+
+def test_window_coverage_is_reported_and_does_not_withhold_the_call(tmp_path):
+    """A VP1 fragment missing region C is still typed, with its coverage shown.
+
+    This tool types on every aligned column, not on region C, so sequence
+    outside the window carries the signal: in the truncation harness, fragments
+    displaced off the window entirely still typed at 99-100% precision. The
+    coverage belongs next to the call, not in front of it."""
     ref = reference_genomes(1)[0]
     q = tmp_path / "frag.fa"
     SeqIO.write([ref[6000:6700]], q, "fasta")       # 3' VP1, no region C
-    rows = run_cli(q, tmp_path / "out.tsv")
-    r = rows[0]
-    assert r["orf2_type"] in ("", "unassigned"), r
+    r = run_cli(q, tmp_path / "out.tsv")[0]
     assert r["orf2_window_cov"].startswith("0/"), r["orf2_window_cov"]
+    assert r["orf2_type"] not in ("", "unassigned"), r
+    assert r["orf2_accepted"] == "accepted", r["orf2_accepted"]
+
+
+def test_rivm_window_mode_restores_the_gate(tmp_path, monkeypatch):
+    """The gate still exists for replicating RIVM's own decisions."""
+    monkeypatch.setenv("CALICITYPER_RIVM_WINDOW_MODE", "1")
+    ref = reference_genomes(1)[0]
+    q = tmp_path / "frag.fa"
+    SeqIO.write([ref[6000:6700]], q, "fasta")
+    r = run_cli(q, tmp_path / "out.tsv")[0]
+    assert r["orf2_type"] in ("", "unassigned"), r
     assert "RIVM window" in r["note"], r["note"]
 
 
@@ -362,19 +408,22 @@ def test_gii4_variant_window_spans_p2_to_the_vp1_terminus():
     assert not set(cols) & set(region_c), "variant window must not overlap region C"
 
 
-def test_variant_is_withheld_without_the_variant_window(tmp_path):
-    """A fragment covering region C but little of P2 returns the genotype stem."""
-    import csv as _csv
+def test_variant_window_coverage_is_reported_with_the_variant(tmp_path):
+    """A fragment covering region C but little of P2 keeps its variant, with
+    the variant-window coverage reported beside it.
+
+    At an 80% floor the harness found 86 of 103 correct variant assignments
+    withheld and no error prevented, so the coverage informs the reader rather
+    than deciding for them. RIVM window mode still drops the suffix."""
     ex = Path(__file__).resolve().parent.parent / "examples" / "example.fasta"
     rec = [r for r in SeqIO.parse(ex, "fasta") if r.id == "MW305639.1"][0]
     q = tmp_path / "frag.fa"
     SeqIO.write([rec[5060:6400]], q, "fasta")        # region C + part of P2
-    rows = run_cli(q, tmp_path / "out.tsv")
-    r = rows[0]
-    assert r["orf2_type"] == "GII.4", r["orf2_type"]   # stem, not GII.4_Sydney
-    assert "variant withheld" in r["note"], r["note"]
+    r = run_cli(q, tmp_path / "out.tsv")[0]
+    assert r["orf2_type"].startswith("GII.4"), r["orf2_type"]
     cov, width = r["gii4_window_cov"].split("/")
     assert int(cov) / int(width) < 0.8
+    assert "variant" in r["note"], r["note"]
 
 
 def test_setup_verifies_the_bundled_reference_set():
@@ -433,3 +482,55 @@ def test_setup_merges_into_a_directory_that_already_has_the_manifest(tmp_path):
     # the small files must survive the merge
     assert (target / "reference_manifest.json").exists()
     assert (target / "reference_accessions.tsv").exists()
+
+
+@needs_tools
+def test_novel_command_screens_complete_sequence_only(tmp_path):
+    """`calicityper novel` applies Chhabra et al. 2019 to what the paper
+    defines it on, and declines anything else with the reason.
+
+    A complete reference genome is assessable in both regions and lands inside
+    its own cluster's 2x SD bound; a region C fragment has neither a complete
+    VP1 reading frame nor the RdRp typing region, so it is `not_assessable`
+    rather than screened against a partial sequence.
+    """
+    ref = reference_genomes(1)[0]
+    q = tmp_path / "q.fa"
+    frag = ref[5400:5700]
+    frag.id, frag.description = "regionC_300nt", ""
+    SeqIO.write([ref, frag], q, "fasta")
+    rows = run_novel(q, tmp_path / "novel.tsv")
+    by = {(r["query"], r["region"]): r for r in rows}
+    whole = by[(ref.id, "orf2")]
+    assert whole["flag"] == "known", whole
+    assert float(whole["distance"]) < float(whole["bound"]), whole
+    assert "VP1 aa" in whole["detail"], whole["detail"]
+    assert "amino acid" in by[(ref.id, "orf2")]["basis"]
+    assert "nucleotide" in by[(ref.id, "orf1")]["basis"]      # P-types are nt, not aa
+    for region in ("orf1", "orf2"):
+        assert by[("regionC_300nt", region)]["flag"] == "not_assessable"
+
+
+@needs_tools
+def test_novel_command_refuses_non_norovirus(tmp_path):
+    """The 2x SD bounds are norovirus bounds; sapovirus has its own published
+    cut-offs, so it is declined rather than measured against the wrong ones."""
+    sapo = [r for r in SeqIO.parse(cg.BLAST_FASTA, "fasta") if "Sapovirus" in r.id][0]
+    sapo.id, sapo.description = "sapovirus", ""
+    q = tmp_path / "s.fa"
+    SeqIO.write([sapo], q, "fasta")
+    rows = run_novel(q, tmp_path / "novel.tsv")
+    assert rows and all(r["flag"] == "not_assessable" for r in rows), rows
+    assert all("sapovirus" in r["detail"] for r in rows), rows
+
+
+@needs_tools
+def test_novel_screen_runs_only_on_unaccepted_calls(tmp_path):
+    """In `type`, a bootstrap-accepted call is a known type by definition, so
+    the expensive screen is spent only where the bootstrap did not accept."""
+    q = tmp_path / "q.fa"
+    SeqIO.write(reference_genomes(1), q, "fasta")
+    r = run_cli(q, tmp_path / "out.tsv")[0]
+    assert r["orf2_accepted"] == "accepted", r
+    assert r["orf2_putative_novel"] == "known", r
+    assert "not screened" in r["orf2_putative_novel_detail"], r

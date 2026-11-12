@@ -4,14 +4,11 @@
 
 `calicityper` is a fork and partial rewrite of
 [**zhuzhanji/NorovirusGenotyping**](https://github.com/zhuzhanji/NorovirusGenotyping),
-a University College Dublin diploma project by **Yang Ji** (GitHub:
+a University College Dublin diploma project (GitHub:
 [@zhuzhanji](https://github.com/zhuzhanji)).
 
 What came from upstream:
 
-- The original pipeline, retained in `scripts/legacy/` for provenance (unchanged apart from relative paths, adjusted one level for the move)
-  (`DataPreparation.py`, `workflow.py`, `clustalw.py`, `blastn.py`, `phylo.R`,
-  `makedb.sh`, `msa_reference_data.py`, `utils.py`, `config.py`).
 - The curated norovirus reference sequence sets and BLAST database now in
   `calicityper/data/`, and the taxonomy tables in `validation/`.
 - The RIVM comparison call set, `validation/results_rivm.csv`.
@@ -25,13 +22,6 @@ What is new in this fork (the `calicityper` package):
 - Neighbour-joining with 100 bootstrap replicates and a >= 70% support
   threshold, in place of the original 5-replicate maximum-likelihood tree.
 - Leave-one-out validation harness and the RIVM comparison script.
-
-> **Licensing note.** The upstream repository states no licence. The work was
-> carried out by Yang Ji as a diploma student at University College Dublin under
-> the supervision of Amy Fitzpatrick, who reuses it here on that basis, with
-> citation and attribution as set out above. The MIT licence in this repository
-> is applied by Amy Fitzpatrick. Yang Ji is credited as the author of the
-> original implementation in `CITATION.cff` and in the README.
 
 ## Method
 
@@ -55,8 +45,7 @@ Reference sequence sets follow the 2019 norovirus classification:
 > doi:10.1099/jgv.0.001318
 
 `calicityper` is an independent reimplementation. It is **not** produced,
-endorsed by, or affiliated with RIVM, and its calls are not guaranteed to match
-those of the RIVM web tool.
+endorsed by, or affiliated with RIVM.
 
 ## Third-party software
 

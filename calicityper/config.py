@@ -45,11 +45,26 @@ RIVM_WINDOW_NT = {
 # was rejected for leaving more than half the signal out.
 GII4_VARIANT_WINDOW_AA = (279, None)      # None = to the 3' end of VP1
 
-# Fraction of a window a query must cover for a call to stand.
+# Fraction of a window a query covers. REPORTED, no longer a gate: the
+# truncation leave-one-out harness (scripts/truncation_loo.py) showed the gate
+# withheld correct calls without improving precision, because this tool types
+# on every aligned column rather than on the window the way RIVM does. Kept as
+# a threshold only for the RIVM-replication mode, where declining exactly where
+# RIVM declines is the point.
 RIVM_WINDOW_MIN_COVERAGE = float(os.environ.get("CALICITYPER_MIN_WINDOW_COVERAGE", 0.80))
-# Nothing shorter than the shortest window can cover any window, so it is
-# rejected before BLAST rather than typed and then explained.
-MIN_INPUT_NT = min(min(v for k, v in d.items() if k != "GI.9") for d in RIVM_WINDOW_NT.values())
+RIVM_WINDOW_MODE = os.environ.get("CALICITYPER_RIVM_WINDOW_MODE", "").lower() in ("1", "true", "yes")
+
+# A call is accepted at or above this many aligned informative sites. Set from
+# the truncation harness: leave-one-out F1 reaches 97% at 300 sites (ORF1 97.4,
+# ORF2 98.2) and sits at 96.7/96.9 at 250. Below it the type is still reported,
+# with the shortfall named in the `_accepted` column.
+MIN_INFORMATIVE_SITES = int(os.environ.get("CALICITYPER_MIN_SITES", 300))
+
+# Shorter input than this cannot produce the 100 aligned sites the typing step
+# needs, measured rather than assumed: at 80 nt nothing was assignable at all,
+# while 100-171 nt typed at 96-100% precision, so the old 172 nt floor was
+# rejecting usable sequence.
+MIN_INPUT_NT = int(os.environ.get("CALICITYPER_MIN_INPUT_NT", 100))
 
 TYPEABLE_GROUPS = ["GI", "GII"]
 if os.environ.get("CALICITYPER_TYPE_ALL_GROUPS", "").lower() in ("1", "true", "yes"):

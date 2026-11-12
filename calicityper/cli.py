@@ -54,6 +54,23 @@ def _add_type_args(p):
     r.add_argument("--html-cdn", action="store_true",
                    help="link BokehJS from a CDN instead of embedding it: a much smaller "
                         "HTML file that needs internet to render [default: embed, stands alone]")
+    p.add_argument("--screen-all", action="store_true",
+                   help="run the putative novel screen on every call, not only on calls the "
+                        "bootstrap did not accept [default: only unaccepted calls]")
+    return p
+
+
+def _add_novel_args(p):
+    """`novel`: the 2x SD screen as a command of its own, norovirus only."""
+    p.add_argument("fasta"); p.add_argument("-o", "--out", default="-")
+    p.add_argument("--region", choices=["orf1", "orf2", "both"], default="both",
+                   help="which region to screen: orf2 needs a complete VP1 reading frame, "
+                        "orf1 needs the 762 nt 3' RdRp typing region [both]")
+    p.add_argument("--bootstraps", type=int, default=100)
+    p.add_argument("--min-support", type=float, default=70.0)
+    p.add_argument("--max-refs-per-type", type=int, default=2)
+    p.add_argument("--threads", type=int, default=1); p.add_argument("--seed", type=int, default=1)
+    p.add_argument("--version", action="version", version=__version__)
     return p
 
 
@@ -106,8 +123,10 @@ def main(argv=None):
         description="Norovirus genotyping (RIVM-style: BLAST, profile alignment, NJ tree, "
                     "bootstrap) and recombination analysis.")
     top.add_argument("--version", action="version", version=__version__)
-    sub = top.add_subparsers(dest="command", required=True, metavar="{type,recomb,setup}")
+    sub = top.add_subparsers(dest="command", required=True, metavar="{type,novel,recomb,setup}")
     _add_type_args(sub.add_parser("type", help="assign genogroup, ORF1 P-type and ORF2 capsid type"))
+    _add_novel_args(sub.add_parser(
+        "novel", help="screen for putative novel norovirus ORF1/ORF2 types (Chhabra et al. 2019, 2x SD)"))
     _add_recomb_args(sub.add_parser("recomb", help="detect and score recombination (norovirus or sapovirus)"))
     _add_setup_args(sub.add_parser("setup", help="fetch and verify the reference data set"))
 
@@ -117,14 +136,18 @@ def main(argv=None):
     if a.command == "setup":
         from . import setup_data
         return setup_data.main(a)
+    if a.command == "novel":
+        return _run_novel(a)
     return _run_type(a)
 
 
-def _run_type(a):
-    if a.report:
-        a.md = a.md or f"{a.report}.md"
-        a.json = a.json or f"{a.report}.json"
-        a.html = a.html or f"{a.report}.html"
+def _align_and_type(a):
+    """BLAST, plan, align and type every record. Returns (recs, rows, alns, todo).
+
+    Shared by `type` and `novel`: the putative novel screen needs exactly the
+    same alignment to the genogroup reference set that typing produces, so it
+    runs off one pipeline rather than a parallel one that could drift from it.
+    """
     a._want_aln = True                  # the putative novel type screen needs the alignment, not only the HTML
     ty.cg.check_data()          # clear error if the bundled reference data is missing
     recs = [(r.id, str(r.seq)) for r in SeqIO.parse(a.fasta, "fasta")]
@@ -154,21 +177,99 @@ def _run_type(a):
         if aln is not None:
             alns[(i, region)] = aln
     _apply_window_rules(rows, alns)
-    _screen_putative_novel(rows, alns, todo)
+    return recs, rows, alns, todo
+
+
+def _run_type(a):
+    if a.report:
+        a.md = a.md or f"{a.report}.md"
+        a.json = a.json or f"{a.report}.json"
+        a.html = a.html or f"{a.report}.html"
+    recs, rows, alns, todo = _align_and_type(a)
+    _screen_putative_novel(rows, alns, todo, only_unaccepted=not a.screen_all)
     ordered = [rows[i] for i in range(len(recs))]
     df = pd.DataFrame(ordered)
     (df.to_csv(sys.stdout, sep="\t", index=False) if a.out == "-" else df.to_csv(a.out, sep="\t", index=False))
     if a.md or a.json or a.html:
         _write_reports(a, ordered, alns)
 
-def _apply_window_rules(rows, alns):
-    """Record each query's coverage of its RIVM typing window, and withhold a
-    call that does not cover enough of it.
+def _run_novel(a):
+    """`calicityper novel`: the Chhabra et al. 2019 2x SD screen, on its own.
 
-    RIVM types on one short window per gene (region C in VP1, the 3' end of
-    RdRp), so coverage OF THE WINDOW is what decides whether a call is
-    supportable -- not the length of the submitted sequence. A 7 kb genome
-    missing region C fails region C.
+    Norovirus only, and deliberately so. The criterion is a norovirus
+    criterion: sapovirus has its own published cut-offs (Zhao et al. 2024) on
+    nucleotide distances, and applying norovirus bounds to a sapovirus would
+    produce a number that means nothing.
+
+    The paper defines the rule on what it calls complete sequence, and this
+    command enforces that rather than screening whatever it is given:
+
+      ORF2 capsid  complete VP1 as AMINO ACIDS (an ATG..stop reading frame of
+                   reference length), distances on the translation
+      ORF1 P-type  the 762 nt 3' RdRp typing region as NUCLEOTIDES, >= 95%
+                   covered -- the paper's P-types are nucleotide-based, not
+                   amino acid
+
+    Anything that does not meet its region's requirement is reported
+    `not_assessable` with the reason, never screened against a partial
+    sequence. A flag is tentative by construction: one sequence cannot
+    designate a genotype, which needs two non-identical sequences from
+    geographically distinct locations (the paper's own NA rule).
+    """
+    from . import putative_novel
+    a.report = a.md = a.json = a.html = None
+    recs, rows, alns, todo = _align_and_type(a)
+    subs = {(i, region): seq for (region, g), lst in todo.items() for i, seq in lst}
+    regions = ("orf1", "orf2") if a.region == "both" else (a.region,)
+    out = []
+    for i, (rid, _) in enumerate(recs):
+        row = rows[i]
+        g = row.get("genogroup", "unassigned")
+        for region in regions:
+            rec = dict(query=rid, genogroup=g, region=region,
+                       basis=putative_novel.REGION[region]["basis"],
+                       type=row.get(f"{region}_type", ""),
+                       support=row.get(f"{region}_support", ""),
+                       accepted=row.get(f"{region}_accepted", ""),
+                       nearest=row.get(f"{region}_nearest", ""),
+                       nearest_identity=row.get(f"{region}_nearest_identity", ""))
+            if g in ("", "unassigned") or g not in ty.cg.NOROVIRUS_GROUPS:
+                rec.update(flag=putative_novel.NA, closest_type="", distance="", bound="",
+                           detail=putative_novel.NOT_NOROVIRUS if g not in ("", "unassigned")
+                           else "no norovirus genogroup assigned")
+            elif (i, region) not in alns:
+                rec.update(flag=putative_novel.NA, closest_type="", distance="", bound="",
+                           detail=f"the {putative_novel.REGION[region]['label']} region is not "
+                                  f"present in this query")
+            else:
+                _, qa = alns[(i, region)]
+                res = putative_novel.assess(region, g, qa, subs.get((i, region), ""))
+                rec.update(flag=res["flag"], closest_type=res.get("closest_type", ""),
+                           distance=res.get("distance", ""), bound=res.get("bound", ""),
+                           detail=res["detail"])
+            out.append(rec)
+    df = pd.DataFrame(out)
+    (df.to_csv(sys.stdout, sep="\t", index=False) if a.out == "-"
+     else df.to_csv(a.out, sep="\t", index=False))
+    n = int((df.flag.isin(putative_novel.FLAGGED)).sum()) if len(df) else 0
+    print(f"{n} of {len(df)} region calls flagged as putative novel "
+          f"(tentative: one sequence cannot designate a genotype)", file=sys.stderr)
+    return 0
+
+
+def _apply_window_rules(rows, alns):
+    """Record each query's coverage of the RIVM typing windows.
+
+    This used to withhold a call below 80% coverage. The truncation
+    leave-one-out harness showed that gate was wrong for this tool: RIVM needs
+    window coverage because RIVM types ON the window, while this tool types on
+    every aligned column, so a query displaced off the window still carries the
+    signal -- withheld calls were 99-100% correct when allowed through. The
+    coverages are therefore reported and acceptance is decided by bootstrap
+    support and aligned sites instead (see typing.apply_result).
+
+    CALICITYPER_RIVM_WINDOW_MODE=1 restores the gate, for replicating RIVM's
+    own decisions rather than maximising correct calls.
     """
     for i, row in rows.items():
         for region in ("orf1", "orf2"):
@@ -179,11 +280,13 @@ def _apply_window_rules(rows, alns):
             covered, width, frac = ty.rivm_window_coverage(
                 region, g, qa, genotype=row.get(f"{region}_type"))
             row[f"{region}_window_cov"] = f"{covered}/{width}"
-            if frac >= cg.RIVM_WINDOW_MIN_COVERAGE:
+            if frac >= cg.RIVM_WINDOW_MIN_COVERAGE or not cg.RIVM_WINDOW_MODE:
                 continue
             was = row.get(f"{region}_type") or ""
             if was and was != "unassigned":
                 row[f"{region}_type"] = "unassigned"
+            row[f"{region}_accepted"] = (f"rejected: {covered}/{width} nt of the RIVM window "
+                                         f"({frac:.0%} < {cg.RIVM_WINDOW_MIN_COVERAGE:.0%})")
             extra = (f"{region}: {covered}/{width} nt of the RIVM window covered "
                      f"({frac:.0%} < {cg.RIVM_WINDOW_MIN_COVERAGE:.0%})"
                      + (f", withheld {was}" if was and was != "unassigned" else ""))
@@ -192,12 +295,14 @@ def _apply_window_rules(rows, alns):
 
 
 def _apply_gii4_variant_window(row, i, alns):
-    """Report a GII.4 variant only when the variant window is covered.
+    """Record coverage of the GII.4 variant window (P2 to the VP1 terminus).
 
     Region C carries almost no variant signal (4 of 135 diagnostic columns), so
-    a call made without the 3' window is a call off a handful of sites. Below
-    the coverage floor the variant suffix is dropped and the genotype stem is
-    returned -- GII.4 rather than GII.4_Sydney.
+    a variant called without this window rests on a handful of sites, and the
+    coverage belongs beside the call. It is reported, not enforced: at an 80%
+    floor the harness found 86 of 103 correct variant assignments withheld and
+    no error prevented. Under RIVM window mode the suffix is dropped below the
+    floor and the genotype stem returned, as RIVM does.
     """
     call = row.get("orf2_type") or ""
     row["gii4_window_cov"] = ""
@@ -208,20 +313,34 @@ def _apply_gii4_variant_window(row, i, alns):
     row["gii4_window_cov"] = f"{covered}/{width}"
     if frac >= cg.RIVM_WINDOW_MIN_COVERAGE:
         return
-    stem = call.split("_")[0]
-    row["orf2_type"] = stem
-    row["note"] = "; ".join(x for x in (row.get("note"),
-                   f"GII.4 variant withheld ({call} -> {stem}): {covered}/{width} nt of the "
-                   f"variant window covered ({frac:.0%} < {cg.RIVM_WINDOW_MIN_COVERAGE:.0%})") if x)
+    note = (f"GII.4 variant {call}: {covered}/{width} nt of the variant window covered "
+            f"({frac:.0%})")
+    if cg.RIVM_WINDOW_MODE:
+        row["orf2_type"] = call.split("_")[0]
+        note += f", withheld -> {call.split('_')[0]}"
+    row["note"] = "; ".join(x for x in (row.get("note"), note) if x)
 
 
-def _screen_putative_novel(rows, alns, todo):
-    """Add putative novel ORF1/ORF2 type flags (2x SD screen) to every row; see putative_novel.py."""
+def _screen_putative_novel(rows, alns, todo, only_unaccepted=True):
+    """Add putative novel ORF1/ORF2 type flags (2x SD screen); see putative_novel.py.
+
+    By default the screen runs only where the bootstrap did NOT accept the
+    call. A well-supported type is a known type by definition, so screening it
+    spends the expensive amino-acid distance pass to confirm what the tree
+    already said; an unsupported call is exactly the case where "this may be
+    something not in the reference set" is the useful answer.
+    """
     from . import putative_novel
     subs = {(i, region): seq for (region, g), lst in todo.items() for i, seq in lst}
     for i, row in rows.items():
         for region in ("orf1", "orf2"):
             row[f"{region}_putative_novel"], row[f"{region}_putative_novel_detail"] = "", ""
+            accepted = str(row.get(f"{region}_accepted", "")).startswith("accepted")
+            if only_unaccepted and accepted:
+                row[f"{region}_putative_novel"] = putative_novel.KNOWN
+                row[f"{region}_putative_novel_detail"] = (
+                    "not screened: the bootstrap accepted this type")
+                continue
             if (i, region) in alns:
                 g, qa = alns[(i, region)]
                 res = putative_novel.assess(region, g, qa, subs.get((i, region), ""))

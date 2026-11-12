@@ -359,7 +359,7 @@ def classify(region, type_avg, group_avg, table=None):
 
 def _na(region, why):
     return dict(flag=NA, detail=f"{why}; the criterion is defined on the {REGION[region]['basis']}",
-                distance="", closest_type="")
+                distance="", closest_type="", bound="")
 
 
 def _result(region, flag, t, d, b, scope=""):
@@ -369,7 +369,8 @@ def _result(region, flag, t, d, b, scope=""):
               f"2x SD bound {b:.3f}{scope}")
     if flag in FLAGGED:
         detail += "; single sequence, so tentative (NA) at most"
-    return dict(flag=flag, detail=detail, distance=round(float(d), 4), closest_type=t)
+    return dict(flag=flag, detail=detail, distance=round(float(d), 4), closest_type=t,
+                bound=round(float(b), 4))
 
 
 def _averages(dists, labels):

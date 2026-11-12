@@ -1,9 +1,5 @@
 # CaliciTyper benchmarking report
 
-How CaliciTyper has been tested, what each result does and does not show, and
-how to reproduce every number. Read the caveats: several of these are easy to
-misread as stronger evidence than they are.
-
 Version 0.6.1, reference set doi:10.5281/zenodo.24161236. Sections with no
 data yet are marked as such rather than filled with estimates.
 
@@ -14,11 +10,9 @@ dataset on Zenodo; `## Reproducing` at the end gives the short version.
 
 ---
 
-# What the tool does to a sequence
+# Overview of the CaliciTyper methods
 
-Every gate below can stop a call. The point of the chart is that a result of
-`unassigned` or `genogroup only` is a *decision*, not a failure, and the output
-says which gate produced it.
+The flowchart below shows the decision tree for assigning genogroups and genotypes:
 
 ```mermaid
 flowchart TD
@@ -47,12 +41,9 @@ flowchart TD
     NFLAG -- no --> KNOWN["<b>known</b>"]
 ```
 
-ORF1 and ORF2 run through this independently, which is what dual typing means:
-a recombinant carries a different type in each, and either can be withheld
-while the other is called.
+ORF1 and ORF2 run through this independently for dual gnotyping. A recombinant is a sequence that has different types in ORF1 and ORF2.
 
-`calicityper recomb` is a separate path and does not use the reference sets at
-all — it scans an alignment the user supplies:
+`calicityper recomb` is a separate command that does not use the reference sets from Chhabra et al., 2019; it relies on anlignment the user provides. The flowchart below shows the decision tree for recombination detection:
 
 ```mermaid
 flowchart LR
@@ -69,7 +60,7 @@ flowchart LR
 # Caliciviridae genogroup assignment
 
 Genogroup detection is a BLAST search against whole genomes, so unlike
-genotyping it needs no curated alignment and covers every calicivirus in the
+genotyping it needs no curated alignment and covers every Caliciviridae in the
 test set, including the ones that must be *rejected* as non-norovirus.
 
 Scored against the RIVM Norovirus Typing Tool's own lineage calls for 5,986
@@ -108,21 +99,82 @@ for capsid and P-type. The gap is assignment *rate*: 136 records RIVM types and
 CaliciTyper declines for capsid, 55 for P-type. CaliciTyper assigns a capsid
 type RIVM declines in **0** cases and a P-type in 4.
 
-That asymmetry is deliberate. Before the typing-window coverage rules, the
-counts the other way were 158 and 145 — calls made from sequence that did not
-cover the window RIVM types on. Those are now withheld, which is why precision
-is 100% and recall is not.
+**Where the gap comes from.** Classifying every one of those declines by the
+reason recorded in the `note` column:
 
-The GII.4 variant row is the weakest and is the known regression: the variant
-window coverage floor (80%) is stricter than RIVM's behaviour, which assigns a
-variant to 99-100% of its GII.4 records at every sequence length. The floor is
-provisional pending the truncation leave-one-out curve.
+| Reason | ORF2 capsid (136) | ORF1 P-type (55) |
+|---|---|---|
+| bootstrap support < 70% | 82 | 14 |
+| region not covered (<100 nt ORF overlap) | 27 | 10 |
+| genotyping restricted to GI/GII (these are GIX) | 23 | 21 |
+| typing-window coverage | 4 | 10 |
+
+So the difference between the two tools is mainly a **decision rule**, not
+accuracy and not the typing windows. RIVM/NoroNet reports the nearest
+reference type; CaliciTyper runs 100 bootstraps and declines to *accept* a
+type below 70% support. On the 82 capsid records in question CaliciTyper's
+support was 0-65% (median 39), so its own resampling says the data do not
+decide. Since 0.7.0 the type is still reported in those rows, with
+`orf2_accepted` recording why it was not accepted, so the reader sees what was
+found and on what evidence.
+
+This table also corrects how the earlier version of this report read the same
+numbers. It attributed the asymmetry to the window coverage rules, on the
+grounds that the counts the other way had fallen from 158 and 145 once those
+rules were added. The window rules do make CaliciTyper decline where RIVM
+declines, which raises *agreement*; but measured against each sequence's
+published type (below), the calls they withheld were overwhelmingly correct.
+Agreement with RIVM and accuracy are different quantities.
 
 **Scope.** Genotyping is scored on norovirus only. RIVM's norovirus tool also
 emits sapovirus genotypes in nomenclature that collides with norovirus
 (`GI.1`, `GII.3`); scoring those against a norovirus typer counted 294
 correctly identified sapoviruses as capsid disagreements and dragged the
 capsid figure from ~99% to 87.6%.
+
+**Accuracy against sequence length (truncation leave-one-out).** Every record
+in the RIVM set is at least 2,000 nt, so none of the above says what happens
+to a 300 nt amplicon. `scripts/truncation_loo.py` cuts each reference to a
+sweep of lengths and displacements relative to **its own typing window**, types
+it leave-one-out, and scores against its published type. 7,698 distinct
+queries, 100 bootstraps each (jobs 1145197, 1145207).
+
+![Genotyping accuracy against sequence length](docs/figures/truncation_f1.png)
+
+On-target fragments, F1 at the current thresholds:
+
+| Submitted | 100 nt | 150 nt | 172 nt | 252 nt | 400 nt | 900 nt |
+|---|---|---|---|---|---|---|
+| ORF1 P-type | — | — | 78 | 92 | 97 | 98 |
+| ORF2 capsid | 61* | 74* | 92 | 92 | 97 | 99 |
+
+\* accuracy of the calls made; these lengths fall below the acceptance floor.
+
+Three results set the thresholds the tool now uses:
+
+1. **F1 reaches 97% at 300 aligned informative sites** (ORF1 97.4, ORF2 98.2;
+   250 sites gives 96.7/96.9). That is the acceptance condition, replacing a
+   length rule: sites are what the tree actually sees.
+2. **The 80% window-coverage gate cost recall without buying precision.** On
+   fragments displaced off the window it withheld every call, while those same
+   fragments typed at 99-100% precision. Coverage is now reported, not
+   enforced; `CALICITYPER_RIVM_WINDOW_MODE=1` restores the gate for
+   RIVM-replication work.
+3. **The 172 nt input floor was too strict.** At 100-171 nt, ORF2 types at
+   100% precision and ORF1 at 95.9%; at 80 nt nothing is assignable at all.
+   The floor is now 100 nt, which is where the 100-aligned-site minimum bites.
+
+Among *accepted* calls, accuracy is 99.1-100% in every site bin, including the
+smallest — the support threshold, not length, is what separates reliable calls
+from unreliable ones.
+
+The GII.4 variant window behaves the same way: at an 80% floor, 86 of 103
+correct variant assignments were withheld and no error was prevented.
+
+One reference accounts for almost all remaining ORF1 error: `AB074893.1`,
+labelled GII.PNA4, is called GII.P11 at 100% support at every length and
+displacement — the signature of the two corrupted GII RdRp references already
+fixed in 0.6.1, and it needs the same check.
 
 **Leave-one-out on the bundled references.** Each reference ORF is typed
 against all other references of its genogroup; its own label is the answer.
