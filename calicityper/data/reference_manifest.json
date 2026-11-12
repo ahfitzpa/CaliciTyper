@@ -1,10 +1,10 @@
 {
-  "doi": "",
-  "download_url": "",
+  "doi": "10.5281/zenodo.24161236",
+  "download_url": "https://zenodo.org/records/24161236/files/calicityper-reference-0.6.1.tar.gz?download=1",
   "n_accessions": 309,
   "n_artefacts": 84,
   "n_records": 455,
-  "note": "Built artefacts for this reference set are distributed as a Zenodo dataset. Fill download_url and doi at release; `calicityper setup` verifies every file against sha256_16 and refuses to install a set that does not match.",
+  "note": "Reference set distributed as a Zenodo dataset (doi above). `calicityper setup` downloads download_url and verifies every artefact against sha256_16, refusing to install a set that does not match.",
   "reference_set_version": "0.6.1",
   "sha256_16": {
     "calicityper/data/database/refseq_2.fasta": "14babe58e1dd1d03",

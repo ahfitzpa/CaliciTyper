@@ -17,3 +17,11 @@ aligned.fasta
 # brand asset bundle as delivered; its contents live in assets/
 *.zip
 zenodo/
+
+# --- 8. Reference set and datasets: distributed via Zenodo, not git ---
+# doi:10.5281/zenodo.24161236 -- fetched by `calicityper setup`, verified against
+# calicityper/data/reference_manifest.json. The manifest, the accession list and
+# the derived bounds table stay tracked; the sequences and alignments do not.
+calicityper/data/database/
+calicityper/data/reference_sequences_RdRp/
+calicityper/data/reference_sequences_VP1/

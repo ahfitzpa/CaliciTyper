@@ -62,8 +62,9 @@ def check_data():
     if missing:
         raise FileNotFoundError(
             "calicityper reference data not found: " + ", ".join(missing) +
-            f"\nLooked in {DATA}. Set CALICITYPER_DATA to a copy of the data directory, "
-            "or reinstall the package (the data ships inside it)."
+            f"\nLooked in {DATA}. Run `calicityper setup` to fetch and verify the "
+            "reference set (Zenodo doi:10.5281/zenodo.24161236), or set "
+            "CALICITYPER_DATA to an existing verified copy."
         )
 
 

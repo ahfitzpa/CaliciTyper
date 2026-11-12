@@ -48,6 +48,7 @@ git clone https://github.com/ahfitzpa/calicityper.git
 cd calicityper
 conda env create -f environment.yml
 conda activate calicityper
+calicityper setup                 # fetch the reference set (~1.3 MB) and verify it
 ```
 
 ### pip, with dependencies already present
@@ -56,11 +57,15 @@ Needs `blast` and `mafft` on `PATH`:
 
 ```bash
 pip install git+https://github.com/ahfitzpa/calicityper.git
+calicityper setup
 ```
 
-The reference data currently ships inside the package, so this gives a working
-install with no database build step. That is changing: see
-[Reference data](#reference-data).
+**`calicityper setup` is required before first use.** The reference set is not
+in the wheel or the repository: it is a Zenodo dataset
+([doi:10.5281/zenodo.24161236](https://doi.org/10.5281/zenodo.24161236)), and
+`setup` downloads it and verifies every file against a checksum manifest. It
+takes seconds. See [Reference data](#reference-data) for why it is distributed
+that way, and for sharing one copy across a cluster.
 
 ### OpenRDP (only for `calicityper recomb`)
 
@@ -585,7 +590,9 @@ pre-computed alignments for the VP1 and RdRp typing regions plus the BLAST
 database used for genogroup assignment. The accessions are listed in
 [`calicityper/data/reference_accessions.tsv`](calicityper/data/reference_accessions.tsv).
 
-It is distributed as a **Zenodo dataset**, not inside this repository:
+It is distributed as a **Zenodo dataset**
+([doi:10.5281/zenodo.24161236](https://doi.org/10.5281/zenodo.24161236)), not
+inside this repository or the wheel:
 
 ```bash
 calicityper setup                      # fetch and verify, into ~/.cache/calicityper

@@ -38,6 +38,13 @@ jobs:
               - conda-forge
               - bioconda
 
+      - name: Fetch and verify the reference set
+        shell: bash -el {0}
+        run: |
+          pip install -e .
+          calicityper setup --in-package
+          calicityper setup --verify-only --in-package
+
       - name: Install calicityper
         shell: bash -el {0}
         run: pip install -e ".[test]"
@@ -46,7 +53,7 @@ jobs:
         shell: bash -el {0}
         run: pytest tests/ -v
 
-      - name: Check the installed wheel carries its reference data
+      - name: Check the wheel is small and does NOT carry the reference set
         shell: bash -el {0}
         run: |
           pip wheel . --no-deps -w /tmp/wh
@@ -54,13 +61,15 @@ jobs:
           import glob, zipfile
           whl = glob.glob("/tmp/wh/calicityper-*.whl")[0]
           names = zipfile.ZipFile(whl).namelist()
-          need = ["calicityper/data/database/refseq_2.fasta",
-                  "calicityper/data/database/refseq_annotation.csv"]
+          heavy = [n for n in names if n.startswith("calicityper/data/database/")
+                   or n.startswith("calicityper/data/reference_sequences_")]
+          need = ["calicityper/data/reference_manifest.json",
+                  "calicityper/data/reference_accessions.tsv",
+                  "calicityper/data/putative_novel_bounds.tsv"]
           missing = [n for n in need if n not in names]
-          refs = [n for n in names if n.startswith("calicityper/data/reference_sequences_")]
-          assert not missing, f"wheel is missing reference data: {missing}"
-          assert len(refs) > 20, f"wheel has only {len(refs)} reference files"
-          print(f"OK: wheel carries {len(names)} files, {len(refs)} reference files")
+          assert not heavy, f"wheel still carries the reference set: {heavy[:5]}"
+          assert not missing, f"wheel is missing manifest files: {missing}"
+          print(f"OK: wheel carries {len(names)} files and no reference sequences")
           PY
 
       - name: End-to-end typing of a known genome

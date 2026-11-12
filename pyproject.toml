@@ -29,16 +29,19 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 packages = ["calicityper"]
+# false, or setuptools sweeps everything inside the package directory into the
+# wheel -- including the Zenodo-distributed reference set, which is deliberately
+# untracked but still present in a working tree.
+include-package-data = false
 
-# The reference data lives inside the package so that it is installed with the
-# code; without this a wheel would contain only the .py files and the tool
-# could not run outside a source checkout.
 [tool.setuptools.package-data]
+# The reference set is NOT shipped in the wheel: it is a Zenodo dataset
+# (doi:10.5281/zenodo.24161236) fetched by `calicityper setup`. Only the small
+# text files the package needs to find and verify it travel with the code.
 calicityper = [
-  "data/database/*",
-  "data/reference_sequences_RdRp/*",
-  "data/reference_sequences_VP1/*",
   "data/putative_novel_bounds.tsv",
+  "data/reference_accessions.tsv",
+  "data/reference_manifest.json",
 ]
 
 [tool.pytest.ini_options]
