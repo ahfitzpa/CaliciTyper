@@ -26,12 +26,12 @@ What is new in this fork (the `calicityper` package):
   threshold, in place of the original 5-replicate maximum-likelihood tree.
 - Leave-one-out validation harness and the RIVM comparison script.
 
-> **Licensing note.** The upstream repository does not state a licence. The MIT
-> licence in this repository is applied by Amy Fitzpatrick to her own
-> contributions. Because an unlicensed upstream grants no redistribution rights
-> by default, written permission from Yang Ji and/or UCD should be obtained
-> before this repository is made public or redistributed. Until that is
-> confirmed, keep the repository private.
+> **Licensing note.** The upstream repository states no licence. The work was
+> carried out by Yang Ji as a diploma student at University College Dublin under
+> the supervision of Amy Fitzpatrick, who reuses it here on that basis, with
+> citation and attribution as set out above. The MIT licence in this repository
+> is applied by Amy Fitzpatrick. Yang Ji is credited as the author of the
+> original implementation in `CITATION.cff` and in the README.
 
 ## Method
 
