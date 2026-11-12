@@ -86,19 +86,37 @@ def _add_recomb_args(p):
     return p
 
 
+def _add_setup_args(p):
+    p.add_argument("--source", help="URL or local tarball of the reference set "
+                                    "[default: download_url from the manifest]")
+    p.add_argument("--data-dir", help="where to install [default: a versioned "
+                                      "directory under ~/.cache/calicityper]")
+    p.add_argument("--in-package", action="store_true",
+                   help="install into the package's own data directory instead")
+    p.add_argument("--manifest", help="alternative reference_manifest.json")
+    p.add_argument("--verify-only", action="store_true",
+                   help="check an existing data directory against the manifest and stop")
+    p.add_argument("--force", action="store_true", help="replace an existing data directory")
+    return p
+
+
 def main(argv=None):
     top = argparse.ArgumentParser(
         prog="calicityper",
         description="Norovirus genotyping (RIVM-style: BLAST, profile alignment, NJ tree, "
                     "bootstrap) and recombination analysis.")
     top.add_argument("--version", action="version", version=__version__)
-    sub = top.add_subparsers(dest="command", required=True, metavar="{type,recomb}")
+    sub = top.add_subparsers(dest="command", required=True, metavar="{type,recomb,setup}")
     _add_type_args(sub.add_parser("type", help="assign genogroup, ORF1 P-type and ORF2 capsid type"))
     _add_recomb_args(sub.add_parser("recomb", help="detect and score recombination (norovirus or sapovirus)"))
+    _add_setup_args(sub.add_parser("setup", help="fetch and verify the reference data set"))
 
     a = top.parse_args(argv)
     if a.command == "recomb":
         return _run_recomb(a)
+    if a.command == "setup":
+        from . import setup_data
+        return setup_data.main(a)
     return _run_type(a)
 
 

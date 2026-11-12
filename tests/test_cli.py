@@ -375,3 +375,32 @@ def test_variant_is_withheld_without_the_variant_window(tmp_path):
     assert "variant withheld" in r["note"], r["note"]
     cov, width = r["gii4_window_cov"].split("/")
     assert int(cov) / int(width) < 0.8
+
+
+def test_setup_verifies_the_bundled_reference_set():
+    """Every artefact the typing path reads is checksummed in the manifest."""
+    from calicityper import setup_data, config as cg
+    m = setup_data.load_manifest()
+    assert len(m["sha256_16"]) >= 30, len(m["sha256_16"])
+    ok, problems = setup_data.verify(cg.DATA, m, quiet=True)
+    assert ok, problems[:5]
+
+
+def test_setup_refuses_an_archive_that_does_not_match(tmp_path):
+    """A reference set that differs from the manifest must not be installed:
+    the typing windows are alignment column ranges, so a different set changes
+    calls without any other symptom."""
+    import shutil, tarfile
+    from calicityper import setup_data, config as cg
+    src = tmp_path / "src"
+    shutil.copytree(cg.DATA, src)
+    with open(src / "reference_sequences_VP1" / "all.orf", "a") as fh:
+        fh.write("\n>tampered\nACGT\n")
+    arch = tmp_path / "bad.tar.gz"
+    with tarfile.open(arch, "w:gz") as tar:
+        for item in sorted(src.iterdir()):
+            tar.add(item, arcname=item.name)
+    target = tmp_path / "out"
+    rc = setup_data.install(arch, target, setup_data.load_manifest())
+    assert rc == 1
+    assert not target.exists(), "nothing may be installed when verification fails"

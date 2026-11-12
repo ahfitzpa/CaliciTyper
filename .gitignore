@@ -16,3 +16,4 @@ aligned.fasta
 
 # brand asset bundle as delivered; its contents live in assets/
 *.zip
+zenodo/

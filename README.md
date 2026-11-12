@@ -580,28 +580,42 @@ data location is overridable with `CALICITYPER_DATA`.
 
 ## Reference data
 
-The typing reference set is **309 GenBank accessions**, listed with their
-genogroup, type and region in
+The reference set is **309 GenBank records** across 10 genogroups, held as
+pre-computed alignments for the VP1 and RdRp typing regions plus the BLAST
+database used for genogroup assignment. The accessions are listed in
 [`calicityper/data/reference_accessions.tsv`](calicityper/data/reference_accessions.tsv).
 
-Sequences themselves are not meant to live in this repository. They are public
-records that anyone can fetch, the accession list is 15 kB against 5.4 MB of
-FASTA and alignments, and a surveillance reference set assembled from a
-restricted source such as CaliciNet should not be redistributed here at all.
-The accession list is sufficient to rebuild the set.
+It is distributed as a **Zenodo dataset**, not inside this repository:
 
-**This has one hard requirement.** Typing compares a query against reference
-alignment *columns*, and the three typing windows are defined as column ranges,
-so a rebuilt alignment that differs from the original silently changes calls.
-A rebuild is therefore only safe if it is verified:
-[`calicityper/data/reference_manifest.json`](calicityper/data/reference_manifest.json)
-records the reference set version and a SHA-256 for every built artefact the
-typing path reads, and the setup step must check them and refuse to run on a
-mismatch rather than carry on with a different reference set.
+```bash
+calicityper setup                      # fetch and verify, into ~/.cache/calicityper
+calicityper setup --verify-only        # check an existing copy
+calicityper setup --source set.tar.gz --data-dir /shared/calicityper-ref
+```
 
-Until that setup step exists and is validated, the built data stays in the
-package. Removing it before then would trade a 5.4 MB download for calls that
-cannot be reproduced between installations.
+`CALICITYPER_DATA` points the tool at a particular copy, so one download can be
+shared across a cluster. Fetch on a login node if compute nodes have no
+outbound network.
+
+**Why the built alignments are distributed, not just the accessions.** Typing
+compares a query against reference alignment *columns*, and all three typing
+windows are column ranges: region C is "the first 252 covered columns of VP1".
+An alignment rebuilt with a different aligner version can shift those windows
+and change calls with no other symptom. Shipping the built set removes that
+variable, and
+[`reference_manifest.json`](calicityper/data/reference_manifest.json) holds a
+SHA-256 for each of the 84 artefacts. `calicityper setup` verifies every one and
+**refuses to install a set that does not match** — a reference set that is not
+the one the manifest describes is an error, not a warning.
+
+Each Zenodo version has its own DOI, recorded in the manifest, so a result can
+name the exact reference set that produced it.
+
+**A note on restricted data.** Zenodo is still public redistribution. This path
+suits the public GenBank records above. A set built from a restricted
+surveillance source such as CaliciNet must not be deposited on Zenodo or
+GitHub: reference it by accession and have users build it locally, against the
+same manifest discipline.
 
 ## Resources
 
