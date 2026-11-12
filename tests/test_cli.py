@@ -404,3 +404,32 @@ def test_setup_refuses_an_archive_that_does_not_match(tmp_path):
     rc = setup_data.install(arch, target, setup_data.load_manifest())
     assert rc == 1
     assert not target.exists(), "nothing may be installed when verification fails"
+
+
+def test_setup_merges_into_a_directory_that_already_has_the_manifest(tmp_path):
+    """The package data directory always holds the manifest, accession list and
+    bounds table. Treating "not empty" as a reason to refuse made
+    `calicityper setup` exit 1 on every fresh install, which broke CI."""
+    import shutil, tarfile
+    from calicityper import setup_data, config as cg
+
+    # a target that looks like a fresh checkout: small files, no reference set
+    target = tmp_path / "data"
+    target.mkdir()
+    for name in ("reference_manifest.json", "reference_accessions.tsv",
+                 "putative_novel_bounds.tsv"):
+        if (cg.DATA / name).exists():
+            shutil.copy(cg.DATA / name, target / name)
+
+    arch = tmp_path / "ref.tar.gz"
+    with tarfile.open(arch, "w:gz") as tar:
+        for d in ("database", "reference_sequences_RdRp", "reference_sequences_VP1"):
+            if (cg.DATA / d).exists():
+                tar.add(cg.DATA / d, arcname=d)
+
+    assert setup_data.install(arch, target, setup_data.load_manifest()) == 0
+    ok, problems = setup_data.verify(target, quiet=True)
+    assert ok, problems[:3]
+    # the small files must survive the merge
+    assert (target / "reference_manifest.json").exists()
+    assert (target / "reference_accessions.tsv").exists()

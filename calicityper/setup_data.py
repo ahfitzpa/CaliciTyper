@@ -96,16 +96,21 @@ def _safe_members(tar):
 
 
 def install(source, data_dir, manifest=None, force=False):
-    """Download or copy `source` (URL or local tar) into `data_dir`, verified."""
+    """Download or copy `source` (URL or local tar) into `data_dir`, verified.
+
+    MERGED into `data_dir`, not replacing it: the package data directory always
+    already holds the manifest, the accession list and the bounds table, so
+    "the directory is not empty" says nothing about whether the reference set
+    is present. Treating it as a reason to refuse made `calicityper setup` exit
+    1 on every fresh install, which is what broke CI.
+    """
     data_dir = Path(data_dir)
     m = manifest or load_manifest()
-    if data_dir.exists() and any(data_dir.iterdir()) and not force:
+    if data_dir.exists() and not force:
         ok, _ = verify(data_dir, m, quiet=True)
         if ok:
             print(f"reference data already present and verified in {data_dir}")
             return 0
-        print(f"{data_dir} exists but does not match the manifest; use --force to replace")
-        return 1
 
     with tempfile.TemporaryDirectory(prefix="calicityper_db_") as td:
         archive = Path(td) / "reference.tar.gz"
@@ -131,10 +136,14 @@ def install(source, data_dir, manifest=None, force=False):
             print("refusing to install: a different reference set would change calls "
                   "silently.", file=sys.stderr)
             return 1
-        if data_dir.exists() and force:
-            shutil.rmtree(data_dir)
-        data_dir.parent.mkdir(parents=True, exist_ok=True)
-        shutil.move(str(staged), str(data_dir))
+        # merge, not replace: data_dir legitimately holds the manifest, the
+        # accession list and the bounds table, none of which are in the archive
+        data_dir.mkdir(parents=True, exist_ok=True)
+        for item in staged.iterdir():
+            target = data_dir / item.name
+            if target.exists():
+                shutil.rmtree(target) if target.is_dir() else target.unlink()
+            shutil.move(str(item), str(target))
     print(f"installed reference set {m.get('reference_set_version', '?')} into {data_dir}")
     print(f"set CALICITYPER_DATA={data_dir} (or leave it, if that is the default path)")
     return 0
