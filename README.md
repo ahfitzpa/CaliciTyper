@@ -58,8 +58,9 @@ Needs `blast` and `mafft` on `PATH`:
 pip install git+https://github.com/ahfitzpa/calicityper.git
 ```
 
-The reference data ships inside the package, so this gives a working install
-with no database build step.
+The reference data currently ships inside the package, so this gives a working
+install with no database build step. That is changing: see
+[Reference data](#reference-data).
 
 ### OpenRDP (only for `calicityper recomb`)
 
@@ -178,6 +179,8 @@ Assigns genus for Caliciviridae and for performs dual-genotyping for norovirus a
 | `orf1_putative_novel_detail` | the distance, the nearest cluster and its bound, or why it was not assessable |
 | `orf2_putative_novel` | as `orf1_putative_novel`, for ORF2 (VP1): genotype and genogroup |
 | `orf2_putative_novel_detail` | as `orf1_putative_novel_detail` |
+| `orf1_window_cov` / `orf2_window_cov` | nucleotides of the RIVM typing window covered, as `covered/window` |
+| `gii4_window_cov` | as above for the GII.4 variant window; empty unless a variant was in play |
 
 Example, the real output for [examples/example.fasta](examples/example.fasta)
 (runner-up columns shortened to the top two; detail columns omitted):
@@ -326,6 +329,58 @@ US95_96, Camberwell, Farmington_Hills, Hunter, Asia, Yerseke, Den_Haag, Osaka,
 New_Orleans, Sydney. The variant is carried **inside** `orf2_type`
 (`GII.4_Sydney`); strip the suffix for genotype-level labels, as RIVM reports
 the variant in a separate column.
+
+### Typing windows and when a call is withheld
+
+Three windows decide whether the evidence supports a call. Each is a set of
+columns in the reference alignment, so an insertion in a few references cannot
+shift a window the way genomic coordinates would.
+
+| Window | Region | Length | Used for |
+|---|---|---|---|
+| **VP1 region C** | 5' end of VP1 | 252 nt (GII), 264 (GI), 267 (GI.9), 255 (GIX) | capsid genotype |
+| **RdRp 3' window** | 3' end of RdRp | 172 nt (173 for GIV) | P-type |
+| **GII.4 variant window** | P2 to the VP1 C-terminus | 789 nt | GII.4 variant |
+
+The first two are the RIVM/NoroNet operational windows. The third exists
+because region C is the VP1 **shell** domain, which is conserved *between*
+GII.4 variants: measured on the bundled references, only **4 of 135
+variant-diagnostic columns** fall inside region C, so a region C amplicon
+cannot support a variant call however long it is. P2 alone (aa 279-405) holds
+41% of those columns; P2 through the C-terminus holds 70%, which is the window
+used.
+
+Three rules follow:
+
+- **Input shorter than 172 nt is rejected** before BLAST, with the reason. No
+  window can be covered, so nothing can be typed.
+- **A call is withheld when its window is under 80% covered.** A 3' VP1
+  fragment that misses region C entirely gets no capsid type, even if it
+  matches a reference closely — RIVM could not type that input either.
+- **A GII.4 variant is reported only when the variant window is covered.**
+  Otherwise the genotype stem is returned: `GII.4`, not `GII.4_Sydney`.
+
+Coverage is reported per call in `orf1_window_cov`, `orf2_window_cov` and
+`gii4_window_cov` as `covered/window`, so a withheld call can be understood
+without rerunning. The 80% floor is set by `CALICITYPER_MIN_WINDOW_COVERAGE`
+and is provisional until the truncation leave-one-out curve fixes it.
+
+Worked example, one GII.4 Sydney genome cut three ways:
+
+| Input | region C | variant window | Call |
+|---|---|---|---|
+| region C only (360 nt) | 241/252 | — | `unassigned` (bootstrap 69% < 70%) |
+| region C + P2 (1,340 nt) | 241/252 | 508/789 (64%) | **`GII.4`** — variant withheld |
+| complete VP1 (1,690 nt) | 241/252 | 775/789 (98%) | `GII.4_Sydney` |
+
+### Genotyping is restricted to GI and GII
+
+Sequences from the animal genogroups (GIII-GX) and from other *Caliciviridae*
+are reported to genogroup and stop there. Their reference sets hold two or
+three sequences each -- enough to return a label, not enough for it to mean
+anything -- and typing them spends the bootstrap, ~95% of runtime, on a call
+this README would tell you not to trust. `CALICITYPER_TYPE_ALL_GROUPS=1`
+restores the old behaviour for reference-set development.
 
 ### Sapovirus typing: in preparation, not yet available
 
@@ -522,6 +577,31 @@ data location is overridable with `CALICITYPER_DATA`.
 - Distribution via PyPI and bioconda.
 
 ---
+
+## Reference data
+
+The typing reference set is **309 GenBank accessions**, listed with their
+genogroup, type and region in
+[`calicityper/data/reference_accessions.tsv`](calicityper/data/reference_accessions.tsv).
+
+Sequences themselves are not meant to live in this repository. They are public
+records that anyone can fetch, the accession list is 15 kB against 5.4 MB of
+FASTA and alignments, and a surveillance reference set assembled from a
+restricted source such as CaliciNet should not be redistributed here at all.
+The accession list is sufficient to rebuild the set.
+
+**This has one hard requirement.** Typing compares a query against reference
+alignment *columns*, and the three typing windows are defined as column ranges,
+so a rebuilt alignment that differs from the original silently changes calls.
+A rebuild is therefore only safe if it is verified:
+[`calicityper/data/reference_manifest.json`](calicityper/data/reference_manifest.json)
+records the reference set version and a SHA-256 for every built artefact the
+typing path reads, and the setup step must check them and refuse to run on a
+mismatch rather than carry on with a different reference set.
+
+Until that setup step exists and is validated, the built data stays in the
+package. Removing it before then would trade a 5.4 MB download for calls that
+cannot be reproduced between installations.
 
 ## Resources
 

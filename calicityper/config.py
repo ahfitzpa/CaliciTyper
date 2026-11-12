@@ -36,6 +36,15 @@ RIVM_WINDOW_NT = {
     "orf2": {"GI": 264, "GII": 252, "GIX": 255, "_default": 252, "GI.9": 267},
     "orf1": {"GIV": 173, "_default": 172},
 }
+# GII.4 variant designation needs a third window. Region C is the VP1 shell
+# domain, conserved BETWEEN GII.4 variants by construction -- measured on the
+# bundled references, only 4 of 135 variant-diagnostic columns fall inside it,
+# so a region C amplicon cannot support a variant call however long it is.
+# The signal is 3' of there: P2 (aa 279-405) holds 41% of those columns, and P2
+# through the C-terminus holds 70%, which is what this window spans. Strict P2
+# was rejected for leaving more than half the signal out.
+GII4_VARIANT_WINDOW_AA = (279, None)      # None = to the 3' end of VP1
+
 # Fraction of a window a query must cover for a call to stand.
 RIVM_WINDOW_MIN_COVERAGE = float(os.environ.get("CALICITYPER_MIN_WINDOW_COVERAGE", 0.80))
 # Nothing shorter than the shortest window can cover any window, so it is

@@ -1,6 +1,6 @@
 {
   "tool": "calicityper",
-  "generated": "2026-11-11T21:38:36+00:00",
+  "generated": "2026-11-12T12:00:28+00:00",
   "n_queries": 4,
   "meta": {
     "bootstraps": 100,
@@ -46,6 +46,9 @@
         }
       ],
       "note": "",
+      "orf1_window_cov": "172/172",
+      "orf2_window_cov": "252/252",
+      "gii4_window_cov": "775/789",
       "orf1_putative_novel": "known",
       "orf1_putative_novel_detail": "RdRp nt: average p = 0.078 to GII.P16, within its 2x SD bound 0.109",
       "orf2_putative_novel": "known",
@@ -87,6 +90,9 @@
         }
       ],
       "note": "",
+      "orf1_window_cov": "155/172",
+      "orf2_window_cov": "264/264",
+      "gii4_window_cov": "",
       "orf1_putative_novel": "known",
       "orf1_putative_novel_detail": "RdRp nt: average p = 0.069 to GI.P13, within its 2x SD bound 0.111",
       "orf2_putative_novel": "known",
@@ -102,6 +108,9 @@
       "orf2_support": "",
       "orf2_runners": [],
       "note": "other Caliciviridae: genogroup only",
+      "orf1_window_cov": "",
+      "orf2_window_cov": "",
+      "gii4_window_cov": "",
       "orf1_putative_novel": "not_assessable",
       "orf1_putative_novel_detail": "not a norovirus: sapovirus cut-offs are published (Zhao et al. 2024) but no sapovirus VP1/RdRp reference sets are bundled yet",
       "orf2_putative_novel": "not_assessable",
@@ -143,6 +152,9 @@
         }
       ],
       "note": "",
+      "orf1_window_cov": "172/172",
+      "orf2_window_cov": "252/252",
+      "gii4_window_cov": "",
       "orf1_putative_novel": "putative_novel_type",
       "orf1_putative_novel_detail": "RdRp nt: average p = 0.047 to GII.P21, outside its 2x SD bound 0.044; single sequence, so tentative (NA) at most",
       "orf2_putative_novel": "known",

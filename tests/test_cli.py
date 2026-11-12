@@ -20,7 +20,7 @@ from calicityper import config as cg
 
 COLUMNS = ["query", "genogroup", "orf1_type", "orf1_support", "orf1_runners",
            "orf2_type", "orf2_support", "orf2_runners", "note",
-           "orf1_window_cov", "orf2_window_cov",
+           "orf1_window_cov", "orf2_window_cov", "gii4_window_cov",
            "orf1_putative_novel", "orf1_putative_novel_detail",
            "orf2_putative_novel", "orf2_putative_novel_detail"]
 
@@ -349,3 +349,29 @@ def test_a_call_is_withheld_when_the_window_is_not_covered(tmp_path):
     assert r["orf2_type"] in ("", "unassigned"), r
     assert r["orf2_window_cov"].startswith("0/"), r["orf2_window_cov"]
     assert "RIVM window" in r["note"], r["note"]
+
+
+def test_gii4_variant_window_spans_p2_to_the_vp1_terminus():
+    """Region C is the shell domain and carries almost no variant signal, so the
+    variant window starts at P2 (aa 279) and runs to the VP1 C-terminus."""
+    from calicityper import typing as ty, config as cg
+    cols = ty.gii4_variant_window_columns("GII")
+    assert cg.GII4_VARIANT_WINDOW_AA == (279, None)
+    assert 700 < len(cols) < 900, len(cols)
+    region_c = ty.rivm_window_columns("orf2", "GII")[0]
+    assert not set(cols) & set(region_c), "variant window must not overlap region C"
+
+
+def test_variant_is_withheld_without_the_variant_window(tmp_path):
+    """A fragment covering region C but little of P2 returns the genotype stem."""
+    import csv as _csv
+    ex = Path(__file__).resolve().parent.parent / "examples" / "example.fasta"
+    rec = [r for r in SeqIO.parse(ex, "fasta") if r.id == "MW305639.1"][0]
+    q = tmp_path / "frag.fa"
+    SeqIO.write([rec[5060:6400]], q, "fasta")        # region C + part of P2
+    rows = run_cli(q, tmp_path / "out.tsv")
+    r = rows[0]
+    assert r["orf2_type"] == "GII.4", r["orf2_type"]   # stem, not GII.4_Sydney
+    assert "variant withheld" in r["note"], r["note"]
+    cov, width = r["gii4_window_cov"].split("/")
+    assert int(cov) / int(width) < 0.8

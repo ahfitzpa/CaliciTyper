@@ -288,3 +288,25 @@ def rivm_window_coverage(region, group, aligned_query, genotype=None):
     q = np.frombuffer(aligned_query.upper().encode(), dtype="S1")[cols]
     covered = int(np.isin(q, [b"A", b"C", b"G", b"T", b"U"]).sum())
     return covered, len(cols), round(covered / len(cols), 4)
+
+
+def gii4_variant_window_columns(group="GII"):
+    """Alignment columns of the GII.4 variant window (P2 to the VP1 3' end)."""
+    import numpy as np
+    from . import align
+    lo_aa, hi_aa = cg.GII4_VARIANT_WINDOW_AA
+    ref = align.refset("orf2", group)
+    covered = np.flatnonzero(ref.occupancy >= 0.5)
+    hi = len(covered) // 3 if hi_aa is None else hi_aa
+    return covered[(lo_aa - 1) * 3: hi * 3]
+
+
+def gii4_variant_window_coverage(aligned_query, group="GII"):
+    """(covered nt, window nt, fraction) over the GII.4 variant window."""
+    import numpy as np
+    cols = gii4_variant_window_columns(group)
+    if len(cols) == 0:
+        return 0, 0, 0.0
+    q = np.frombuffer(aligned_query.upper().encode(), dtype="S1")[cols]
+    covered = int(np.isin(q, [b"A", b"C", b"G", b"T", b"U"]).sum())
+    return covered, len(cols), round(covered / len(cols), 4)

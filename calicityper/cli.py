@@ -170,6 +170,31 @@ def _apply_window_rules(rows, alns):
                      f"({frac:.0%} < {cg.RIVM_WINDOW_MIN_COVERAGE:.0%})"
                      + (f", withheld {was}" if was and was != "unassigned" else ""))
             row["note"] = "; ".join(x for x in (row.get("note"), extra) if x)
+        _apply_gii4_variant_window(row, i, alns)
+
+
+def _apply_gii4_variant_window(row, i, alns):
+    """Report a GII.4 variant only when the variant window is covered.
+
+    Region C carries almost no variant signal (4 of 135 diagnostic columns), so
+    a call made without the 3' window is a call off a handful of sites. Below
+    the coverage floor the variant suffix is dropped and the genotype stem is
+    returned -- GII.4 rather than GII.4_Sydney.
+    """
+    call = row.get("orf2_type") or ""
+    row["gii4_window_cov"] = ""
+    if "_" not in call or (i, "orf2") not in alns:
+        return
+    g, qa = alns[(i, "orf2")]
+    covered, width, frac = ty.gii4_variant_window_coverage(qa, g)
+    row["gii4_window_cov"] = f"{covered}/{width}"
+    if frac >= cg.RIVM_WINDOW_MIN_COVERAGE:
+        return
+    stem = call.split("_")[0]
+    row["orf2_type"] = stem
+    row["note"] = "; ".join(x for x in (row.get("note"),
+                   f"GII.4 variant withheld ({call} -> {stem}): {covered}/{width} nt of the "
+                   f"variant window covered ({frac:.0%} < {cg.RIVM_WINDOW_MIN_COVERAGE:.0%})") if x)
 
 
 def _screen_putative_novel(rows, alns, todo):
