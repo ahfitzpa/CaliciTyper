@@ -89,7 +89,25 @@ def genogroup_label(x):
 
 
 def summarise(d, label):
+    """Agreement plus a micro-averaged F1 over the types RIVM assigns.
+
+    Treating "unassigned" as a label inflates agreement when both tools decline
+    the same sequence, and `agree_of_both` hides every sequence one tool typed
+    and the other did not. F1 counts each typed call once:
+
+      TP  both assign and agree        FP  we assign, RIVM differs or declines
+      FN  RIVM assigns and we decline or differ
+
+    A disagreement where both assign is therefore both an FP and an FN, which
+    is what makes F1 the honest single number here.
+    """
     both = d[(d.nt != "unassigned") & (d.rivm != "unassigned")]
+    tp = int((both.nt == both.rivm).sum())
+    fp = int(((d.nt != "unassigned") & (d.nt != d.rivm)).sum())
+    fn = int(((d.rivm != "unassigned") & (d.nt != d.rivm)).sum())
+    prec = tp / (tp + fp) if tp + fp else None
+    rec = tp / (tp + fn) if tp + fn else None
+    f1 = (2 * prec * rec / (prec + rec)) if prec and rec else None
     return dict(
         region=label,
         n=len(d),
@@ -98,6 +116,9 @@ def summarise(d, label):
         rivm_only=int(((d.nt == "unassigned") & (d.rivm != "unassigned")).sum()),
         calicityper_only=int(((d.nt != "unassigned") & (d.rivm == "unassigned")).sum()),
         agree_overall=round(100 * (d.nt == d.rivm).mean(), 2) if len(d) else None,
+        precision=round(100 * prec, 2) if prec is not None else None,
+        recall=round(100 * rec, 2) if rec is not None else None,
+        f1=round(100 * f1, 2) if f1 is not None else None,
     )
 
 
@@ -115,13 +136,22 @@ def main():
     m = mine.merge(rv, on="acc", suffixes=("_nt", "_rivm"))
     print(f"matched {len(m)} of {len(mine)} calicityper rows to RIVM records")
 
+    # Genotyping is a NOROVIRUS comparison and must exclude everything else.
+    # RIVM's norovirus tool also emits sapovirus genotypes, in nomenclature
+    # that collides with norovirus ("GI.1", "GII.3"), so scoring them against a
+    # norovirus typer counts 294 correctly-identified sapoviruses as capsid
+    # disagreements and drags the capsid figure from ~99% to 87.6%.
+    noro = m[m["BLAST"].map(genogroup_label).str.fullmatch(r"G[IVX]+", na=False)]
+    print(f"genotyping scored on {len(noro)} records RIVM calls norovirus "
+          f"({len(m) - len(noro)} non-norovirus excluded)")
+
     rows = []
     # Genotype-level agreement: variant suffixes stripped from BOTH sides.
     for label, mc, rc, ms, rs in (
         ("ORF2 capsid", "orf2_type", "capsid type", "orf2_support", "capsid type support"),
         ("ORF1 P-type", "orf1_type", "polymerase type", "orf1_support", "polymerase type support"),
     ):
-        d = m.copy()
+        d = noro.copy()
         d["nt"] = d[mc].map(genotype)
         d["rivm"] = d[rc].map(genotype)
         d = d[(d.nt != "unassigned") | (d.rivm != "unassigned")]
@@ -146,7 +176,7 @@ def main():
         rows.insert(1, summarise(nv, "Genogroup (norovirus only)"))
 
     # GII.4 variant, compared against RIVM's separate subtype column.
-    g = m[m["capsid type"].map(genotype) == "GII.4"].copy()
+    g = noro[noro["capsid type"].map(genotype) == "GII.4"].copy()
     if len(g):
         g["nt"] = g["orf2_type"].map(variant).replace("", "unassigned")
         g["rivm"] = g["capsid subtype"].map(rivm_variant).replace("", "unassigned")

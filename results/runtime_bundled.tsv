@@ -1,0 +1,6 @@
+# host=sonic92.compute cpus=16 source=refseq_2.fasta
+sequences	threads	wall_seconds	seconds_per_sequence	genogroups
+1	1	2.4	2.42	GI 1
+1	16	3.5	3.45	GI 1
+4	1	2.9	0.72	GI 4
+4	16	3.7	0.92	GI 4

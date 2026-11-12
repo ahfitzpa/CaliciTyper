@@ -181,6 +181,8 @@ def test_informative_sites_ignores_gaps_and_singletons(tmp_path):
 needs_openrdp = pytest.mark.skipif(
     not RC.load(None).openrdp(),
     reason="OpenRDP not installed; set CALICITYPER_OPENRDP")
+# ~50 min per dataset (measured, job 1126058): deselected unless -m slow.
+slow = pytest.mark.slow
 
 # dataset -> (statuses allowed, expected breakpoint or None)
 EXPECTED = {
@@ -204,6 +206,7 @@ def _run(name, tmp_path, cfg):
 
 
 @needs_openrdp
+@slow
 @pytest.mark.parametrize("name", sorted(EXPECTED))
 def test_synthetic_dataset_status(name, tmp_path, cfg):
     allowed, _ = EXPECTED[name]
@@ -212,19 +215,22 @@ def test_synthetic_dataset_status(name, tmp_path, cfg):
 
 
 @needs_openrdp
+@slow
 def test_clear_recombinant_breakpoint_is_localised(tmp_path, cfg):
     """The planted breakpoint must be recovered, and within
     max_breakpoint_distance of the truth -- localisation, not just detection."""
     res, _ = _run("clear_recombinant", tmp_path, cfg)
     events = res.get("events") or []
     assert events, res
-    starts = [e["breakpoint"]["query_start"] for e in events
-              if e.get("breakpoint", {}).get("query_start")]
-    assert starts, events
-    assert min(abs(s - ORF1_ORF2_JUNCTION) for s in starts) <= cfg.max_breakpoint_distance
+    # an event carries a LIST of breakpoints, each with query coordinates
+    spans = [(b["query_start"], b["query_end"]) for e in events for b in e["breakpoints"]]
+    assert spans, events
+    assert any(lo - cfg.max_breakpoint_distance <= ORF1_ORF2_JUNCTION
+               <= hi + cfg.max_breakpoint_distance for lo, hi in spans), spans
 
 
 @needs_openrdp
+@slow
 def test_orf_mismatch_only_never_reaches_strong(tmp_path, cfg):
     """Distinct ORF1/ORF2 ancestry with near-identical donors has low parental
     distinctness, which must cap the status."""
@@ -233,6 +239,7 @@ def test_orf_mismatch_only_never_reaches_strong(tmp_path, cfg):
 
 
 @needs_openrdp
+@slow
 def test_same_seed_gives_the_same_result(tmp_path, cfg):
     """Seeded end to end, so a failure is reproducible and a number quoted in
     the docs can be re-derived."""
@@ -243,6 +250,7 @@ def test_same_seed_gives_the_same_result(tmp_path, cfg):
 
 
 @needs_openrdp
+@slow
 def test_multi_query_reports_each_query(tmp_path, cfg):
     p = tmp_path / "panel.fasta"
     synthetic.clear_recombinant(str(p))
@@ -327,6 +335,7 @@ def test_sapovirus_vp1_region_lies_inside_orf1(sapo_cfg):
 
 
 @needs_openrdp
+@slow
 @pytest.mark.parametrize("name,expect_detected", [
     ("sapovirus_non_recombinant", False),
     ("sapovirus_clear_recombinant", True),
@@ -343,14 +352,15 @@ def test_sapovirus_synthetic_end_to_end(name, expect_detected, tmp_path, sapo_cf
         assert rec["status"] in ("none", "weak"), rec
         return
     assert rec["status"] in ("possible", "likely", "strong"), rec
-    starts = [e["breakpoint"]["query_start"] for e in rec["events"]
-              if e.get("breakpoint", {}).get("query_start")]
-    assert starts, rec["events"]
-    assert min(abs(s - truth["breakpoint"]) for s in starts) <= \
-        sapo_cfg.max_breakpoint_distance, (starts, truth)
+    spans = [(b["query_start"], b["query_end"]) for e in rec["events"] for b in e["breakpoints"]]
+    assert spans, rec["events"]
+    bp = truth["breakpoint"]
+    assert any(lo - sapo_cfg.max_breakpoint_distance <= bp
+               <= hi + sapo_cfg.max_breakpoint_distance for lo, hi in spans), (spans, bp)
 
 
 @needs_openrdp
+@slow
 def test_sapovirus_junction_event_carries_the_sapovirus_region_name(tmp_path, sapo_cfg):
     p = tmp_path / "s.fasta"
     synthetic.sapovirus_clear_recombinant(str(p))

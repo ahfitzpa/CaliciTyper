@@ -198,6 +198,11 @@ def plan_query(rec_id, seq, hit):
         shown = "".join(bad[:10]) + ("..." if len(bad) > 10 else "")
         row["note"] = f"not typed: sequence contains non-nucleotide characters ({shown!r}); check the FASTA is well formed"
         return row, []
+    ungapped = len(str(seq).replace("-", "").replace("N", ""))
+    if ungapped < cg.MIN_INPUT_NT:
+        row["note"] = (f"rejected: {ungapped} nt of sequence is shorter than the shortest "
+                       f"RIVM typing window ({cg.MIN_INPUT_NT} nt), so no window can be covered")
+        return row, []
     if hit is None:
         row["note"] = "no BLAST hit (not a norovirus / Caliciviridae sequence in reference set)"
         return row, []
@@ -205,6 +210,10 @@ def plan_query(rec_id, seq, hit):
     row["genogroup"] = g
     if g not in cg.NOROVIRUS_GROUPS:
         row["note"] = "other Caliciviridae: genogroup only"
+        return row, []
+    if g not in cg.TYPEABLE_GROUPS:
+        row["note"] = (f"norovirus {g}: genogroup only, genotyping is validated for "
+                       f"{'/'.join(cg.TYPEABLE_GROUPS)} only")
         return row, []
     jobs, notes = [], []
     for region in ("orf1", "orf2"):
@@ -244,3 +253,38 @@ def apply_result(row, region, res, min_support):
     if res["type"] is None:
         extra = f"{region}: best {res.get('best_type', '-')} {res['support']:.0f}% < {min_support:.0f}%"
         row["note"] = "; ".join(x for x in (row["note"], extra) if x)
+
+
+# ---------------------------------------------- RIVM operational typing windows
+
+def rivm_window_columns(region, group, genotype=None):
+    """Alignment columns of the RIVM window for `region`, as a numpy index array.
+
+    ORF2: the first N reference-covered columns of VP1 (region C, measured from
+    the 5' end of VP1). ORF1: the last N columns of the alignment, which already
+    spans the 3' RdRp typing region.
+
+    Columns are chosen by reference occupancy so that an insertion present in
+    only a few references cannot shift the window -- the reason windows are
+    column ranges here and not genomic coordinates.
+    """
+    import numpy as np
+    from . import align
+    lengths = cg.RIVM_WINDOW_NT[region]
+    n = lengths.get(genotype) or lengths.get(group) or lengths["_default"]
+    ref = align.refset(region, group)
+    covered = np.flatnonzero(ref.occupancy >= 0.5)
+    if len(covered) == 0:
+        return np.array([], dtype=int), n
+    return (covered[:n] if region == "orf2" else covered[-n:]), n
+
+
+def rivm_window_coverage(region, group, aligned_query, genotype=None):
+    """(covered nt, window nt, fraction) for one query over its RIVM window."""
+    import numpy as np
+    cols, n = rivm_window_columns(region, group, genotype)
+    if len(cols) == 0:
+        return 0, n, 0.0
+    q = np.frombuffer(aligned_query.upper().encode(), dtype="S1")[cols]
+    covered = int(np.isin(q, [b"A", b"C", b"G", b"T", b"U"]).sum())
+    return covered, len(cols), round(covered / len(cols), 4)

@@ -40,3 +40,11 @@ calicityper = [
   "data/reference_sequences_VP1/*",
   "data/putative_novel_bounds.tsv",
 ]
+
+[tool.pytest.ini_options]
+# The end-to-end recombination tests drive OpenRDP over a 7.2 kb x 9 alignment,
+# which measured at ~50 min per dataset (job 1126058). They are therefore
+# marked slow and deselected by default; run them as a batch job:
+#   pytest -m slow tests/test_recomb.py
+markers = ["slow: needs OpenRDP and runs for tens of minutes per dataset"]
+addopts = "-m 'not slow'"

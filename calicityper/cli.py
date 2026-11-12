@@ -4,7 +4,8 @@ from collections import defaultdict
 from multiprocessing import Pool
 from Bio import SeqIO
 import pandas as pd
-from . import typing as ty, align, tree, __version__
+from . import typing as ty
+from . import config as cg, align, tree, __version__
 from . import recomb_config as _rc
 
 _ARGS = None
@@ -134,12 +135,42 @@ def _run_type(a):
         ty.apply_result(rows[i], region, res, a.min_support)
         if aln is not None:
             alns[(i, region)] = aln
+    _apply_window_rules(rows, alns)
     _screen_putative_novel(rows, alns, todo)
     ordered = [rows[i] for i in range(len(recs))]
     df = pd.DataFrame(ordered)
     (df.to_csv(sys.stdout, sep="\t", index=False) if a.out == "-" else df.to_csv(a.out, sep="\t", index=False))
     if a.md or a.json or a.html:
         _write_reports(a, ordered, alns)
+
+def _apply_window_rules(rows, alns):
+    """Record each query's coverage of its RIVM typing window, and withhold a
+    call that does not cover enough of it.
+
+    RIVM types on one short window per gene (region C in VP1, the 3' end of
+    RdRp), so coverage OF THE WINDOW is what decides whether a call is
+    supportable -- not the length of the submitted sequence. A 7 kb genome
+    missing region C fails region C.
+    """
+    for i, row in rows.items():
+        for region in ("orf1", "orf2"):
+            row[f"{region}_window_cov"] = ""
+            if (i, region) not in alns:
+                continue
+            g, qa = alns[(i, region)]
+            covered, width, frac = ty.rivm_window_coverage(
+                region, g, qa, genotype=row.get(f"{region}_type"))
+            row[f"{region}_window_cov"] = f"{covered}/{width}"
+            if frac >= cg.RIVM_WINDOW_MIN_COVERAGE:
+                continue
+            was = row.get(f"{region}_type") or ""
+            if was and was != "unassigned":
+                row[f"{region}_type"] = "unassigned"
+            extra = (f"{region}: {covered}/{width} nt of the RIVM window covered "
+                     f"({frac:.0%} < {cg.RIVM_WINDOW_MIN_COVERAGE:.0%})"
+                     + (f", withheld {was}" if was and was != "unassigned" else ""))
+            row["note"] = "; ".join(x for x in (row.get("note"), extra) if x)
+
 
 def _screen_putative_novel(rows, alns, todo):
     """Add putative novel ORF1/ORF2 type flags (2x SD screen) to every row; see putative_novel.py."""

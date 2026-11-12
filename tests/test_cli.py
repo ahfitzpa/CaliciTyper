@@ -20,7 +20,9 @@ from calicityper import config as cg
 
 COLUMNS = ["query", "genogroup", "orf1_type", "orf1_support", "orf1_runners",
            "orf2_type", "orf2_support", "orf2_runners", "note",
-           "orf1_putative_novel", "orf1_putative_novel_detail", "orf2_putative_novel", "orf2_putative_novel_detail"]
+           "orf1_window_cov", "orf2_window_cov",
+           "orf1_putative_novel", "orf1_putative_novel_detail",
+           "orf2_putative_novel", "orf2_putative_novel_detail"]
 
 needs_tools = pytest.mark.skipif(
     not (shutil.which("blastn") and shutil.which("mafft")),
@@ -306,3 +308,44 @@ def test_sapovirus_tables_have_the_published_counts():
         if key == "genotype":
             bad = [r for r in rows if r["note"].startswith("UNRESOLVED")]
             assert [r["accession"] for r in bad] == ["KC309412"], bad
+
+
+def test_rivm_windows_resolve_to_the_published_lengths():
+    """One window per gene: region C from the 5' end of VP1, and the 3' end of
+    RdRp. Lengths are genogroup-dependent."""
+    from calicityper import typing as ty
+    for region, group, want in (("orf2", "GII", 252), ("orf2", "GI", 264),
+                                ("orf1", "GII", 172), ("orf1", "GIV", 173)):
+        cols, n = ty.rivm_window_columns(region, group)
+        assert n == want, (region, group, n)
+        assert len(cols) == want, (region, group, len(cols))
+    # region C is at the 5' end of VP1; the RdRp window at the 3' end
+    assert ty.rivm_window_columns("orf2", "GII")[0].min() == 0
+    orf1 = ty.rivm_window_columns("orf1", "GII")[0]
+    from calicityper import align
+    assert orf1.max() >= len(align.refset("orf1", "GII").seqs[0]) - 20
+
+
+def test_input_shorter_than_the_shortest_window_is_rejected(tmp_path):
+    """172 nt is the shortest RIVM window, so nothing below it can be typed."""
+    from calicityper import config as cg
+    assert cg.MIN_INPUT_NT == 172
+    ref = reference_genomes(1)[0]
+    q = tmp_path / "short.fa"
+    SeqIO.write([ref[5200:5350]], q, "fasta")       # 150 nt
+    rows = run_cli(q, tmp_path / "out.tsv")
+    assert rows[0]["genogroup"] == "unassigned"
+    assert "rejected" in rows[0]["note"] and "172" in rows[0]["note"], rows[0]["note"]
+
+
+def test_a_call_is_withheld_when_the_window_is_not_covered(tmp_path):
+    """A VP1 fragment that misses region C entirely must not yield a capsid
+    type, however well it matches: RIVM types on region C."""
+    ref = reference_genomes(1)[0]
+    q = tmp_path / "frag.fa"
+    SeqIO.write([ref[6000:6700]], q, "fasta")       # 3' VP1, no region C
+    rows = run_cli(q, tmp_path / "out.tsv")
+    r = rows[0]
+    assert r["orf2_type"] in ("", "unassigned"), r
+    assert r["orf2_window_cov"].startswith("0/"), r["orf2_window_cov"]
+    assert "RIVM window" in r["note"], r["note"]

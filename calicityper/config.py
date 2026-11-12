@@ -21,6 +21,30 @@ ANNOTATION = DATA / "database" / "refseq_annotation.csv"
 REF_DIR = {"orf1": DATA / "reference_sequences_RdRp", "orf2": DATA / "reference_sequences_VP1"}
 
 NOROVIRUS_GROUPS = ["GI", "GII", "GIII", "GIV", "GV", "GVI", "GVII", "GVIII", "GIX", "GX"]
+# Genotyping is validated for GI and GII only, and the reference sets for the
+# animal genogroups hold two or three sequences each -- enough to return a
+# label, not enough for it to mean anything. Typing those spends the bootstrap
+# (~95% of runtime) to produce a call the docs then tell users not to trust, so
+# they are reported to genogroup and stop there. CALICITYPER_TYPE_ALL_GROUPS=1
+# restores the old behaviour for reference-set development.
+# RIVM/NoroNet operational typing windows: one per gene, not the A-E amplicon
+# nomenclature. Region C is measured from the 5' end of VP1; the RdRp window is
+# the 3' end of RdRp, which is what the ORF1 reference alignment already spans.
+# Lengths are genogroup-dependent (GI.9 is a genotype, so its 267 nt only
+# applies once a GI.9 call exists; GI's 264 is used until then).
+RIVM_WINDOW_NT = {
+    "orf2": {"GI": 264, "GII": 252, "GIX": 255, "_default": 252, "GI.9": 267},
+    "orf1": {"GIV": 173, "_default": 172},
+}
+# Fraction of a window a query must cover for a call to stand.
+RIVM_WINDOW_MIN_COVERAGE = float(os.environ.get("CALICITYPER_MIN_WINDOW_COVERAGE", 0.80))
+# Nothing shorter than the shortest window can cover any window, so it is
+# rejected before BLAST rather than typed and then explained.
+MIN_INPUT_NT = min(min(v for k, v in d.items() if k != "GI.9") for d in RIVM_WINDOW_NT.values())
+
+TYPEABLE_GROUPS = ["GI", "GII"]
+if os.environ.get("CALICITYPER_TYPE_ALL_GROUPS", "").lower() in ("1", "true", "yes"):
+    TYPEABLE_GROUPS = list(NOROVIRUS_GROUPS)
 
 
 def check_data():
