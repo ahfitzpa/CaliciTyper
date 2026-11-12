@@ -99,9 +99,10 @@ exactly.
 
 ```bash
 pytest tests/ -v                      # unit, CLI and regression tests
-python tests/loo_validation.py        # leave-one-out, no internet needed
-python tests/putative_novel_validation.py   # putative novel ORF1/ORF2 type screen, leave-one-out
 ```
+
+The validation harnesses, and how to reproduce every published figure, are in
+[BENCHMARKING.md](BENCHMARKING.md).
 
 ---
 
@@ -463,16 +464,13 @@ a cluster from a single sequence, or from one location, as not assigned (NA).
 A flag can also sit just outside a very tight cluster's bound, as in the
 AB242258.2 example above, or point at a problem in the reference set itself:
 an earlier flag on Chhabra's own GII.P8 reference strain exposed two corrupted
-RdRp references, since fixed (see [BENCHMARKING.md](BENCHMARKING.md#reference-set-correction-061)).
+RdRp references, since fixed.
 
-How well it works, from leaving each reference out in turn
-([BENCHMARKING.md](BENCHMARKING.md#6-putative-novel-orf1orf2-types)):
-
-| | Known type correctly `known` | Removed type correctly flagged |
-|---|---|---|
-| VP1 genotype | 94% | 95% |
-| RdRp P-type | 96% | 50% |
-| VP1 genogroup | | 18% |
+The VP1 genotype screen is the reliable one. The RdRp P-type and VP1 genogroup
+screens are far less sensitive, because partial-RdRp P-types and VP1 genogroups
+genuinely overlap -- so a flag from either is meaningful, but `known` from
+either is weak evidence. Measured sensitivity and specificity are in
+[BENCHMARKING.md](BENCHMARKING.md).
 
 
 ### Recombination
@@ -484,37 +482,16 @@ assign a status.
 
 ---
 
-## Validation
-
-Full detail, including what each test does *not* show, is in
-**[BENCHMARKING.md](BENCHMARKING.md)**.
-
-| Region | Queries | Assigned | Correct | Wrong |
-|---|---|---|---|---|
-| ORF2 capsid | 125 | 100% | 100% | 0 |
-| ORF1 P-type | 147 | 97.3% | 96.6% | 1 |
-
-Two caveats that matter:
-
-- **Leave-one-out flatters the tool.** Queries are the same curated,
-  full-length references the tool types against.
-- **The one error is a confident error.** `AB074893.1` (true `GII.PNA4`) was
-  called `GII.P11` at **100% support**. Bootstrap support is not a guarantee of
-  correctness.
-
-The comparison against RIVM's own calls for 4,392 accessions has **not yet
-completed**, and the genogroup comparison over all 5,986 is **queued**.
-
----
-
 ## Known differences from RIVM
 
 - **Distance and tree**: Tamura-Nei computed analytically with
   neighbour-joining, not PAUP\* HKY85. Tie-breaking differs slightly.
 - **Clade rule**: the query must group with all (up to 2) references of one
   type in >= 70% of replicates. RIVM's exact rule is not published; the subset
-  of two per type was inferred from their description and from leave-one-out.
-- **ORF windows** are the full annotated ORFs, not RIVM's fixed typing windows.
+  of two per type was inferred from their description.
+- **Typing windows**: region C and the RdRp 3' window are used as coverage
+  gates, but a call still comes from the full reference alignment rather than
+  from the short window alone.
 - **GII.4 variants** are a narrower set, without the emergence year suffix.
 
 `calicityper` is an independent reimplementation. It is **not** produced by,
@@ -654,12 +631,10 @@ same manifest discipline.
 |---|---|---|
 | Typing reference sequences | `calicityper/data/` (installed with the package) | from Chhabra *et al.* 2019 |
 | Example input and outputs | [examples/](examples/) | three public GenBank genomes |
-| RIVM benchmark accession list | [validation/rivm_accessions.tsv](validation/rivm_accessions.tsv) | 5,986 versioned GenBank accessions; `genotype_set` marks the 4,392 used for the genotype comparison |
-| RIVM's calls for those accessions | not redistributed; see [validation/README.md](validation/README.md) | required to score a benchmark run |
+| Benchmark datasets | Zenodo [doi:10.5281/zenodo.24161236](https://doi.org/10.5281/zenodo.24161236) | accession list, both tools' calls, per-record discordance, leave-one-out and runtime figures |
 
-The benchmark sequences themselves are not stored here. They are public
-GenBank records, so the accession list is enough to download them;
-[BENCHMARKING.md](BENCHMARKING.md) has the commands and the results.
+What the tool has been tested on, and how it performed, is in
+**[BENCHMARKING.md](BENCHMARKING.md)**.
 
 ## Citation
 
