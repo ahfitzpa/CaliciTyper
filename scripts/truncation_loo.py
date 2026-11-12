@@ -139,7 +139,7 @@ def work(job):
     sub = truncate(seq, region, anchor, length, off)
     row = dict(region=region, group=g, accession=acc, truth=truth, length=length or len(seq),
                offset=off, nt=len(sub), truncated=int(length != 0 or off != 0))
-    if len(sub) < cg.MIN_INPUT_NT:
+    if len(sub) < cg.MIN_INPUT_NT and not getattr(A, "no_input_floor", False):
         # the production path rejects these before BLAST; record that, do not type
         row.update(call="rejected", support=0.0, n_sites=0, rejected_at_input=1,
                    window_cov=0.0, window_nt=0, window_width=0, gii4_cov="", note="shorter than MIN_INPUT_NT")
@@ -171,25 +171,39 @@ def init(a):
 
 # ------------------------------------------------------------------ analysis
 
-def _apply(df, cov, gii4_cov, min_support):
-    """Re-derive what the production path WOULD report at these thresholds."""
+def _apply(df, cov, min_support, gii4_cov=None):
+    """Re-derive what the production path WOULD report at these thresholds.
+
+    `cov` gates the region window, `gii4_cov` the GII.4 variant window (default:
+    the same value, as the code currently uses one constant for both).
+    """
     out = df.copy()
     call = out["call"].astype(str)
     withheld = (out["window_cov"] < cov) | (out["support"] < min_support)
     call = call.where(~withheld, "unassigned")
-    # variant suffix dropped below the variant-window floor, genotype stem kept
     stem = call.str.split("_").str[0]
     drop = (out["region"] == "orf2") & call.str.contains("_") & \
-           (pd.to_numeric(out["gii4_cov"], errors="coerce").fillna(0) < gii4_cov)
+           (pd.to_numeric(out["gii4_cov"], errors="coerce").fillna(0)
+            < (cov if gii4_cov is None else gii4_cov))
     out["reported"] = call.where(~drop, stem)
+    out["reported_stem"] = out["reported"].str.split("_").str[0]
     out["truth_stem"] = out["truth"].astype(str).str.split("_").str[0]
     return out
 
 
-def _score(out, genotype_level=True):
-    """Micro-averaged precision/recall/F1 over records with a call to make."""
-    truth = out["truth"] if genotype_level else out["truth_stem"]
-    reported = out["reported"]
+def _score(out, level="stem"):
+    """Micro-averaged precision/recall/F1.
+
+    level='stem' scores the genotype without the GII.4 variant suffix, which is
+    what the region-C window is capable of deciding; level='variant' scores the
+    full label including the suffix. Scoring stems against variant truths was
+    mixing the two windows' jobs into one number: a correct GII.4 whose variant
+    was deliberately withheld counted as a wrong genotype.
+    """
+    if level == "stem":
+        truth, reported = out["truth_stem"], out["reported_stem"]
+    else:
+        truth, reported = out["truth"], out["reported"]
     assigned = ~reported.isin(["unassigned", "rejected"])
     correct = assigned & (reported == truth)
     n = len(out)
@@ -201,54 +215,81 @@ def _score(out, genotype_level=True):
                 wrong=int((assigned & ~correct).sum()))
 
 
-def analyse(df, sweep=(0.5, 0.6, 0.7, 0.8, 0.9, 1.0), min_support=70.0):
-    print("\n=== coverage of the typing window, by submitted length ===")
-    t = df[df.rejected_at_input == 0].groupby(["region", "length"]).agg(
-        n=("accession", "size"), window_cov=("window_cov", "mean"),
-        full_window=("window_cov", lambda s: 100 * (s >= 1.0).mean()),
-        ge80=("window_cov", lambda s: 100 * (s >= 0.8).mean())).round(3)
+def dedupe(df):
+    """One row per distinct query actually built.
+
+    A length longer than the record returns the whole record, so the long end of
+    the sweep repeats the full-length query; those repeats would weight it.
+    """
+    return df.drop_duplicates(subset=["region", "group", "accession", "nt", "offset"])
+
+
+def analyse(df, sweep=(0.0, 0.3, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 1.0), min_support=70.0):
+    df = dedupe(df)
+    live = df[df.rejected_at_input == 0].copy()
+    print(f"\n{len(df)} distinct queries, {int((df.rejected_at_input == 1).sum())} rejected at input "
+          f"(< {cg.MIN_INPUT_NT} nt)")
+
+    print("\n=== window coverage is set by displacement, not by length ===")
+    print("Fragments are anchored on the window, so any fragment at least as long as\n"
+          "the window covers it fully; extra length adds nothing. Displacement is the\n"
+          "axis that varies coverage, which is why length alone cannot be the gate.")
+    t = live.groupby(["region", "offset"]).agg(
+        n=("accession", "size"), mean_cov=("window_cov", "mean"),
+        full=("window_cov", lambda s: round(100 * (s >= 1.0).mean(), 1)),
+        ge80=("window_cov", lambda s: round(100 * (s >= 0.8).mean(), 1))).round(3)
     print(t.to_string())
 
-    print(f"\n=== threshold sweep, genotype level (support >= {min_support}) ===")
+    print("\n=== precision and recall by ACTUAL window coverage (stem level) ===")
+    cur = _apply(live, 0.0, min_support)          # no coverage gate: show the raw curve
+    bins = [-0.01, 0.2, 0.4, 0.6, 0.7, 0.8, 0.9, 0.99, 1.01]
+    cur["cov_bin"] = pd.cut(cur["window_cov"], bins)
     rows = []
-    for cov in sweep:
-        for region, part in df.groupby("region"):
-            s = _score(_apply(part, cov, cov, min_support))
-            rows.append(dict(coverage=cov, region=region, **s))
+    for (region, b), part in cur.groupby(["region", "cov_bin"], observed=True):
+        rows.append(dict(region=region, coverage=str(b), **_score(part)))
+    print(pd.DataFrame(rows).to_string(index=False))
+
+    print(f"\n=== region-window threshold sweep, stem level (support >= {min_support}) ===")
+    rows = []
+    for c in sweep:
+        for region, part in live.groupby("region"):
+            rows.append(dict(coverage=c, region=region, **_score(_apply(part, c, min_support))))
     sw = pd.DataFrame(rows)
     print(sw.to_string(index=False))
     for region, part in sw.groupby("region"):
-        best = part.sort_values("f1", ascending=False).iloc[0]
-        print(f"  best F1 for {region}: {best.f1} at coverage {best.coverage} "
-              f"(precision {best.precision}, recall {best.recall}, {best.wrong} wrong)")
+        best = part.sort_values(["f1", "coverage"], ascending=[False, True]).iloc[0]
+        at80 = part[part.coverage == 0.8].iloc[0]
+        print(f"  {region}: best F1 {best.f1} at coverage {best.coverage} "
+              f"(precision {best.precision}, recall {best.recall}, {best.wrong} wrong); "
+              f"at the current 0.8, F1 {at80.f1} / precision {at80.precision} / {at80.wrong} wrong")
 
-    print("\n=== by length, at the current threshold "
-          f"({cg.RIVM_WINDOW_MIN_COVERAGE:.0%}) ===")
-    cur = _apply(df, cg.RIVM_WINDOW_MIN_COVERAGE, cg.RIVM_WINDOW_MIN_COVERAGE, min_support)
-    per = []
-    for (region, length), part in cur.groupby(["region", "length"]):
-        per.append(dict(region=region, length=length, **_score(part)))
-    print(pd.DataFrame(per).to_string(index=False))
-
-    v = df[(df.region == "orf2") & (df.truth.astype(str).str.contains("_")) & (df.rejected_at_input == 0)]
+    v = live[(live.region == "orf2") & live.truth.astype(str).str.contains("_")]
     if len(v):
-        print("\n=== GII.4 variant window: its own sweep ===")
+        print("\n=== GII.4 variant window, scored at variant level ===")
         rows = []
-        for cov in sweep:
-            s = _score(_apply(v, 0.0, cov, min_support))      # window floor off, variant floor swept
-            rows.append(dict(variant_coverage=cov, **s))
+        for c in sweep:
+            # region window held at its current value so this isolates the variant floor
+            rows.append(dict(variant_coverage=c,
+                             **_score(_apply(v, cg.RIVM_WINDOW_MIN_COVERAGE, min_support,
+                                             gii4_cov=c), level="variant")))
         print(pd.DataFrame(rows).to_string(index=False))
-        stem = _apply(v, 0.0, 1.01, min_support)
-        print(f"  stem-only (variant always withheld): recall {_score(stem)['recall']}")
+        print("  (recall here counts a withheld variant as a miss; the genotype stem is "
+              "still reported in those rows)")
 
-    print("\n=== calls that are wrong, not merely withheld, at the current threshold ===")
-    bad = cur[(~cur.reported.isin(["unassigned", "rejected"])) & (cur.reported != cur.truth)]
+    print("\n=== wrong calls at the current threshold, stem level ===")
+    bad = _apply(live, cg.RIVM_WINDOW_MIN_COVERAGE, min_support)
+    bad = bad[(~bad.reported_stem.isin(["unassigned", "rejected"]))
+              & (bad.reported_stem != bad.truth_stem)]
     if bad.empty:
         print("  none")
     else:
-        print(bad[["region", "group", "accession", "truth", "reported", "support",
-                   "length", "offset", "window_cov"]].sort_values(
-                       ["region", "accession", "length"]).to_string(index=False))
+        print(f"  {len(bad)} of {len(live)} queries, "
+              f"{bad.accession.nunique()} distinct references")
+        g = bad.groupby(["region", "truth_stem", "reported_stem"]).agg(
+            n=("accession", "size"), refs=("accession", "nunique"),
+            min_cov=("window_cov", "min"), max_cov=("window_cov", "max"),
+            mean_support=("support", "mean")).round(2).sort_values("n", ascending=False)
+        print(g.head(25).to_string())
 
 
 def main():
@@ -263,6 +304,9 @@ def main():
     ap.add_argument("--groups", default="GI,GII")
     ap.add_argument("--lengths", default=",".join(str(x) for x in LENGTHS))
     ap.add_argument("--offsets", default=",".join(str(x) for x in OFFSETS))
+    ap.add_argument("--no-input-floor", action="store_true",
+                    help="type queries shorter than MIN_INPUT_NT instead of rejecting them, "
+                         "to measure where the input floor actually belongs")
     ap.add_argument("--limit", type=int, default=0, help="subsample jobs, for a smoke test")
     a = ap.parse_args()
 
