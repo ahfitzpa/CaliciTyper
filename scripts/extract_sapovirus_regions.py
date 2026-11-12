@@ -46,7 +46,7 @@ RDRP_WORDS = ("rna dependent rna poly", "rna-dependent rna poly", "rdrp",
 VP1_WORDS = ("vp1", "capsid protein", "major structural")
 # Plausibility, from the literature and from the records themselves.
 VP1_AA_RANGE = (480, 650)
-RDRP_AA_RANGE = (250, 700)
+RDRP_AA_RANGE = (400, 600)   # one definition now, so the spread should be tight
 
 
 def aligner():
@@ -107,6 +107,53 @@ def protein(cds, rec):
     nt = cds.extract(rec.seq)[codon_start(cds) - 1:]
     nt = nt[: len(nt) // 3 * 3]
     return str(nt.translate()).rstrip("*")
+
+
+# One canonical definition, projected onto every other anchor so that all
+# anchors describe the SAME region. Without this each anchor contributes its own
+# annotation and the extracted RdRp is 292 aa from the U95643 records (a 5'
+# truncated "RNA dependent RNA polymerase") but 665 aa from MH541033 ("NS6-7",
+# protease plus polymerase) -- a third of the set more than twice as long as the
+# rest, which would compare unlike regions in every distance.
+#
+# MH541033 is the canonical record: it annotates NS1-NS6-7 and VP1, and the
+# paper specifies the COMPLETE RdRp. NS6-7 spans aa 1052-1717; the NS6/NS7
+# cleavage site at offset 153 (an E|N dipeptide) gives NS7 = 512 aa with the
+# catalytic YGDD motif 344 aa in, the canonical position for a calicivirus
+# polymerase, and NS6 = 153 aa, the expected protease size. The 3' end is
+# independently confirmed: the annotated RdRp of U95643, U95644 and U95645 all
+# map onto MH541033 ending at exactly aa 1717.
+CANONICAL = "MH541033.1"
+CANONICAL_BOUNDS = {"rdrp": (1205, 1717), "vp1": (1717, 2277)}
+
+
+def project_canonical(recs, aln):
+    """Give every usable anchor the canonical region definition.
+
+    Returns [(accession, protein, {region: (aa start, aa end)})], the canonical
+    record first.
+    """
+    by_id = {r.id: r for r in recs}
+    if CANONICAL not in by_id:
+        raise SystemExit(f"canonical record {CANONICAL} not in the input")
+    cds = orf1_cds(by_id[CANONICAL])
+    canon_prot = protein(cds, by_id[CANONICAL])
+    out = [(CANONICAL, canon_prot, dict(CANONICAL_BOUNDS))]
+    for r in recs:
+        if r.id == CANONICAL:
+            continue
+        c = orf1_cds(r)
+        if c is None:
+            continue
+        # only records that annotate VP1 are trustworthy enough to be anchors
+        if not mat_peptides(r, VP1_WORDS):
+            continue
+        prot = protein(c, r)
+        mapped, ident = map_bounds(canon_prot, CANONICAL_BOUNDS, prot, aln)
+        if len(mapped) != 2 or ident < 0.30:
+            continue
+        out.append((r.id, prot, mapped))
+    return out
 
 
 def collect_anchors(recs):
@@ -170,15 +217,15 @@ def main():
     a = ap.parse_args()
 
     recs = list(SeqIO.parse(a.genbank, "genbank"))
-    anchors = collect_anchors(recs)
-    both = [x for x in anchors if "rdrp" in x[2]]
-    print(f"{len(recs)} records; {len(anchors)} annotate VP1, {len(both)} annotate RdRp too")
-    if not both:
-        sys.exit("no record annotates both regions: cannot anchor the mapping")
+    aln = aligner()
+    both = project_canonical(recs, aln)
+    print(f"{len(recs)} records; {len(both)} anchors carrying the canonical "
+          f"region definition from {CANONICAL} "
+          f"(RdRp {CANONICAL_BOUNDS['rdrp'][1] - CANONICAL_BOUNDS['rdrp'][0]} aa, "
+          f"VP1 {CANONICAL_BOUNDS['vp1'][1] - CANONICAL_BOUNDS['vp1'][0]} aa)")
 
     out = Path(a.out_dir)
     out.mkdir(parents=True, exist_ok=True)
-    aln = aligner()
     rows, seqs = [], {"rdrp": [], "vp1": []}
     checks = []
 
