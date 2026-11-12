@@ -12,6 +12,60 @@ dataset on Zenodo; `## Reproducing` at the end gives the short version.
 
 ---
 
+---
+
+# What the tool does to a sequence
+
+Every gate below can stop a call. The point of the chart is that a result of
+`unassigned` or `genogroup only` is a *decision*, not a failure, and the output
+says which gate produced it.
+
+```mermaid
+flowchart TD
+    IN([FASTA sequence]) --> LEN{"at least 172 nt?<br/><i>shortest typing window</i>"}
+    LEN -- no --> X1["<b>rejected</b><br/>no window can be covered"]
+    LEN -- yes --> BL["blastn vs whole-genome references"]
+    BL --> HIT{"BLAST hit?"}
+    HIT -- no --> X2["<b>unassigned</b><br/>not a calicivirus in the reference set"]
+    HIT -- yes --> GG["genogroup assigned"]
+    GG --> NV{"norovirus GI or GII?"}
+    NV -- "other Caliciviridae" --> X3["<b>genogroup only</b><br/>e.g. Sapovirus GI"]
+    NV -- "norovirus GIII-GX" --> X4["<b>genogroup only</b><br/>genotyping validated for GI/GII"]
+    NV -- yes --> ALN["MAFFT --addfragments onto the<br/>fixed reference alignment"]
+    ALN --> COV{"typing window<br/>at least 80% covered?"}
+    COV -- no --> X5["<b>call withheld</b><br/>coverage reported as covered/window"]
+    COV -- yes --> BS["neighbour-joining tree<br/>100 bootstrap replicates"]
+    BS --> SUP{"clades with all references<br/>of one type in at least 70%?"}
+    SUP -- no --> X6["<b>unassigned</b><br/>runner-up and support reported"]
+    SUP -- yes --> CALL["type assigned"]
+    CALL --> V{"GII.4, and variant<br/>window covered?"}
+    V -- "window not covered" --> STEM["<b>GII.4</b><br/>variant withheld"]
+    V -- yes --> VAR["<b>GII.4_Sydney</b>"]
+    CALL --> NOVEL["putative novel screen:<br/>average distance vs each cluster's 2x SD bound"]
+    NOVEL --> NFLAG{"outside every<br/>known cluster?"}
+    NFLAG -- yes --> FLAG["flagged <b>putative_novel_type</b><br/>or <b>putative_novel_group</b>"]
+    NFLAG -- no --> KNOWN["<b>known</b>"]
+```
+
+ORF1 and ORF2 run through this independently, which is what dual typing means:
+a recombinant carries a different type in each, and either can be withheld
+while the other is called.
+
+`calicityper recomb` is a separate path and does not use the reference sets at
+all — it scans an alignment the user supplies:
+
+```mermaid
+flowchart LR
+    A([alignment]) --> Q{"at least 5,000 nt and<br/>500 informative sites?"}
+    Q -- no --> S["<b>insufficient_sequence</b>"]
+    Q -- yes --> R["OpenRDP: RDP, GENECONV, BootScan,<br/>MaxChi, Chimaera, SiScan, 3Seq"]
+    R --> C["cluster hits into events<br/>by breakpoint proximity"]
+    C --> P["segment phylogenies either side,<br/>parent inference, scoring"]
+    P --> ST["status: none / weak / possible /<br/>likely / strong"]
+```
+
+---
+
 # Caliciviridae genogroup assignment
 
 Genogroup detection is a BLAST search against whole genomes, so unlike
@@ -123,24 +177,6 @@ window coverage. One GII.4 Sydney genome cut three ways:
 RIVM set is at least 2,000 nt (median ~7,400), so it says nothing about
 amplicons. That needs references truncated to each window and re-typed — the
 truncation leave-one-out harness, which is also what should set the 80% floor.
-
-**Runtime** (job 1126022, 16 cores, BLAS pinned, GII-dominated input):
-
-| Sequences | 1 thread | 4 threads | 16 threads |
-|---|---|---|---|
-| 1 | 2.5 s | 3.4 s | 3.4 s |
-| 4 | 4.2 s | 3.9 s | 4.0 s |
-| 96 | 36.2 s (0.38 s/seq) | 15.7 s (0.16 s/seq) | 10.7 s (0.11 s/seq) |
-| 5,986 | — | — | 5 m 45 s (0.058 s/seq) |
-
-Threads do nothing below ~4 sequences: process startup dominates. Genogroup
-drives cost more than library size — the bootstrap is ~95% of runtime and
-scales with the square of a genogroup's reference count, so GII (121 ORF1
-references) is far slower per sequence than GI (41).
-
-BLAS threads are pinned inside the package since 0.6.0. Unpinned, each worker's
-NumPy started a pool per core and they fought: measured at **62.9x slower**
-with byte-identical calls (1,823 s versus 29 s for 100 sequences on 16 cores).
 
 ### Recombination detection
 
@@ -308,6 +344,39 @@ The published cutoffs above would be the bounds; unlike norovirus, Zhao *et al.*
 also publish a pairwise distance range per genotype, which will allow an
 independent check that computed within-cluster distances fall inside the
 published ranges.
+
+---
+
+---
+
+# Runtime
+
+Not organism-specific: the same code paths type a sapovirus genogroup as a
+norovirus genotype.
+
+Job 1126022, sonic92, 16 cores, BLAS pinned, GII-dominated input from the
+RIVM benchmark set:
+
+| Sequences | 1 thread | 4 threads | 16 threads |
+|---|---|---|---|
+| 1 | 2.5 s | 3.4 s | 3.4 s |
+| 4 | 4.2 s | 3.9 s | 4.0 s |
+| 96 | 36.2 s (0.38 s/seq) | 15.7 s (0.16 s/seq) | 10.7 s (0.11 s/seq) |
+| 5,986 | — | — | 5 m 45 s (0.058 s/seq) |
+
+Threads do nothing below ~4 sequences: process startup dominates. Genogroup
+drives cost more than library size — the bootstrap is ~95% of runtime and
+scales with the square of a genogroup's reference count, so GII (121 ORF1
+references) is far slower per sequence than GI (41).
+
+BLAS threads are pinned inside the package since 0.6.0. Unpinned, each worker's
+NumPy started a pool per core and they fought: measured at **62.9x slower**
+with byte-identical calls (1,823 s versus 29 s for 100 sequences on 16 cores).
+
+`calicityper recomb` is in a different class: OpenRDP over a 7.2-7.5 kb
+alignment of nine sequences measured at **20-50 minutes per alignment** (job
+1139087). That is why the end-to-end recombination tests are marked `slow` and
+deselected by default.
 
 ---
 
