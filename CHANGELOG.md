@@ -12,6 +12,8 @@ for released versions.
 - First-class documentation for offline, air-gapped, and cluster reference-data installs (`--source`, `--data-dir`, `--verify-only`, `CALICITYPER_DATA`).
 - `tests/test_setup_data.py`: local-source/fixture validation of reference-set install, verification, and checksum-mismatch rejection.
 - Release/versioning and packaging guidance (`RELEASING.md`, changelog, README/distribution notes).
+- Formalized output schema/provenance documentation (`docs/OUTPUT_SCHEMA.md`) covering `type`/`novel`/`recomb` TSV and JSON structures, column semantics, provenance fields, and schema versioning.
+- Machine-readable provenance for auditability: `type` JSON/provenance sidecars, `novel`/`type` TSV sidecars (`*.provenance.json`), and enriched `recomb` JSON/provenance sidecar records including tool version, effective parameters, and shipped reference-set DOI/version/manifest hash.
 
 ### Changed
 - Public `main` no longer tracks detailed benchmarking artifacts/docs in-repo (moved out of HEAD; historical blobs remain in git history until a future history-rewrite, if performed).

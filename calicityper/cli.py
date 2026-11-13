@@ -242,7 +242,13 @@ def _run_type(a):
           "non-norovirus Caliciviridae may be detected but genotyping is not validated. "
           "Sapovirus genotyping not implemented. Putative-novel flags are tentative screening.",
           file=sys.stderr)
-    (df.to_csv(sys.stdout, sep="\t", index=False) if a.out == "-" else df.to_csv(a.out, sep="\t", index=False))
+    if a.out == "-":
+        df.to_csv(sys.stdout, sep="\t", index=False)
+    else:
+        df.to_csv(a.out, sep="\t", index=False)
+        from . import report
+        report.write_type_provenance(_provenance_sidecar_path(a.out), len(ordered),
+                                     meta=_type_meta(a, command="type"))
     if a.md or a.json or a.html:
         _write_reports(a, ordered, alns)
 
@@ -270,6 +276,7 @@ def _run_novel(a):
     geographically distinct locations (the paper's own NA rule).
     """
     from . import putative_novel
+    from . import report
     a.report = a.md = a.json = a.html = None
     recs, rows, alns, todo = _align_and_type(a)
     subs = {(i, region): seq for (region, g), lst in todo.items() for i, seq in lst}
@@ -303,8 +310,13 @@ def _run_novel(a):
                            detail=res["detail"])
             out.append(rec)
     df = pd.DataFrame(out)
-    (df.to_csv(sys.stdout, sep="\t", index=False) if a.out == "-"
-     else df.to_csv(a.out, sep="\t", index=False))
+    if a.out == "-":
+        df.to_csv(sys.stdout, sep="\t", index=False)
+    else:
+        df.to_csv(a.out, sep="\t", index=False)
+        meta = _type_meta(a, command="novel")
+        meta.update(region=a.region, screen_regions=list(regions))
+        report.write_novel_provenance(_provenance_sidecar_path(a.out), len(out), meta=meta)
     n = int((df.flag.isin(putative_novel.FLAGGED)).sum()) if len(df) else 0
     print(f"{n} of {len(df)} region calls flagged as putative novel "
           f"(tentative: one sequence cannot designate a genotype)", file=sys.stderr)
@@ -498,15 +510,28 @@ def _trees(a, rows, alns):
     return [f for f in figs if f is not None], notes
 
 
-def _write_reports(a, rows, alns):
-    from . import report
+def _type_meta(a, command="type"):
     from . import putative_novel
-    meta = dict(bootstraps=a.bootstraps, min_support=a.min_support,
+    from . import provenance
+    return dict(bootstraps=a.bootstraps, min_support=a.min_support,
                 max_refs_per_type=a.max_refs_per_type, seed=a.seed, input=a.fasta,
                 min_sites=cg.MIN_INFORMATIVE_SITES,
                 typeable_groups=list(cg.TYPEABLE_GROUPS),
                 rivm_window_mode=bool(cg.RIVM_WINDOW_MODE),
-                novel_distance=putative_novel.effective_measure())
+                novel_distance=putative_novel.effective_measure(),
+                threads=getattr(a, "threads", None),
+                command=command,
+                reference_set=provenance.reference_set_info())
+
+
+def _provenance_sidecar_path(out_path):
+    p = Path(out_path)
+    return str(p.with_suffix(p.suffix + ".provenance.json"))
+
+
+def _write_reports(a, rows, alns):
+    from . import report
+    meta = _type_meta(a, command="type")
     if a.json:
         report.to_json(rows, a.json, meta=meta)
     if a.md:
@@ -603,8 +628,10 @@ def _run_recomb(a):
                                     workdir=str(outdir / "work"))
     js = R.write_json(results, provenance, outdir / "recombination.json")
     tsv = R.write_tsv(results, outdir / "recombination.tsv")
+    R.write_provenance_sidecar(provenance, outdir / "recombination.tsv.provenance.json",
+                               n_results=len(results), n_events=sum(len(r["recombination"].get("events", [])) for r in results))
 
-    for t in provenance["tools_skipped"]:
+    for t in provenance.get("tools_skipped", []):
         print(f"[recomb] skipped {t['tool']}: {t['reason']}", file=sys.stderr)
     for r in results:
         rec = r["recombination"]

@@ -17,8 +17,12 @@ from __future__ import annotations
 import html
 import json
 from datetime import datetime, timezone
+from pathlib import Path
 
 import numpy as np
+
+from . import __version__
+from . import provenance as prov
 
 try:
     from bokeh.embed import components
@@ -29,6 +33,10 @@ try:
     HAVE_BOKEH = True
 except ImportError:                                     # pragma: no cover
     HAVE_BOKEH = False
+
+# Output schema/versioning for machine-readable artifacts produced here.
+OUTPUT_SCHEMA_NAME = "calicityper.type.report"
+OUTPUT_SCHEMA_VERSION = "1.0"
 
 # Colour-blind-safe base colours (Okabe-Ito derived); gaps/ambiguity stay grey.
 BASE_COLOURS = {"A": "#0072B2", "C": "#E69F00", "G": "#009E73", "T": "#D55E00",
@@ -259,12 +267,58 @@ def to_json(rows, path, meta=None):
         for region in ("orf1", "orf2"):
             rec[f"{region}_runners"] = _runners_to_list(r.get(f"{region}_runners"))
         recs.append(rec)
-    doc = {"tool": "calicityper",
-           "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-           "n_queries": len(rows),
-           "meta": meta or {},
-           "results": recs}
-    with open(path, "w") as fh:
+    params = dict(meta or {})
+    ref = params.pop("reference_set", None) or prov.reference_set_info()
+    doc = {
+        "schema": {"name": OUTPUT_SCHEMA_NAME, "version": OUTPUT_SCHEMA_VERSION},
+        "tool": "calicityper",
+        "tool_version": __version__,
+        "command": "type",
+        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "n_queries": len(rows),
+        "reference_set": ref,
+        "parameters": params,
+        "results": recs,
+    }
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump(doc, fh, indent=2)
+    return path
+
+
+def write_type_provenance(path, n_rows, meta=None):
+    """Write machine-readable provenance for a type/TSV run."""
+    params = dict(meta or {})
+    ref = params.pop("reference_set", None) or prov.reference_set_info()
+    doc = {
+        "schema": {"name": "calicityper.type.provenance", "version": "1.0"},
+        "tool": "calicityper",
+        "tool_version": __version__,
+        "command": params.pop("command", "type"),
+        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "n_queries": n_rows,
+        "reference_set": ref,
+        "parameters": params,
+    }
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump(doc, fh, indent=2)
+    return path
+
+
+def write_novel_provenance(path, n_rows, meta=None):
+    """Write machine-readable provenance for a novel (putative-novel screen) TSV run."""
+    params = dict(meta or {})
+    ref = params.pop("reference_set", None) or prov.reference_set_info()
+    doc = {
+        "schema": {"name": "calicityper.novel.provenance", "version": "1.0"},
+        "tool": "calicityper",
+        "tool_version": __version__,
+        "command": params.pop("command", "novel"),
+        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "n_rows": n_rows,
+        "reference_set": ref,
+        "parameters": params,
+    }
+    with open(path, "w", encoding="utf-8") as fh:
         json.dump(doc, fh, indent=2)
     return path
 

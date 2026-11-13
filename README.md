@@ -722,8 +722,12 @@ data location is overridable with `CALICITYPER_DATA`.
 
 Prefer CLI flags over environment variables for settings that affect correctness
 or interpretation; CLI flags take precedence for the current run. Effective
-settings are recorded in JSON report metadata (`--json`/`--report`) when
-generated.
+settings are recorded in machine-readable outputs for auditability: `type`
+JSON reports include `tool_version`, `parameters`, and `reference_set`
+(DOI/version/manifest hash), and file-based TSV outputs produce a
+`*.provenance.json` sidecar with the same provenance. See
+[`docs/OUTPUT_SCHEMA.md`](docs/OUTPUT_SCHEMA.md) for TSV/JSON schemas, column
+semantics, provenance fields, and schema versioning.
 
 | Setting | CLI flag (`type`/`novel` where applicable) | Environment variable (fallback) | Default | Effect / status |
 |---|---|---|---|---|
@@ -864,7 +868,7 @@ discipline.
 
 ## Validation
 
-CaliciTyper is research software. Norovirus GI/GII genotyping and genogroup detection across *Caliciviridae* are the primary validated use cases; other genogroups/capabilities have documented limitations (see above). Automated tests (`pytest tests/ -v`) cover core behavior in-repo; detailed benchmarking outputs, figures, and extended validation materials are maintained outside the public repository during active development and will be shared as curated records when available. Use the reference manifest/DOI recorded by `calicityper setup` and your run parameters for provenance.
+CaliciTyper is research software. Norovirus GI/GII genotyping and genogroup detection across *Caliciviridae* are the primary validated use cases; other genogroups/capabilities have documented limitations (see above). Automated tests (`pytest tests/ -v`) cover core behavior in-repo; detailed benchmarking outputs, figures, and extended validation materials are maintained outside the public repository during active development and will be shared as curated records when available. Use run parameters and reference-set provenance recorded in machine-readable outputs (JSON and `*.provenance.json` sidecars: tool version, parameters, reference-set DOI/version/manifest hash; see [`docs/OUTPUT_SCHEMA.md`](docs/OUTPUT_SCHEMA.md)) for auditability, together with the installed data context from `calicityper setup`.
 
 ## Citation
 

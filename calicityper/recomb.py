@@ -31,6 +31,8 @@ from pathlib import Path
 
 import numpy as np
 
+from . import __version__
+from . import provenance as prov
 from . import recomb_config as rcfg
 from . import tree
 
@@ -679,7 +681,30 @@ def analyse(alignment_path, queries, cfg, metadata_path=None, workdir=None,
                                               "notes": f"failed: {type(e).__name__}: {e}"},
                             "qc": {}})
 
+    parameters = {
+        # the virus model changes the biological_plausibility term, so a
+        # result is not interpretable without knowing which one was used
+        "virus": cfg.virus,
+        "regions": {k: list(v) for k, v in cfg.regions.items()},
+        "pvalue_threshold": cfg.pvalue_threshold,
+        "multiple_testing_correction": cfg.multiple_testing_correction,
+        "n_tests_for_correction": n_tests,
+        "max_breakpoint_distance": cfg.max_breakpoint_distance,
+        "minimum_sequence_length": cfg.min_sequence_length,
+        "min_informative_sites": cfg.min_informative_sites,
+        "segment_window": cfg.segment_window,
+        "segment_bootstraps": cfg.segment_bootstraps,
+        "seed": cfg.seed,
+        "methods_requested": list(cfg.methods),
+        "scoring_weights": cfg.scoring.weights(),
+        "queries_requested": list(queries),
+        "openrdp_timeout": openrdp_timeout,
+    }
     provenance = {
+        "tool": "calicityper",
+        "tool_version": __version__,
+        "command": "recomb",
+        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "alignment_file": str(alignment_path),
         "alignment_sequences": len(aln.names),
         "alignment_length": aln.length,
@@ -687,24 +712,11 @@ def analyse(alignment_path, queries, cfg, metadata_path=None, workdir=None,
         "reference_metadata": str(metadata_path or ""),
         "tools_used": ([f"OpenRDP ({','.join(used)})"] if used else []),
         "tools_skipped": [{"tool": t, "reason": r} for t, r in skipped],
-        "parameters": {
-            # the virus model changes the biological_plausibility term, so a
-            # result is not interpretable without knowing which one was used
-            "virus": cfg.virus,
-            "regions": {k: list(v) for k, v in cfg.regions.items()},
-            "pvalue_threshold": cfg.pvalue_threshold,
-            "multiple_testing_correction": cfg.multiple_testing_correction,
-            "n_tests_for_correction": n_tests,
-            "max_breakpoint_distance": cfg.max_breakpoint_distance,
-            "minimum_sequence_length": cfg.min_sequence_length,
-            "min_informative_sites": cfg.min_informative_sites,
-            "segment_window": cfg.segment_window,
-            "segment_bootstraps": cfg.segment_bootstraps,
-            "seed": cfg.seed,
-            "methods_requested": list(cfg.methods),
-            "scoring_weights": cfg.scoring.weights(),
-        },
-        "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "parameters": parameters,
+        # Recombination analyzes a user-supplied alignment and does not genotype against
+        # CaliciTyper's bundled reference set; the shipped reference-manifest identity
+        # (DOI/version/manifest hash) is still recorded for auditability and scope clarity.
+        "reference_set": prov.reference_set_info(),
     }
     return results, provenance
 
@@ -712,8 +724,31 @@ def analyse(alignment_path, queries, cfg, metadata_path=None, workdir=None,
 # -------------------------------------------------------------------- writers
 
 def write_json(results, provenance, path):
-    doc = {"tool": "calicityper recomb", "provenance": provenance, "results": results}
-    Path(path).write_text(json.dumps(doc, indent=2))
+    doc = {
+        "schema": {"name": "calicityper.recomb", "version": "1.0"},
+        "tool": "calicityper",
+        "tool_version": provenance.get("tool_version", ""),
+        "command": "recomb",
+        "generated": provenance.get("generated"),
+        "provenance": provenance,
+        "results": results,
+    }
+    Path(path).write_text(json.dumps(doc, indent=2), encoding="utf-8")
+    return path
+
+
+def write_provenance_sidecar(provenance, path, n_results=0, n_events=0):
+    doc = {
+        "schema": {"name": "calicityper.recomb.provenance", "version": "1.0"},
+        "tool": "calicityper",
+        "tool_version": provenance.get("tool_version", ""),
+        "command": "recomb",
+        "generated": provenance.get("generated"),
+        "n_results": n_results,
+        "n_events": n_events,
+        "provenance": provenance,
+    }
+    Path(path).write_text(json.dumps(doc, indent=2), encoding="utf-8")
     return path
 
 
