@@ -403,7 +403,7 @@ Two conditions, both measured rather than assumed:
 | bootstrap support | >= 70% | RIVM/NoroNet's own threshold; among accepted calls, leave-one-out accuracy is 99.1-100% at every sequence length |
 | aligned informative sites | >= 300 | the truncation leave-one-out curve: F1 reaches 97% at 300 sites (ORF1 97.4, ORF2 98.2) and is 96.7/96.9 at 250 |
 
-Set with `--min-support` and `CALICITYPER_MIN_SITES`. Input under 100 nt is
+Set with `--min-support` and `--min-sites` (or `$CALICITYPER_MIN_SITES`). Input under 100 nt is
 rejected outright, because below that there are too few aligned sites for the
 tree at all — at 80 nt nothing was assignable in the harness.
 
@@ -440,8 +440,8 @@ while an 80% gate withheld all of them. The same measurement found an 80%
 variant-window floor withholding 86 of 103 correct GII.4 variant assignments
 and preventing no error.
 
-`CALICITYPER_RIVM_WINDOW_MODE=1` restores the gate, for replicating RIVM's own
-decisions rather than maximising correct calls.
+`--rivm-window-mode` (or `$CALICITYPER_RIVM_WINDOW_MODE=1`) restores the gate, for replicating RIVM's own
+decisions rather than maximising correct calls. Prefer the CLI flag for reproducible runs.
 
 ### Genotyping is restricted to GI and GII
 
@@ -449,8 +449,8 @@ Sequences from the animal genogroups (GIII-GX) and from other *Caliciviridae*
 are reported to genogroup and stop there. Their reference sets hold two or
 three sequences each -- enough to return a label, not enough for it to mean
 anything -- and typing them spends the bootstrap, ~95% of runtime, on a call
-this README would tell you not to trust. `CALICITYPER_TYPE_ALL_GROUPS=1`
-restores the old behaviour for reference-set development.
+this README would tell you not to trust. `--type-all-groups` (or `$CALICITYPER_TYPE_ALL_GROUPS=1`)
+restores the old behaviour for reference-set development; such calls remain **not validated**.
 
 ### Sapovirus typing: in preparation, not yet available
 
@@ -508,9 +508,11 @@ that tree, because a patristic distance is a property of a tree rather than of
 a pair. One difference from the paper remains: it infers maximum likelihood
 trees with PhyML, while this builds a neighbour-joining tree from the same
 distance matrix, so branch lengths are close but not identical.
-`CALICITYPER_NOVEL_DISTANCE=p` selects observed pairwise distances instead;
-`calicityper/data/putative_novel_bounds.tsv` carries a bound set for each
-measure, since a bound only means anything in its own units.
+`--novel-distance {ml|nj|p}` (or `$CALICITYPER_NOVEL_DISTANCE`) selects the
+distance measure (`ml` patristic/IQ-TREE by default, `nj` patristic/NJ, `p`
+observed pairwise); `calicityper/data/putative_novel_bounds.tsv` carries a bound
+set for each measure, since a bound only means anything in its own units. Prefer
+the CLI flag for reproducible runs.
 
 Applied to one query:
 
@@ -650,6 +652,44 @@ data location is overridable with `CALICITYPER_DATA`.
 - Reference curation for the animal genogroups, to lift GIII-GX above two or
   three sequences.
 - Distribution via PyPI and bioconda.
+
+---
+
+## Advanced configuration and reproducibility
+
+Prefer CLI flags over environment variables for settings that affect correctness
+or interpretation; CLI flags take precedence for the current run. Effective
+settings are recorded in JSON report metadata (`--json`/`--report`) when
+generated.
+
+| Setting | CLI flag (`type`/`novel` where applicable) | Environment variable (fallback) | Default | Effect / status |
+|---|---|---|---|---|
+| Minimum aligned informative sites to accept a call | `--min-sites N` | `CALICITYPER_MIN_SITES` | `300` | Call is reported but marked not accepted below this threshold (see acceptance criteria). |
+| Novel-screen distance measure | `--novel-distance {ml,nj,p}` | `CALICITYPER_NOVEL_DISTANCE` | `ml` | Changes putative-novel screening basis; bounds are measure-specific. |
+| Type all norovirus genogroups | `--type-all-groups` / `--no-type-all-groups` | `CALICITYPER_TYPE_ALL_GROUPS=1` | off (GI/GII only) | Enables genotyping attempts for GIII–GX for reference-set development; calls outside GI/GII remain **not validated**. |
+| RIVM-style window coverage gate | `--rivm-window-mode` / `--no-rivm-window-mode` | `CALICITYPER_RIVM_WINDOW_MODE=1` | off (coverage reported, not gating) | For RIVM comparison/replication; not recommended for maximising correct calls. |
+
+Other tunables already exposed as flags include `--min-support`, `--bootstraps`,
+`--max-refs-per-type`, and `--seed`. External tool/data paths can be set via
+`CALICITYPER_BLASTN`, `CALICITYPER_MAFFT`, `CALICITYPER_CLUSTALW`,
+`CALICITYPER_OPENRDP`, and `CALICITYPER_DATA`.
+
+### Capability/status terms
+
+- **Validated/supported:** norovirus **GI/GII** ORF1/ORF2 genotyping and
+  genogroup detection across *Caliciviridae* (within documented limits).
+- **Detected/not validated:** genogroup assignment for non-GI/GII norovirus or
+  other *Caliciviridae* may be reported, but genotype calls for these groups are
+  **not validated** (reference coverage may be sparse).
+- **Screened/tentative:** putative-novel flags (`novel` command and
+  `*_putative_novel` fields) are **screening results**, not genotype
+  designations; `not_assessable` means the required sequence/region is
+  insufficient.
+- **Not implemented:** **sapovirus genotyping** (tables drafted, typing path not
+  implemented); sapovirus input is detected to genus/genogroup only.
+- **Experimental/working with caveats:** recombination analysis and some
+  auxiliary workflows depend on input quality and optional external tools; see
+  method/caveat sections above.
 
 ---
 

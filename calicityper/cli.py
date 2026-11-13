@@ -57,6 +57,22 @@ def _add_type_args(p):
     p.add_argument("--screen-all", action="store_true",
                    help="run the putative novel screen on every call, not only on calls the "
                         "bootstrap did not accept [default: only unaccepted calls]")
+    adv = p.add_argument_group("advanced (affect correctness/reproducibility; prefer CLI flags over env vars)")
+    adv.add_argument("--min-sites", type=int, default=None, metavar="N",
+                     help="minimum aligned informative sites to accept a type call "
+                          f"[default: {cg.MIN_INFORMATIVE_SITES} or $CALICITYPER_MIN_SITES]")
+    adv.add_argument("--novel-distance", choices=["ml", "nj", "p"], default=None,
+                     help="distance measure for putative-novel screening: ml (patristic, IQ-TREE; default), "
+                          "nj (patristic, neighbour-joining), or p (observed pairwise). "
+                          "Overrides $CALICITYPER_NOVEL_DISTANCE.")
+    adv.add_argument("--type-all-groups", action=argparse.BooleanOptionalAction, default=None,
+                     help="type all norovirus genogroups (GIII-GX) instead of restricting genotyping to "
+                          "validated GI/GII. Calls outside GI/GII are not validated. "
+                          "Overrides $CALICITYPER_TYPE_ALL_GROUPS.")
+    adv.add_argument("--rivm-window-mode", action=argparse.BooleanOptionalAction, default=None,
+                     help="apply RIVM-style typing-window coverage gates instead of reporting coverage only. "
+                          "Useful for RIVM-comparison/replication, not for maximising correct calls. "
+                          "Overrides $CALICITYPER_RIVM_WINDOW_MODE.")
     return p
 
 
@@ -71,6 +87,22 @@ def _add_novel_args(p):
     p.add_argument("--max-refs-per-type", type=int, default=2)
     p.add_argument("--threads", type=int, default=1); p.add_argument("--seed", type=int, default=1)
     p.add_argument("--version", action="version", version=__version__)
+    adv = p.add_argument_group("advanced (affect correctness/reproducibility; prefer CLI flags over env vars)")
+    adv.add_argument("--min-sites", type=int, default=None, metavar="N",
+                     help="minimum aligned informative sites to accept a type call "
+                          f"[default: {cg.MIN_INFORMATIVE_SITES} or $CALICITYPER_MIN_SITES]")
+    adv.add_argument("--novel-distance", choices=["ml", "nj", "p"], default=None,
+                     help="distance measure for putative-novel screening: ml (patristic, IQ-TREE; default), "
+                          "nj (patristic, neighbour-joining), or p (observed pairwise). "
+                          "Overrides $CALICITYPER_NOVEL_DISTANCE.")
+    adv.add_argument("--type-all-groups", action=argparse.BooleanOptionalAction, default=None,
+                     help="type all norovirus genogroups (GIII-GX) instead of restricting genotyping to "
+                          "validated GI/GII. Calls outside GI/GII are not validated. "
+                          "Overrides $CALICITYPER_TYPE_ALL_GROUPS.")
+    adv.add_argument("--rivm-window-mode", action=argparse.BooleanOptionalAction, default=None,
+                     help="apply RIVM-style typing-window coverage gates instead of reporting coverage only. "
+                          "Useful for RIVM-comparison/replication, not for maximising correct calls. "
+                          "Overrides $CALICITYPER_RIVM_WINDOW_MODE.")
     return p
 
 
@@ -120,13 +152,29 @@ def _add_setup_args(p):
 def main(argv=None):
     top = argparse.ArgumentParser(
         prog="calicityper",
-        description="Norovirus genotyping (RIVM-style: BLAST, profile alignment, NJ tree, "
-                    "bootstrap) and recombination analysis.")
+        description="Caliciviridae genogroup detection and norovirus typing/recombination analysis. "
+                    "Validated/supported genotyping scope: norovirus GI/GII. Other norovirus "
+                    "genogroups and non-norovirus Caliciviridae may be detected but genotyping "
+                    "is not validated; sapovirus genotyping is not implemented.")
     top.add_argument("--version", action="version", version=__version__)
     sub = top.add_subparsers(dest="command", required=True, metavar="{type,novel,recomb,setup}")
-    _add_type_args(sub.add_parser("type", help="assign genogroup, ORF1 P-type and ORF2 capsid type"))
+    _add_type_args(sub.add_parser(
+        "type",
+        help="assign genogroup and norovirus GI/GII ORF1/ORF2 types (validated scope)",
+        description="Norovirus GI/GII dual genotyping is the validated/supported typing scope. "
+                    "Other norovirus genogroups and non-norovirus Caliciviridae may be detected "
+                    "to genogroup, but genotyping is not validated for them. Sapovirus genotyping "
+                    "is not implemented. Putative-novel screening is tentative screening, not a "
+                    "genotype designation."))
     _add_novel_args(sub.add_parser(
-        "novel", help="screen for putative novel norovirus ORF1/ORF2 types (Chhabra et al. 2019, 2x SD)"))
+        "novel",
+        help="screen for putative novel norovirus ORF1/ORF2 types (tentative, norovirus only)",
+        description="Chhabra et al. 2019 2x SD screen applied to one query at a time "
+                    "(tentative screening, not genotype designation). Norovirus only: sapovirus "
+                    "has different published cut-offs and no bundled sapovirus reference set. "
+                    "ORF2 needs a complete VP1 reading frame (distances on amino acids); ORF1 "
+                    "needs >= 95%% of the 762 nt 3' RdRp typing region (distances on nucleotides). "
+                    "Anything less is reported not_assessable, never screened."))
     _add_recomb_args(sub.add_parser("recomb", help="detect and score recombination (norovirus or sapovirus)"))
     _add_setup_args(sub.add_parser("setup", help="fetch and verify the reference data set"))
 
@@ -148,6 +196,7 @@ def _align_and_type(a):
     same alignment to the genogroup reference set that typing produces, so it
     runs off one pipeline rather than a parallel one that could drift from it.
     """
+    _apply_runtime_overrides(a)
     a._want_aln = True                  # the putative novel type screen needs the alignment, not only the HTML
     ty.cg.check_data()          # clear error if the bundled reference data is missing
     recs = [(r.id, str(r.seq)) for r in SeqIO.parse(a.fasta, "fasta")]
@@ -189,6 +238,10 @@ def _run_type(a):
     _screen_putative_novel(rows, alns, todo, only_unaccepted=not a.screen_all)
     ordered = [rows[i] for i in range(len(recs))]
     df = pd.DataFrame(ordered)
+    print("Scope: norovirus GI/GII genotyping validated/supported; other norovirus genogroups and "
+          "non-norovirus Caliciviridae may be detected but genotyping is not validated. "
+          "Sapovirus genotyping not implemented. Putative-novel flags are tentative screening.",
+          file=sys.stderr)
     (df.to_csv(sys.stdout, sep="\t", index=False) if a.out == "-" else df.to_csv(a.out, sep="\t", index=False))
     if a.md or a.json or a.html:
         _write_reports(a, ordered, alns)
@@ -447,8 +500,13 @@ def _trees(a, rows, alns):
 
 def _write_reports(a, rows, alns):
     from . import report
+    from . import putative_novel
     meta = dict(bootstraps=a.bootstraps, min_support=a.min_support,
-                max_refs_per_type=a.max_refs_per_type, seed=a.seed, input=a.fasta)
+                max_refs_per_type=a.max_refs_per_type, seed=a.seed, input=a.fasta,
+                min_sites=cg.MIN_INFORMATIVE_SITES,
+                typeable_groups=list(cg.TYPEABLE_GROUPS),
+                rivm_window_mode=bool(cg.RIVM_WINDOW_MODE),
+                novel_distance=putative_novel.effective_measure())
     if a.json:
         report.to_json(rows, a.json, meta=meta)
     if a.md:
