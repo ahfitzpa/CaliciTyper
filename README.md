@@ -83,25 +83,47 @@ wheel/repository; it is installed and checksum-verified against the manifest
 shipped with your version. See [Reference data](#reference-data), including
 offline/air-gapped/cluster installs and `CALICITYPER_DATA`.
 
-### OpenRDP (only for `calicityper recomb`)
+### OpenRDP (only for `calicityper recomb`) — separate environment workflow
 
-OpenRDP pins `numpy<2` while `calicityper` needs `numpy>=2`. Install it separately. 
+OpenRDP is **unpackaged** (no PyPI/bioconda release) and its dependencies
+conflict with CaliciTyper’s main environment (OpenRDP requires `numpy<2`).
+Use a **separate** `openrdp` environment and point CaliciTyper to its
+executable:
 
 ```bash
+# 1) Create an isolated OpenRDP environment (keep your main calicityper env unchanged)
 conda create -n openrdp -c conda-forge python=3.11 "numpy<2" "scipy>=1.5" "h5py>=3.8,<3.11"
 conda activate openrdp
-git clone https://github.com/PoonLab/OpenRDP.git && pip install ./OpenRDP
+
+# 2) Install OpenRDP into that environment
+git clone https://github.com/PoonLab/OpenRDP.git
+pip install ./OpenRDP
 conda deactivate
 
+# 3) Tell CaliciTyper where to find the OpenRDP executable
 export CALICITYPER_OPENRDP=$(conda info --base)/envs/openrdp/bin/openrdp
+# (Windows PowerShell example: $env:CALICITYPER_OPENRDP="$env:CONDA_PREFIX\..\openrdp\Scripts\openrdp.exe")
+
+# 4) Verify wiring from the CaliciTyper environment (no scan executed)
+conda activate calicityper
+calicityper recomb --alignment <panel.fasta> --query <ID> --dry-run
 ```
 
-OpenRDP is unpackaged (no PyPI or bioconda release).
+Notes:
+- Run `calicityper recomb` from the **CaliciTyper** environment; it invokes the
+  OpenRDP executable specified by `CALICITYPER_OPENRDP` (or found on `PATH`).
+  Do not install OpenRDP into the main CaliciTyper environment.
+- Pin/record the OpenRDP commit/tag and the resolved `openrdp` environment
+  (`conda env export -n openrdp`) for reproducibility, as OpenRDP is installed
+  from source.
+- Without OpenRDP, `calicityper recomb` still runs but reports skipped scanner
+  methods.
 
-For fully bundled, reproducible deployments that include non-Python dependencies
-(BLAST, MAFFT, and optionally OpenRDP in a compatible environment), consider
-using/providing a container image (e.g. Docker/Apptainer) as part of release
-packaging; no official image is published yet. 
+For fully bundled, reproducible deployments including non-Python dependencies
+(BLAST, MAFFT, and optionally OpenRDP in a compatible runtime layout), prefer a
+container image (Docker/Apptainer). No official image is published yet; when
+building one, keep CaliciTyper and OpenRDP in separate, version-pinned
+environments/runtimes and set `CALICITYPER_OPENRDP` appropriately. 
 
 ## Quick start
 
@@ -605,27 +627,68 @@ reports every method it skipped.
 
 ---
 
-## Dependencies
+## Dependencies and reproducible environments
 
 **Mandatory**
 
-- **Python** >= 3.9, with biopython, numpy, pandas
-- **[BLAST+](https://blast.ncbi.nlm.nih.gov/Blast.cgi)** -- genogroup assignment
-- **[MAFFT](https://mafft.cbrc.jp/alignment/software/)** -- aligns queries onto the fixed reference alignment
+- **Python** (package requires `>=3.10`; CI tests 3.10 and 3.12) with
+  `biopython`, `numpy`, `pandas` (declared in `pyproject.toml`).
+- **[BLAST+](https://blast.ncbi.nlm.nih.gov/Blast.cgi)** (`blastn`) — genogroup assignment.
+- **[MAFFT](https://mafft.cbrc.jp/alignment/software/)** — aligns queries onto the fixed reference alignment.
 
 **Strongly recommended**
 
-- **[numba](https://numba.pydata.org/)** -- nominally optional, but the bootstrap is ~8x slower without it
+- **[numba](https://numba.pydata.org/)** — optional, but the bootstrap is ~8×
+  slower without it. Install a Numba version compatible with your Python/NumPy
+  versions (Numba support can lag behind the newest Python/NumPy releases).
 
 **Optional**
 
-- **[bokeh](https://bokeh.org)** -- figures in the HTML report
-- **[OpenRDP](https://github.com/PoonLab/OpenRDP)** -- the seven recombination scanners
-- **clustalw** -- only for the legacy `--backend clustalw` path
+- **[bokeh](https://bokeh.org)** — figures in the HTML report.
+- **[OpenRDP](https://github.com/PoonLab/OpenRDP)** — the seven recombination
+  scanners (install in a **separate** environment; see
+  [OpenRDP workflow](#openrdp-only-for-calicityper-recomb--separate-environment-workflow)).
+- **clustalw** — only for the legacy `--backend clustalw` path.
+- **iqtree** — used by putative-novel ML workflows where applicable.
 
 External programs are found on `PATH`, or via `CALICITYPER_BLASTN`,
 `CALICITYPER_MAFFT`, `CALICITYPER_CLUSTALW`, `CALICITYPER_OPENRDP`. Reference
 data location is overridable with `CALICITYPER_DATA`.
+
+### Version guidance and pinning (BLAST/MAFFT/Numba)
+
+- **BLAST+ / MAFFT:** use recent stable releases from conda-forge/bioconda
+  (e.g. BLAST+ 2.x and MAFFT 7.x). Exact “known-good” versions depend on
+  platform and solver resolution; for reproducible runs **pin exact resolved
+  versions** in your environment (see below) rather than relying on floating
+  installs.
+- **Numba:** performance-critical but optional; pin a Numba build compatible
+  with your Python and NumPy (and test on your platform) because Numba/Python/
+  NumPy compatibility windows are tight.
+- **General:** prefer conda/mamba (conda-forge + bioconda) for consistent
+  binary dependencies; record the full resolved environment for publications and
+  releases.
+
+### Known-good and reproducible environments
+
+- **CI-tested baseline (this repo):** GitHub Actions on `ubuntu-latest` with
+  Python **3.10** and **3.12** (matrix), installing `blast`, `mafft`, `numpy`,
+  `pandas`, `biopython`, `bokeh`, `pytest` from conda-forge/bioconda (see
+  `.github/workflows/ci.yml`). This validates install + tests + a typing smoke
+  test; it does **not** pin exact package build versions in-repo.
+- **From-source convenience env:** `environment.yml` provides a working
+  development/runtime environment (includes system tools and extras) but is not a
+  lock file.
+- **For strong reproducibility:** capture and share an explicit environment, e.g.
+  - `conda env export -n calicityper > environment.lock.yml` (or
+    `micromamba env export`) after a verified install, and/or
+  - maintain a lockfile/solved environment per platform, and/or
+  - use a container image with pinned dependencies and recorded versions.
+- **OpenRDP split:** keep CaliciTyper and OpenRDP in **separate, pinned**
+  environments/runtimes to satisfy the `numpy<2` constraint; record
+  `CALICITYPER_OPENRDP`, the OpenRDP source commit/tag, and exported envs.
+  A container layout with separate pinned runtimes is recommended for portable
+  reproducibility (no official image published yet).
 
 ---
 

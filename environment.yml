@@ -4,8 +4,14 @@
 # package intent/versions in sync when updating either file.
 # This file also includes non-Python/system tools (blast, mafft, clustalw, iqtree,
 # entrez-direct) and dev/test utilities not expressed as PyPI package deps.
-# No lock file is committed; for fully reproducible environments record resolved
-# versions (e.g. `conda env export`) or use a container image as appropriate.
+#
+# Reproducibility: this is a convenience spec, not a lock file. CI validates a
+# baseline on ubuntu-latest with Python 3.10/3.12 using conda-forge+bioconda
+# packages (see .github/workflows/ci.yml) but does not pin exact builds here.
+# For reproducible installs, pin/export resolved versions (e.g.
+# `conda env export -n calicityper > environment.lock.yml` or micromamba
+# equivalent) or use a container image. For OpenRDP (calicityper recomb), use a
+# separate pinned environment due to numpy<2 constraints (see README).
 name: calicityper
 channels: [conda-forge, bioconda]
 dependencies:
