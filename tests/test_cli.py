@@ -555,14 +555,20 @@ def test_bounds_are_kept_per_distance_measure():
     and reading it with the wrong measure is an error, not a silent mismatch."""
     import pytest as _pytest
     from calicityper import putative_novel as nv
-    for measure in ("patristic", "p"):
+    for measure in nv.MEASURES:                       # ml, nj, p
         t = nv.bounds(measure)
         assert ("orf2", "genotype", "*pooled*") in t, measure
+    # the measures must actually differ, or the table is not doing its job
+    assert nv.bounds("ml")[("orf1", "genogroup", "*pooled*")] != \
+           nv.bounds("p")[("orf1", "genogroup", "*pooled*")]
     with _pytest.raises(RuntimeError):
         nv.bounds("nonexistent-measure")
 
 
-def test_patristic_is_the_default_measure():
-    """Chhabra et al. apply the 2x SD criterion to patristic distances."""
+def test_maximum_likelihood_patristic_is_the_default_measure():
+    """Chhabra et al. apply the 2x SD criterion to patristic distances read off
+    a maximum likelihood tree, so that is the default: IQ-TREE here, PhyML
+    there. 'patristic' is accepted as a name for it."""
     from calicityper import putative_novel as nv
-    assert nv.DISTANCE == "patristic"
+    assert nv.DISTANCE == "ml"
+    assert nv.MEASURES == ("ml", "nj", "p")

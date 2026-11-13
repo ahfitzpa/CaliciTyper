@@ -54,13 +54,17 @@ REGION = {
     "orf2": dict(label="VP1", alphabet="aa", basis="complete VP1 amino acid sequence"),
     "orf1": dict(label="RdRp", alphabet="nt", basis="partial RdRp nucleotide sequence (typing region)"),
 }
-# How a distance between two sequences is measured. The paper uses PATRISTIC
-# distances -- branch lengths summed along the path between two tips of a
-# phylogeny -- which is what `patristic` does, via a neighbour-joining tree of
-# the observed distances (see patristic.py for the NJ-versus-ML caveat).
-# `p` is the previous behaviour, the observed pairwise distance itself, kept so
-# the two can be compared and because it needs no tree.
-DISTANCE = os.environ.get("CALICITYPER_NOVEL_DISTANCE", "patristic").lower()
+# How a distance between two sequences is measured.
+#   ml  patristic distance on an IQ-TREE maximum likelihood tree -- the paper's
+#       measure (it uses PhyML), and the default
+#   nj  patristic distance on a neighbour-joining tree, for when IQ-TREE is not
+#       installed, and as a comparison
+#   p   the observed pairwise distance, with no tree at all
+# "patristic" is accepted as a name for "ml" so older command lines keep working.
+DISTANCE = os.environ.get("CALICITYPER_NOVEL_DISTANCE", "ml").lower()
+if DISTANCE == "patristic":
+    DISTANCE = "ml"
+MEASURES = ("ml", "nj", "p")
 
 VP1_LEN_TOL = 0.10        # complete VP1 must be within 10% of the reference length range
 RDRP_MIN_COVER = 0.95     # fraction of the RdRp typing region the query must cover
@@ -178,17 +182,28 @@ def rdrp_region_columns(group):
     return np.flatnonzero(occ >= RDRP_OCCUPANCY)
 
 
-def as_patristic(D, method=None):
-    """Turn an observed distance matrix into patristic distances on its NJ tree."""
+def as_patristic(D, method=None, records=None, alphabet="nt", threads=1):
+    """Measure distances between the taxa of `D` (and `records`) under `method`.
+
+    `D` is the observed distance matrix; `records` is [(name, aligned seq)] in
+    the same order, needed only for the ML tree, which is inferred from the
+    alignment rather than from distances.
+    """
     import numpy as _np
     m = (method or DISTANCE)
+    m = "ml" if m == "patristic" else m
     D = _np.asarray(D, dtype=float)
     if m == "p":
         return D
-    if m != "patristic":
-        raise ValueError(f"unknown distance method {m!r} (use 'patristic' or 'p')")
-    from .patristic import patristic_matrix
-    return patristic_matrix(D)
+    if m == "nj":
+        from .patristic import patristic_matrix
+        return patristic_matrix(D)
+    if m == "ml":
+        if records is None:
+            raise ValueError("the ml measure needs the alignment, not only distances")
+        from .patristic import ml_patristic
+        return ml_patristic(records, alphabet, threads)
+    raise ValueError(f"unknown distance measure {m!r} (use one of {MEASURES})")
 
 
 def augment(D, query_row):
@@ -250,6 +265,59 @@ def vp1_reference_matrix():
             D[i, j] = D[j, i] = p_distance(refs[i][3], refs[j][3], "aa")[0]
     np.save(path, D)
     return refs, D
+
+
+@lru_cache(maxsize=None)
+def rdrp_alignment(group):
+    """[(accession, aligned nucleotides)] over the RdRp typing region."""
+    ref, mem = _members("orf1", group)
+    if not mem:
+        return []
+    cols = rdrp_region_columns(group)
+    return [(ref.names[k], "".join(np.asarray(list(ref.seqs[k]))[cols])) for k in mem]
+
+
+@lru_cache(maxsize=1)
+def vp1_aa_alignment():
+    """([(accession, aligned amino acids)], path to the alignment file).
+
+    One MAFFT run over the reference VP1 proteins, cached on disk beside the
+    distance matrix: the ML tree needs an alignment, and re-aligning 166
+    proteins per query would cost more than the tree.
+    """
+    refs = vp1_references()
+    key = hashlib.sha256("|".join(r[0] for r in refs).encode()).hexdigest()[:16]
+    path = _cache_dir() / f"vp1_aa_{key}.aln.fasta"
+    if not path.exists():
+        import subprocess
+        import tempfile
+        with tempfile.TemporaryDirectory(prefix="calicityper_aa_") as td:
+            raw = Path(td) / "aa.fasta"
+            raw.write_text("".join(f">{a}\n{sq}\n" for a, _, _, sq in refs))
+            out = subprocess.run([cg.exe("mafft"), "--quiet", "--auto", "--anysymbol",
+                                  "--thread", "2", str(raw)], capture_output=True, text=True)
+            if out.returncode != 0:
+                raise RuntimeError(f"mafft failed on the VP1 proteins:\n{out.stderr[-800:]}")
+            path.write_text(out.stdout)
+    recs = [(r.id, str(r.seq).upper()) for r in SeqIO.parse(path, "fasta")]
+    return recs, path
+
+
+def add_to_vp1_alignment(aa):
+    """Align one query protein to the cached VP1 reference alignment."""
+    import subprocess
+    import tempfile
+    recs, path = vp1_aa_alignment()
+    with tempfile.TemporaryDirectory(prefix="calicityper_add_") as td:
+        q = Path(td) / "q.fasta"
+        q.write_text(f">QUERY\n{aa}\n")
+        out = subprocess.run([cg.exe("mafft"), "--quiet", "--anysymbol", "--keeplength",
+                              "--add", str(q), str(path)], capture_output=True, text=True)
+        if out.returncode != 0:
+            raise RuntimeError(f"mafft failed adding the query protein:\n{out.stderr[-800:]}")
+        added = [(r.id, str(r.seq).upper()) for r in SeqIO.parse(
+            __import__("io").StringIO(out.stdout), "fasta")]
+    return added[:-1], added[-1][1]
 
 
 @lru_cache(maxsize=None)
@@ -405,18 +473,27 @@ def build_bounds():
     against patristic bounds, which is how an apparently small change of
     setting turns into a wrong answer."""
     raw = {"orf2": [vp1_distance_matrix()], "orf1": list(rdrp_distance_blocks())}
+    # the alignment each block was measured on, in the same row order, for the
+    # ML tree; VP1's reference alignment is re-ordered to match the matrix
+    aa_by_acc = dict(vp1_aa_alignment()[0])
+    alns = {"orf2": [[(m[0], aa_by_acc[m[0]]) for m in raw["orf2"][0][0]]],
+            "orf1": [rdrp_alignment(meta[0][1]) for meta, _ in raw["orf1"]]}
     rows = []
-    for measure in ("patristic", "p"):
-        rows += _bounds_for(raw, measure)
+    for measure in MEASURES:
+        rows += _bounds_for(raw, alns, measure)
     return rows
 
 
-def _bounds_for(raw, measure):
+def _bounds_for(raw, alns, measure):
     rows = []
     # the bound and the query's distance must be in the same units, so the
     # transform applied here is the one assess() applies
-    blocks = {region: [(meta, as_patristic(D, measure)) for meta, D in blks]
-              for region, blks in raw.items()}
+    blocks = {}
+    for region, blks in raw.items():
+        alphabet = REGION[region]["alphabet"]
+        blocks[region] = [
+            (meta, as_patristic(D, measure, records=alns[region][b], alphabet=alphabet))
+            for b, (meta, D) in enumerate(blks)]
     for region, blks in blocks.items():
         for level in ("genotype", "genogroup"):
             pairs, size = {}, {}
@@ -536,7 +613,8 @@ def assess(region, group, qa, sub):
         if cover < RDRP_MIN_COVER:
             return _na(region, f"RdRp typing region {cover:.0%} covered (< {RDRP_MIN_COVER:.0%})")
         obs, _ = msa_distances(q[cols], ref.codes[mem][:, cols])
-        P = as_patristic(augment(Dref, obs))
+        recs = rdrp_alignment(group) + [("QUERY", "".join(np.asarray(list(qa))[cols]))]
+        P = as_patristic(augment(Dref, obs), records=recs, alphabet="nt")
         d = P[-1, :-1]
         types = [genotype(ref.types[k]) for k in mem]
         group_avg = {group: float(np.nanmean(d))}
@@ -553,7 +631,11 @@ def assess(region, group, qa, sub):
     if vp1 is None:
         return _na(region, "no complete VP1 open reading frame")
     obs = [p_distance(vp1, s, "aa")[0] for *_, s in refs]
-    P = as_patristic(augment(Dref, obs))
+    recs = None
+    if DISTANCE == "ml":
+        aligned_refs, aligned_q = add_to_vp1_alignment(vp1)
+        recs = aligned_refs + [("QUERY", aligned_q)]
+    P = as_patristic(augment(Dref, obs), records=recs, alphabet="aa")
     d = P[-1, :-1]
     # both levels come off the one tree: the shortlist the observed-distance
     # version needed to keep the cost down is unnecessary here, because the

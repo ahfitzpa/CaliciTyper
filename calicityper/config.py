@@ -85,9 +85,11 @@ def check_data():
 
 def exe(name):
     env = os.environ.get(f"CALICITYPER_{name.upper()}")
-    candidates = {"clustalw": ["clustalw2", "clustalw"], "blastn": ["blastn"], "makeblastdb": ["makeblastdb"], "mafft": ["mafft"]}[name]
+    candidates = {"clustalw": ["clustalw2", "clustalw"], "blastn": ["blastn"],
+                  "makeblastdb": ["makeblastdb"], "mafft": ["mafft"],
+                  "iqtree": ["iqtree2", "iqtree"]}[name]
     path = env or next((shutil.which(c) for c in candidates if shutil.which(c)), None)
     if not path:
-        raise FileNotFoundError(f"'{name}' not found on PATH; install it (conda install -c bioconda blast mafft clustalw) "
-                                f"or set CALICITYPER_{name.upper()}")
+        raise FileNotFoundError(f"'{name}' not found on PATH; install it (conda install -c bioconda "
+                                f"blast mafft clustalw iqtree) or set CALICITYPER_{name.upper()}")
     return path

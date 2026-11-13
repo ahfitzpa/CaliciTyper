@@ -73,8 +73,12 @@ def run(region, blocks, tally, genogroup_scenario):
 MEASURE = (sys.argv[1] if len(sys.argv) > 1 else nv.DISTANCE)
 tally = defaultdict(Counter)
 # the query distances and the recomputed bounds must both be in MEASURE's units
-vp1 = [(meta, nv.as_patristic(D, MEASURE)) for meta, D in [nv.vp1_distance_matrix()]]
-rdrp = [(meta, nv.as_patristic(D, MEASURE)) for meta, D in nv.rdrp_distance_blocks()]
+aa = dict(nv.vp1_aa_alignment()[0])
+_vp1 = nv.vp1_distance_matrix()
+vp1 = [(_vp1[0], nv.as_patristic(_vp1[1], MEASURE,
+                                 records=[(m[0], aa[m[0]]) for m in _vp1[0]], alphabet="aa"))]
+rdrp = [(meta, nv.as_patristic(D, MEASURE, records=nv.rdrp_alignment(meta[0][1]), alphabet="nt"))
+        for meta, D in nv.rdrp_distance_blocks()]
 print(f"distance measure: {MEASURE}")
 run("orf2", vp1, tally, genogroup_scenario=True)
 run("orf1", rdrp, tally, genogroup_scenario=False)
