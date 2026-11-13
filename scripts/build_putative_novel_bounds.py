@@ -18,7 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from calicityper import putative_novel  # noqa: E402
 
 rows = putative_novel.build_bounds()
-cols = ["region", "level", "cluster", "n_members", "n_pairs", "alphabet",
+cols = ["region", "level", "cluster", "distance", "n_members", "n_pairs", "alphabet",
         "mean", "sd", "sd_source", "bound"]
 with open(putative_novel.BOUNDS_FILE, "w", newline="") as fh:
     w = csv.DictWriter(fh, fieldnames=cols, delimiter="\t")
@@ -28,5 +28,5 @@ with open(putative_novel.BOUNDS_FILE, "w", newline="") as fh:
 print(f"wrote {len(rows)} rows to {putative_novel.BOUNDS_FILE}")
 for r in rows:
     if r["cluster"] == "*pooled*":
-        print(f"  {r['region']} {r['level']:<9} pooled: mean {r['mean']:.3f} sd {r['sd']:.3f} "
-              f"-> bound {r['bound']:.3f}")
+        print(f"  {r['distance']:<9} {r['region']} {r['level']:<9} pooled: mean {r['mean']:.3f} "
+              f"sd {r['sd']:.3f} -> bound {r['bound']:.3f}")

@@ -35,7 +35,10 @@ no bundled VP1/RdRp reference sets yet, so sapovirus calls are not assessed.
 from __future__ import annotations
 
 import csv
+import hashlib
+import os
 from functools import lru_cache
+from pathlib import Path
 
 import numpy as np
 from Bio import SeqIO
@@ -51,6 +54,14 @@ REGION = {
     "orf2": dict(label="VP1", alphabet="aa", basis="complete VP1 amino acid sequence"),
     "orf1": dict(label="RdRp", alphabet="nt", basis="partial RdRp nucleotide sequence (typing region)"),
 }
+# How a distance between two sequences is measured. The paper uses PATRISTIC
+# distances -- branch lengths summed along the path between two tips of a
+# phylogeny -- which is what `patristic` does, via a neighbour-joining tree of
+# the observed distances (see patristic.py for the NJ-versus-ML caveat).
+# `p` is the previous behaviour, the observed pairwise distance itself, kept so
+# the two can be compared and because it needs no tree.
+DISTANCE = os.environ.get("CALICITYPER_NOVEL_DISTANCE", "patristic").lower()
+
 VP1_LEN_TOL = 0.10        # complete VP1 must be within 10% of the reference length range
 RDRP_MIN_COVER = 0.95     # fraction of the RdRp typing region the query must cover
 RDRP_OCCUPANCY = 0.90     # a column belongs to the typing region if >= 90% of references cover it
@@ -165,6 +176,94 @@ def rdrp_region_columns(group):
     ref, mem = _members("orf1", group)
     occ = (ref.codes[mem] < 4).mean(0) if mem else ref.occupancy
     return np.flatnonzero(occ >= RDRP_OCCUPANCY)
+
+
+def as_patristic(D, method=None):
+    """Turn an observed distance matrix into patristic distances on its NJ tree."""
+    import numpy as _np
+    m = (method or DISTANCE)
+    D = _np.asarray(D, dtype=float)
+    if m == "p":
+        return D
+    if m != "patristic":
+        raise ValueError(f"unknown distance method {m!r} (use 'patristic' or 'p')")
+    from .patristic import patristic_matrix
+    return patristic_matrix(D)
+
+
+def augment(D, query_row):
+    """Square matrix of `D` with the query appended as its last taxon."""
+    n = len(D)
+    out = np.zeros((n + 1, n + 1))
+    out[:n, :n] = D
+    q = np.nan_to_num(np.asarray(query_row, dtype=float), nan=float(np.nanmax(D)) if n else 1.0)
+    out[n, :n] = out[:n, n] = q
+    return out
+
+
+def _cache_dir():
+    """First writable cache location.
+
+    A home directory is not always writable on a cluster -- it may be over
+    quota or read-only on compute nodes -- and a cache that cannot be written
+    must not take the run down with it. CALICITYPER_CACHE overrides; otherwise
+    the standard cache path is tried, then the reference data directory (the
+    natural home for something derived from it), then a temporary directory
+    that lasts the process.
+    """
+    import tempfile
+    env = os.environ.get("CALICITYPER_CACHE")
+    candidates = [Path(env)] if env else []
+    candidates += [Path(os.environ.get("XDG_CACHE_HOME") or (Path.home() / ".cache")) / "calicityper",
+                   cg.DATA / ".cache"]
+    for d in candidates:
+        try:
+            d.mkdir(parents=True, exist_ok=True)
+            probe = d / ".writable"
+            probe.touch()
+            probe.unlink()
+            return d
+        except OSError:
+            continue
+    return Path(tempfile.mkdtemp(prefix="calicityper_cache_"))
+
+
+@lru_cache(maxsize=1)
+def vp1_reference_matrix():
+    """([(accession, genogroup, genotype, aa)], observed aa distance matrix).
+
+    The matrix is 13,695 pairwise protein alignments, about 45 seconds, so it
+    is cached on disk under a key derived from the reference accessions -- a
+    changed reference set gets a new key rather than a stale matrix. The cache
+    lives outside the package data directory so that it cannot disturb the
+    reference manifest's checksums.
+    """
+    refs = vp1_references()
+    key = hashlib.sha256("|".join(r[0] for r in refs).encode()).hexdigest()[:16]
+    path = _cache_dir() / f"vp1_aa_distances_{key}.npy"
+    if path.exists():
+        return refs, np.load(path)
+    n = len(refs)
+    D = np.zeros((n, n))
+    for i in range(n):
+        for j in range(i + 1, n):
+            D[i, j] = D[j, i] = p_distance(refs[i][3], refs[j][3], "aa")[0]
+    np.save(path, D)
+    return refs, D
+
+
+@lru_cache(maxsize=None)
+def rdrp_reference_matrix(group):
+    """(refset, member indices, observed nucleotide distance matrix) for `group`."""
+    ref, mem = _members("orf1", group)
+    if not mem:
+        return ref, mem, np.zeros((0, 0))
+    cols = rdrp_region_columns(group)
+    C = ref.codes[mem][:, cols]
+    D = np.vstack([msa_distances(C[a], C)[0] for a in range(len(mem))])
+    D = np.nan_to_num(D, nan=0.0)
+    np.fill_diagonal(D, 0.0)
+    return ref, mem, D
 
 
 def msa_distances(qcodes, rcodes):
@@ -297,10 +396,27 @@ def within_pairs(meta, D, level, skip=None):
 
 
 def build_bounds():
-    """Per-cluster bound table for both regions and both levels.
-    Used by scripts/build_putative_novel_bounds.py; the result ships as BOUNDS_FILE."""
+    """Per-cluster bound table, for both regions, both levels and both distance
+    measures. Used by scripts/build_putative_novel_bounds.py; ships as BOUNDS_FILE.
+
+    A bound is only meaningful in the units it was computed in, so the table
+    carries a `distance` column and holds a set of rows per measure. Otherwise
+    running with CALICITYPER_NOVEL_DISTANCE=p would compare observed distances
+    against patristic bounds, which is how an apparently small change of
+    setting turns into a wrong answer."""
+    raw = {"orf2": [vp1_distance_matrix()], "orf1": list(rdrp_distance_blocks())}
     rows = []
-    blocks = {"orf2": [vp1_distance_matrix()], "orf1": list(rdrp_distance_blocks())}
+    for measure in ("patristic", "p"):
+        rows += _bounds_for(raw, measure)
+    return rows
+
+
+def _bounds_for(raw, measure):
+    rows = []
+    # the bound and the query's distance must be in the same units, so the
+    # transform applied here is the one assess() applies
+    blocks = {region: [(meta, as_patristic(D, measure)) for meta, D in blks]
+              for region, blks in raw.items()}
     for region, blks in blocks.items():
         for level in ("genotype", "genogroup"):
             pairs, size = {}, {}
@@ -313,20 +429,37 @@ def build_bounds():
             stats, (pm, psd) = cluster_stats(pairs, size, OWN_LEVEL[level])
             for c in sorted(stats):
                 rows.append(dict(region=region, level=level, cluster=c, n_members=size[c],
-                                 alphabet=REGION[region]["alphabet"], **stats[c]))
+                                 alphabet=REGION[region]["alphabet"], distance=measure,
+                                 **stats[c]))
             rows.append(dict(region=region, level=level, cluster="*pooled*", n_members="",
-                             alphabet=REGION[region]["alphabet"], mean=pm, sd=psd,
-                             sd_source="trimmed", bound=pm + 2 * psd,
+                             alphabet=REGION[region]["alphabet"], distance=measure,
+                             mean=pm, sd=psd, sd_source="trimmed", bound=pm + 2 * psd,
                              n_pairs=sum(len(v) for v in pairs.values())))
     return rows
 
 
 @lru_cache(maxsize=None)
-def bounds():
-    """{(region, level, cluster): bound} from the shipped table."""
+def bounds(measure=None):
+    """{(region, level, cluster): bound} from the shipped table, for one measure.
+
+    A table written before the `distance` column existed holds observed-distance
+    bounds, so it is read as such rather than silently treated as patristic."""
+    m = measure or DISTANCE
     with open(BOUNDS_FILE) as fh:
-        return {(r["region"], r["level"], r["cluster"]): float(r["bound"])
-                for r in csv.DictReader(fh, delimiter="\t")}
+        rows = list(csv.DictReader(fh, delimiter="\t"))
+    if rows and "distance" not in rows[0]:
+        if m != "p":
+            raise RuntimeError(
+                f"{BOUNDS_FILE} predates patristic distances and holds observed-distance "
+                f"bounds only. Rebuild it with scripts/build_putative_novel_bounds.py, or "
+                f"set CALICITYPER_NOVEL_DISTANCE=p to use it as it stands.")
+        rows = [dict(r, distance="p") for r in rows]
+    out = {(r["region"], r["level"], r["cluster"]): float(r["bound"])
+           for r in rows if r["distance"] == m}
+    if not out:
+        raise RuntimeError(f"no {m!r} bounds in {BOUNDS_FILE}; rebuild it with "
+                           f"scripts/build_putative_novel_bounds.py")
+    return out
 
 
 def bound_of(region, level, cluster, table=None):
@@ -365,8 +498,9 @@ def _na(region, why):
 def _result(region, flag, t, d, b, scope=""):
     info = REGION[region]
     rel = "within" if flag == KNOWN else "outside"
-    detail = (f"{info['label']} {info['alphabet']}: average p = {d:.3f} to {t}, {rel} its "
-              f"2x SD bound {b:.3f}{scope}")
+    unit = "patristic" if DISTANCE == "patristic" else "p"
+    detail = (f"{info['label']} {info['alphabet']}: average {unit} distance = {d:.3f} to {t}, "
+              f"{rel} its 2x SD bound {b:.3f}{scope}")
     if flag in FLAGGED:
         detail += "; single sequence, so tentative (NA) at most"
     return dict(flag=flag, detail=detail, distance=round(float(d), 4), closest_type=t,
@@ -382,49 +516,51 @@ def _averages(dists, labels):
 
 
 def assess(region, group, qa, sub):
-    """Flag one typed query region.
+    """Flag one typed query region against the 2x SD criterion.
 
     qa  : the query aligned to the genogroup's reference alignment
     sub : the oriented nucleotide neighbourhood that was aligned (for VP1)
+
+    The query is appended to the reference distance matrix and the whole thing
+    is turned into patristic distances in one tree, because a patristic
+    distance is a property of a tree and not of a pair: reading the query off
+    one tree and the bounds off another would compare two different quantities.
     """
-    ref, mem = _members(region, group)
-    if not mem:
-        return _na(region, f"no {group} references")
-    q = np.asarray(_encode(qa))
     if region == "orf1":
+        ref, mem, Dref = rdrp_reference_matrix(group)
+        if not mem:
+            return _na(region, f"no {group} references")
+        q = np.asarray(_encode(qa))
         cols = rdrp_region_columns(group)
         cover = float((q[cols] < 4).mean()) if len(cols) else 0.0
         if cover < RDRP_MIN_COVER:
             return _na(region, f"RdRp typing region {cover:.0%} covered (< {RDRP_MIN_COVER:.0%})")
-        p, _ = msa_distances(q[cols], ref.codes[mem][:, cols])
+        obs, _ = msa_distances(q[cols], ref.codes[mem][:, cols])
+        P = as_patristic(augment(Dref, obs))
+        d = P[-1, :-1]
         types = [genotype(ref.types[k]) for k in mem]
-        group_avg = {group: float(np.nanmean(p))}
-        flag, t, d, b = classify(region, _averages(p, types), group_avg)
+        group_avg = {group: float(np.nanmean(d))}
+        flag, t, dist, b = classify(region, _averages(d, types), group_avg)
         # other genogroups' RdRp sits in different alignments, so the P-group
         # level is judged against the query's own genogroup only
-        return _result(region, flag, t, d, b, f" (P-group compared within {group} only)"
+        return _result(region, flag, t, dist, b, f" (P-group compared within {group} only)"
                        if flag == NOVEL_GROUP else "")
 
-    refs = vp1_references()
+    refs, Dref = vp1_reference_matrix()
+    if not refs:
+        return _na(region, "no VP1 references")
     vp1 = complete_vp1(sub, [len(s) for *_, s in refs])
     if vp1 is None:
         return _na(region, "no complete VP1 open reading frame")
-    # candidate genotypes: those of the nearest references by nucleotide
-    # distance in the alignment; then amino acid distances to all their members
-    p, _ = msa_distances(q, ref.codes[mem])
-    near = [mem[k] for k in np.argsort(np.nan_to_num(p, nan=9.0))[:SHORTLIST]]
-    cand = {genotype(ref.types[k]) for k in near}
-    pool = [r for r in refs if genotype(r[2]) in cand]
-    d = [p_distance(vp1, s, "aa")[0] for *_, s in pool]
-    type_avg = _averages(d, [genotype(r[2]) for r in pool])
-    flag, t, dt, b = classify(region, type_avg, None)
-    if flag != KNOWN:
-        # outside every candidate genotype: now compare against all of them,
-        # and at genogroup level against every genogroup
-        d = [p_distance(vp1, s, "aa")[0] for *_, s in refs]
-        flag, t, dt, b = classify(region, _averages(d, [genotype(r[2]) for r in refs]),
-                                  _averages(d, [r[1] for r in refs]))
-    return _result(region, flag, t, dt, b)
+    obs = [p_distance(vp1, s, "aa")[0] for *_, s in refs]
+    P = as_patristic(augment(Dref, obs))
+    d = P[-1, :-1]
+    # both levels come off the one tree: the shortlist the observed-distance
+    # version needed to keep the cost down is unnecessary here, because the
+    # matrix is cached and every reference is already in the tree
+    flag, t, dist, b = classify(region, _averages(d, [genotype(r[2]) for r in refs]),
+                                _averages(d, [r[1] for r in refs]))
+    return _result(region, flag, t, dist, b)
 
 
 SHORTLIST = 8

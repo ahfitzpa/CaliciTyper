@@ -298,10 +298,22 @@ deterministic is still an open question.
 
 The screen applies the 2x SD criterion of Chhabra *et al.* 2019 per cluster: a
 query is `known` if its average distance to the members of some genotype is
-within that genotype's mean + 2 SD, otherwise flagged.
+within that genotype's mean + 2 SD, otherwise flagged. Distances are
+**patristic**, as in the paper (branch lengths along the path between two tips
+of a tree), with the query and the references in one tree.
 
 **Leave-one-out**, with every bound recomputed without the reference being
-tested:
+tested, under both distance measures:
+
+| Region | Scenario | n | `known` | `putative_novel_type` | `putative_novel_group` |
+|---|---|---|---|---|---|
+| VP1 | own genotype present | 159 | **150 (94%)** | 9 (6%) | 0 |
+| VP1 | own genotype removed | 166 | 12 (7%) | **147 (89%)** | 7 (4%) |
+| VP1 | own genogroup removed | 166 | 0 | 131 (79%) | **35 (21%)** |
+| RdRp | own P-type present | 163 | **158 (97%)** | 4 (2%) | 1 (1%) |
+| RdRp | own P-type removed | 176 | 84 (48%) | **91 (52%)** | 1 (1%) |
+
+Observed pairwise distances, for comparison (`CALICITYPER_NOVEL_DISTANCE=p`):
 
 | Region | Scenario | n | `known` | `putative_novel_type` | `putative_novel_group` |
 |---|---|---|---|---|---|
@@ -311,8 +323,16 @@ tested:
 | RdRp | own P-type present | 163 | **157 (96%)** | 5 (3%) | 1 (1%) |
 | RdRp | own P-type removed | 176 | 88 (50%) | **87 (49%)** | 1 (1%) |
 
-Bold is the right answer. The VP1 genotype screen is reliable: 94% specific,
-95% sensitive to any flag. The RdRp P-type and VP1 genogroup screens are not
+Bold is the right answer. **The two measures agree to within 1-3 points
+everywhere**, which is the expected result rather than a disappointing one:
+patristic and observed distances diverge where substitutions saturate, and the
+distances that decide this criterion are the short ones inside and just outside
+a cluster. Patristic is the default because it is what the paper specifies, not
+because it performs better; the comparison is kept so that claim is checkable.
+The remaining deviation from the paper is the tree — neighbour-joining here,
+maximum likelihood (PhyML) there.
+
+The VP1 genotype screen is reliable: 94% specific, 93% sensitive to any flag. The RdRp P-type and VP1 genogroup screens are not
 sensitive, and that reflects the data rather than tuning:
 
 - **Partial-RdRp P-types overlap.** Between-P-type distances in the typing

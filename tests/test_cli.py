@@ -534,3 +534,35 @@ def test_novel_screen_runs_only_on_unaccepted_calls(tmp_path):
     assert r["orf2_accepted"] == "accepted", r
     assert r["orf2_putative_novel"] == "known", r
     assert "not screened" in r["orf2_putative_novel_detail"], r
+
+
+def test_patristic_recovers_an_additive_tree_exactly():
+    """The patristic transform must be a tree distance, not an approximation of
+    one: on a matrix that IS additive, it returns the matrix unchanged."""
+    import numpy as np
+    from calicityper.patristic import patristic_matrix
+    M = np.zeros((4, 4))
+    M[0, 1] = M[1, 0] = 1 + 2                      # cherry (A,B)
+    M[2, 3] = M[3, 2] = 3 + 4                      # cherry (C,D)
+    for x, lx in ((0, 1), (1, 2)):
+        for y, ly in ((2, 3), (3, 4)):
+            M[x, y] = M[y, x] = lx + 5 + ly        # 5 = internal edge
+    assert np.allclose(patristic_matrix(M), M)
+
+
+def test_bounds_are_kept_per_distance_measure():
+    """A bound is only meaningful in its own units, so the table carries both
+    and reading it with the wrong measure is an error, not a silent mismatch."""
+    import pytest as _pytest
+    from calicityper import putative_novel as nv
+    for measure in ("patristic", "p"):
+        t = nv.bounds(measure)
+        assert ("orf2", "genotype", "*pooled*") in t, measure
+    with _pytest.raises(RuntimeError):
+        nv.bounds("nonexistent-measure")
+
+
+def test_patristic_is_the_default_measure():
+    """Chhabra et al. apply the 2x SD criterion to patristic distances."""
+    from calicityper import putative_novel as nv
+    assert nv.DISTANCE == "patristic"

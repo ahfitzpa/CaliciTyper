@@ -13,7 +13,10 @@ without it, in three scenarios:
 RdRp distances exist only within one genogroup's alignment, so the genogroup
 scenario is VP1-only. Run time: about a minute.
 
-    python tests/putative_novel_validation.py
+Pass a distance measure to check either: `patristic` (the default, and what
+Chhabra et al. use) or `p`, the observed pairwise distance.
+
+    python tests/putative_novel_validation.py [patristic|p]
 """
 import sys
 from collections import Counter, defaultdict
@@ -67,9 +70,14 @@ def run(region, blocks, tally, genogroup_scenario):
                 tally[(region, name)][flag] += 1
 
 
+MEASURE = (sys.argv[1] if len(sys.argv) > 1 else nv.DISTANCE)
 tally = defaultdict(Counter)
-run("orf2", [nv.vp1_distance_matrix()], tally, genogroup_scenario=True)
-run("orf1", list(nv.rdrp_distance_blocks()), tally, genogroup_scenario=False)
+# the query distances and the recomputed bounds must both be in MEASURE's units
+vp1 = [(meta, nv.as_patristic(D, MEASURE)) for meta, D in [nv.vp1_distance_matrix()]]
+rdrp = [(meta, nv.as_patristic(D, MEASURE)) for meta, D in nv.rdrp_distance_blocks()]
+print(f"distance measure: {MEASURE}")
+run("orf2", vp1, tally, genogroup_scenario=True)
+run("orf1", rdrp, tally, genogroup_scenario=False)
 
 order = [nv.KNOWN, nv.NOVEL_TYPE, nv.NOVEL_GROUP]
 print("region\tscenario\tn\t" + "\t".join(order))

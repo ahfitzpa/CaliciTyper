@@ -481,6 +481,17 @@ p-distances of the **complete VP1 amino acid** sequence and P-types on
 average distance between all sequences within a new genogroup or genotype and
 its nearest cluster(s) should not overlap within two standard deviations".
 
+Distances are **patristic** — branch lengths summed along the path between two
+tips of a tree — as in the paper, not the observed pairwise distances. The
+query is put into the same tree as the references and the bounds are read off
+that tree, because a patristic distance is a property of a tree rather than of
+a pair. One difference from the paper remains: it infers maximum likelihood
+trees with PhyML, while this builds a neighbour-joining tree from the same
+distance matrix, so branch lengths are close but not identical.
+`CALICITYPER_NOVEL_DISTANCE=p` selects observed pairwise distances instead;
+`calicityper/data/putative_novel_bounds.tsv` carries a bound set for each
+measure, since a bound only means anything in its own units.
+
 Applied to one query:
 
 1. Each reference genotype and genogroup has a bound: the mean distance between
