@@ -8,6 +8,7 @@ dependencies:
   - blast          # genogroup assignment
   - mafft          # aligns queries onto the pre-aligned references (default backend)
   - clustalw       # only for the legacy --backend clustalw path
+  - iqtree         # ML trees for the putative-novel 2x SD screen (Chhabra et al. use PhyML)
   - numba          # optional: ~10x faster bootstrap (pure-numpy fallback if absent)
   - bokeh         # figures in the HTML report (--html / --report)
   - entrez-direct  # only for scripts/fetch_rivm_test_set.sh (RIVM comparison set)
