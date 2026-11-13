@@ -34,118 +34,146 @@ def _init(a):
     tree.warmup()
 
 def _add_type_args(p):
-    p.add_argument("fasta"); p.add_argument("-o", "--out", default="-")
-    p.add_argument("--bootstraps", type=int, default=100, help="bootstrap replicates (RIVM: 100)")
-    p.add_argument("--min-support", type=float, default=70.0, help="minimum bootstrap %% to assign a type (RIVM: 70)")
-    p.add_argument("--max-refs-per-type", type=int, default=2, help="reference sequences per type used in the tree (RIVM uses a representative subset; 2)")
-    p.add_argument("--threads", type=int, default=1); p.add_argument("--seed", type=int, default=1)
+    p.add_argument("fasta", help="input FASTA file of contigs/genomes (required; stdin not supported)")
+    p.add_argument("-o", "--out", default="-",
+                   help="output TSV path, or '-' for stdout [default: -]. "
+                        "When a file path is used, a provenance sidecar (<out>.provenance.json) is written.")
+    p.add_argument("--bootstraps", type=int, default=100, help="bootstrap replicates [default: 100]")
+    p.add_argument("--min-support", type=float, default=70.0, help="minimum bootstrap %% to accept a type [default: 70]")
+    p.add_argument("--max-refs-per-type", type=int, default=2, help="reference sequences per type used in the tree [default: 2]")
+    p.add_argument("--threads", type=int, default=1,
+                   help="worker processes for typing/alignment chunks [default: 1]. "
+                        "BLAS/OpenMP threads are pinned per process by default to avoid oversubscription.")
+    p.add_argument("--seed", type=int, default=1, help="random seed for reproducibility [default: 1]")
     p.add_argument("--version", action="version", version=__version__)
-    r = p.add_argument_group("reports (the TSV stays the primary output)")
+    r = p.add_argument_group("reports (TSV is the primary machine-readable table)")
     r.add_argument("--report", metavar="PREFIX",
-                   help="write PREFIX.md, PREFIX.json and PREFIX.html as well as the TSV")
-    r.add_argument("--json", metavar="PATH", help="write results as JSON (runner-ups structured)")
-    r.add_argument("--md", metavar="PATH", help="write a Markdown report")
+                   help="write PREFIX.md, PREFIX.json, and PREFIX.html (predictable naming) in addition to the TSV")
+    r.add_argument("--json", metavar="PATH", help="write JSON report/results (includes provenance metadata)")
+    r.add_argument("--md", metavar="PATH", help="write Markdown report")
     r.add_argument("--html", metavar="PATH",
-                   help="write a self-contained HTML report with Bokeh alignment panels and trees")
+                   help="write self-contained HTML report with alignment panels and trees (requires bokeh for figures)")
     r.add_argument("--report-max-panels", type=int, default=None, metavar="N",
-                   help="cap the number of alignment panels, in input order "
-                        "[default: one per typed region, every call]")
-    r.add_argument("--no-tree", action="store_true", help="skip the per-region trees in the HTML report")
+                   help="cap alignment panels in reports (input order). Recommended for large batches "
+                        "[default: one per typed region]")
+    r.add_argument("--no-tree", action="store_true",
+                   help="skip per-region trees in HTML reports (faster/smaller for large batches)")
     r.add_argument("--html-cdn", action="store_true",
-                   help="link BokehJS from a CDN instead of embedding it: a much smaller "
-                        "HTML file that needs internet to render [default: embed, stands alone]")
+                   help="link BokehJS from CDN instead of embedding it (smaller HTML, needs internet)")
     p.add_argument("--screen-all", action="store_true",
-                   help="run the putative novel screen on every call, not only on calls the "
-                        "bootstrap did not accept [default: only unaccepted calls]")
+                   help="run putative-novel screening on every call (default: only calls not accepted by bootstrap)")
     adv = p.add_argument_group("advanced (affect correctness/reproducibility; prefer CLI flags over env vars)")
     adv.add_argument("--min-sites", type=int, default=None, metavar="N",
                      help="minimum aligned informative sites to accept a type call "
                           f"[default: {cg.MIN_INFORMATIVE_SITES} or $CALICITYPER_MIN_SITES]")
     adv.add_argument("--novel-distance", choices=["ml", "nj", "p"], default=None,
-                     help="distance measure for putative-novel screening: ml (patristic, IQ-TREE; default), "
-                          "nj (patristic, neighbour-joining), or p (observed pairwise). "
-                          "Overrides $CALICITYPER_NOVEL_DISTANCE.")
+                     help="distance measure for putative-novel screening: ml, nj, or p [default: ml]")
     adv.add_argument("--type-all-groups", action=argparse.BooleanOptionalAction, default=None,
-                     help="type all norovirus genogroups (GIII-GX) instead of restricting genotyping to "
-                          "validated GI/GII. Calls outside GI/GII are not validated. "
-                          "Overrides $CALICITYPER_TYPE_ALL_GROUPS.")
+                     help="type all norovirus genogroups (GIII-GX) instead of restricting to validated GI/GII "
+                          "(not validated). Overrides $CALICITYPER_TYPE_ALL_GROUPS.")
     adv.add_argument("--rivm-window-mode", action=argparse.BooleanOptionalAction, default=None,
-                     help="apply RIVM-style typing-window coverage gates instead of reporting coverage only. "
-                          "Useful for RIVM-comparison/replication, not for maximising correct calls. "
+                     help="apply RIVM-style typing-window coverage gates (for comparison/replication). "
                           "Overrides $CALICITYPER_RIVM_WINDOW_MODE.")
+    p.epilog = (
+        "Examples:\n"
+        "  calicityper type contigs.fasta -o typed.tsv --threads 8\n"
+        "  calicityper type contigs.fasta -o typed.tsv --report run01 --threads 8\n"
+        "  calicityper type contigs.fasta -o typed.tsv --report run01 --report-max-panels 200 --no-tree\n\n"
+        "Notes: stdin is not supported; use '-' with -o/--out to write TSV to stdout (stderr carries status).\n"
+        "Validated/supported typing scope: norovirus GI/GII. Requires a verified reference set (run 'calicityper setup')."
+    )
     return p
 
 
 def _add_novel_args(p):
     """`novel`: the 2x SD screen as a command of its own, norovirus only."""
-    p.add_argument("fasta"); p.add_argument("-o", "--out", default="-")
+    p.add_argument("fasta", help="input FASTA file of contigs/genomes (required; stdin not supported)")
+    p.add_argument("-o", "--out", default="-",
+                   help="output TSV path, or '-' for stdout [default: -]. "
+                        "When a file path is used, a provenance sidecar (<out>.provenance.json) is written.")
     p.add_argument("--region", choices=["orf1", "orf2", "both"], default="both",
-                   help="which region to screen: orf2 needs a complete VP1 reading frame, "
-                        "orf1 needs the 762 nt 3' RdRp typing region [both]")
-    p.add_argument("--bootstraps", type=int, default=100)
-    p.add_argument("--min-support", type=float, default=70.0)
-    p.add_argument("--max-refs-per-type", type=int, default=2)
-    p.add_argument("--threads", type=int, default=1); p.add_argument("--seed", type=int, default=1)
+                   help="region(s) to screen [default: both]. ORF2 requires a complete VP1 reading frame; "
+                        "ORF1 requires >=95%% of the 762 nt 3' RdRp typing region.")
+    p.add_argument("--bootstraps", type=int, default=100, help="bootstrap replicates [default: 100]")
+    p.add_argument("--min-support", type=float, default=70.0, help="minimum bootstrap %% for typing context [default: 70]")
+    p.add_argument("--max-refs-per-type", type=int, default=2, help="reference sequences per type [default: 2]")
+    p.add_argument("--threads", type=int, default=1,
+                   help="worker processes for typing/alignment chunks [default: 1]")
+    p.add_argument("--seed", type=int, default=1, help="random seed for reproducibility [default: 1]")
     p.add_argument("--version", action="version", version=__version__)
     adv = p.add_argument_group("advanced (affect correctness/reproducibility; prefer CLI flags over env vars)")
     adv.add_argument("--min-sites", type=int, default=None, metavar="N",
                      help="minimum aligned informative sites to accept a type call "
                           f"[default: {cg.MIN_INFORMATIVE_SITES} or $CALICITYPER_MIN_SITES]")
     adv.add_argument("--novel-distance", choices=["ml", "nj", "p"], default=None,
-                     help="distance measure for putative-novel screening: ml (patristic, IQ-TREE; default), "
-                          "nj (patristic, neighbour-joining), or p (observed pairwise). "
-                          "Overrides $CALICITYPER_NOVEL_DISTANCE.")
+                     help="distance measure for putative-novel screening: ml, nj, or p [default: ml]")
     adv.add_argument("--type-all-groups", action=argparse.BooleanOptionalAction, default=None,
-                     help="type all norovirus genogroups (GIII-GX) instead of restricting genotyping to "
-                          "validated GI/GII. Calls outside GI/GII are not validated. "
-                          "Overrides $CALICITYPER_TYPE_ALL_GROUPS.")
+                     help="type all norovirus genogroups (not validated). Overrides $CALICITYPER_TYPE_ALL_GROUPS.")
     adv.add_argument("--rivm-window-mode", action=argparse.BooleanOptionalAction, default=None,
-                     help="apply RIVM-style typing-window coverage gates instead of reporting coverage only. "
-                          "Useful for RIVM-comparison/replication, not for maximising correct calls. "
-                          "Overrides $CALICITYPER_RIVM_WINDOW_MODE.")
+                     help="apply RIVM-style typing-window coverage gates (comparison/replication).")
+    p.epilog = (
+        "Examples:\n"
+        "  calicityper novel sequences.fasta -o novel.tsv\n"
+        "  calicityper novel sequences.fasta --region orf2 -o novel_vp1.tsv --threads 4\n\n"
+        "Notes: norovirus-only, tentative screening (not genotype designation). "
+        "stdin is not supported; use '-' with -o/--out for stdout TSV."
+    )
     return p
 
 
 def _add_recomb_args(p):
     p.add_argument("--alignment", help="aligned FASTA containing the query and a reference panel")
-    p.add_argument("--input", help="unaligned FASTA; aligned with MAFFT before scanning")
+    p.add_argument("--input", help="unaligned FASTA; aligned with MAFFT before scanning (written to output dir)")
     p.add_argument("--query", action="append", default=[],
-                   help="query sequence id; repeat for several, or omit for all non-reference ids")
+                   help="query sequence id; repeat for several, or omit to analyze all sequences in the alignment")
     p.add_argument("-o", "--output", default="recomb_out", metavar="DIR",
-                   help="output directory for the JSON and TSV [default: recomb_out]")
-    p.add_argument("--reference-metadata", help="TSV/CSV/JSON mapping reference ids to lineages")
+                   help="output directory for JSON/TSV/provenance and work artifacts [default: recomb_out]")
+    p.add_argument("--reference-metadata", help="TSV/CSV/JSON mapping reference ids to lineages (improves parent labels)")
     p.add_argument("--config", help="YAML or TOML configuration file")
     p.add_argument("--virus", choices=sorted(_rc.REGIONS_BY_VIRUS), default="norovirus",
-                   help="which genome model to score breakpoints against. Norovirus puts the "
-                        "hotspot at the ORF1/ORF2 junction; sapovirus encodes VP1 inside ORF1, "
-                        "so its hotspot is the RdRp/VP1 junction [default: norovirus]")
-    p.add_argument("--threads", type=int, default=1)
+                   help="genome model for breakpoint plausibility (norovirus ORF1/ORF2 junction; "
+                        "sapovirus RdRp/VP1 junction within ORF1) [default: norovirus]")
+    p.add_argument("--threads", type=int, default=1,
+                   help="threads for MAFFT when --input is used [default: 1]")
     p.add_argument("--min-length", type=int, help="override min_sequence_length")
     p.add_argument("--pvalue-threshold", type=float, help="override pvalue_threshold")
     p.add_argument("--max-breakpoint-distance", type=int, help="override max_breakpoint_distance")
     p.add_argument("--methods", nargs="+", metavar="M",
-                   help=f"subset of {' '.join(_rc.ALL_METHODS)}")
+                   help=f"subset of methods to request: {' '.join(_rc.ALL_METHODS)}")
     p.add_argument("--skip-gard", action="store_true", help="do not run HyPhy GARD")
-    p.add_argument("--skip-rdp", action="store_true", help="do not run the OpenRDP scanners")
+    p.add_argument("--skip-rdp", action="store_true", help="do not run OpenRDP scanners")
     p.add_argument("--no-segment-trees", action="store_true",
-                   help="skip the segment phylogeny check (faster, loses a scoring component)")
-    p.add_argument("--verbose", action="store_true")
+                   help="skip segment phylogeny checks (faster, less evidence)")
+    p.add_argument("--verbose", action="store_true", help="print progress/info to stderr")
     p.add_argument("--dry-run", action="store_true",
-                   help="validate inputs, report which tools would run, then stop")
+                   help="validate inputs and report what would run (including tool availability), then stop")
+    p.epilog = (
+        "Examples:\n"
+        "  calicityper recomb --alignment panel.fasta --query SAMPLE_01 -o recomb_out/\n"
+        "  calicityper recomb --input samples.fasta -o recomb_out/ --threads 8\n"
+        "  calicityper recomb --alignment panel.fasta --query SAMPLE_01 --dry-run\n\n"
+        "Outputs: recombination.json, recombination.tsv, recombination.tsv.provenance.json, and work/ artifacts."
+    )
     return p
 
 
 def _add_setup_args(p):
-    p.add_argument("--source", help="URL or local tarball of the reference set "
-                                    "[default: download_url from the manifest]")
-    p.add_argument("--data-dir", help="where to install [default: a versioned "
-                                      "directory under ~/.cache/calicityper]")
+    p.add_argument("--source", help="URL or local path to a manifest-matching reference-set tarball "
+                                    "[default: download_url from the shipped manifest]")
+    p.add_argument("--data-dir", help="install/verify location [default: versioned cache dir, or package dir with --in-package]")
     p.add_argument("--in-package", action="store_true",
-                   help="install into the package's own data directory instead")
+                   help="install into the package's own data directory instead of the cache")
     p.add_argument("--manifest", help="alternative reference_manifest.json")
     p.add_argument("--verify-only", action="store_true",
-                   help="check an existing data directory against the manifest and stop")
-    p.add_argument("--force", action="store_true", help="replace an existing data directory")
+                   help="verify an existing data directory against the manifest and exit")
+    p.add_argument("--force", action="store_true", help="replace/reinstall even if data appears present")
+    p.epilog = (
+        "Examples:\n"
+        "  calicityper setup\n"
+        "  calicityper setup --verify-only\n"
+        "  calicityper setup --source /shared/ref.tar.gz --data-dir /shared/calicityper-ref\n\n"
+        "Offline/cluster: install once from a local manifest-matching archive, verify, then set CALICITYPER_DATA."
+    )
     return p
 
 
@@ -165,28 +193,52 @@ def main(argv=None):
                     "Other norovirus genogroups and non-norovirus Caliciviridae may be detected "
                     "to genogroup, but genotyping is not validated for them. Sapovirus genotyping "
                     "is not implemented. Putative-novel screening is tentative screening, not a "
-                    "genotype designation."))
+                    "genotype designation.",
+        formatter_class=argparse.RawDescriptionHelpFormatter))
     _add_novel_args(sub.add_parser(
         "novel",
         help="screen for putative novel norovirus ORF1/ORF2 types (tentative, norovirus only)",
         description="Chhabra et al. 2019 2x SD screen applied to one query at a time "
-                    "(tentative screening, not genotype designation). Norovirus only: sapovirus "
-                    "has different published cut-offs and no bundled sapovirus reference set. "
-                    "ORF2 needs a complete VP1 reading frame (distances on amino acids); ORF1 "
-                    "needs >= 95%% of the 762 nt 3' RdRp typing region (distances on nucleotides). "
-                    "Anything less is reported not_assessable, never screened."))
-    _add_recomb_args(sub.add_parser("recomb", help="detect and score recombination (norovirus or sapovirus)"))
-    _add_setup_args(sub.add_parser("setup", help="fetch and verify the reference data set"))
+                    "(tentative screening, not genotype designation). Norovirus only.",
+        formatter_class=argparse.RawDescriptionHelpFormatter))
+    _add_recomb_args(sub.add_parser(
+        "recomb",
+        help="detect and score recombination (norovirus or sapovirus)",
+        description="Evidence-weighted recombination analysis for norovirus/sapovirus alignments. "
+                    "Use --dry-run to validate inputs and tool availability.",
+        formatter_class=argparse.RawDescriptionHelpFormatter))
+    _add_setup_args(sub.add_parser(
+        "setup",
+        help="fetch and verify the reference data set",
+        description="Install or verify the reference data set required for typing. "
+                    "Refuses to install data that does not match the shipped manifest.",
+        formatter_class=argparse.RawDescriptionHelpFormatter))
 
     a = top.parse_args(argv)
-    if a.command == "recomb":
-        return _run_recomb(a)
-    if a.command == "setup":
-        from . import setup_data
-        return setup_data.main(a)
-    if a.command == "novel":
-        return _run_novel(a)
-    return _run_type(a)
+    try:
+        if a.command == "recomb":
+            return _run_recomb(a)
+        if a.command == "setup":
+            from . import setup_data
+            return setup_data.main(a)
+        if a.command == "novel":
+            return _run_novel(a)
+        return _run_type(a)
+    except FileNotFoundError as e:
+        msg = str(e)
+        if "reference data not found" in msg or "Run `calicityper setup`" in msg:
+            print(f"Error: {msg}", file=sys.stderr)
+            print("Hint: run 'calicityper setup' (or provide a verified local archive) and/or set CALICITYPER_DATA.", file=sys.stderr)
+            return 2
+        print(f"Error: {msg}", file=sys.stderr)
+        if any(x in msg for x in ("blastn", "mafft", "clustalw", "iqtree")) or "not found on PATH" in msg:
+            print("Hint: install required external tools (e.g. conda install -c bioconda blast mafft) or set CALICITYPER_* paths.", file=sys.stderr)
+        elif getattr(a, "fasta", None):
+            print("Hint: check that the input FASTA path exists and is readable.", file=sys.stderr)
+        return 2
+    except KeyboardInterrupt:
+        print("Interrupted.", file=sys.stderr)
+        return 130
 
 
 def _align_and_type(a):
@@ -198,11 +250,18 @@ def _align_and_type(a):
     """
     _apply_runtime_overrides(a)
     a._want_aln = True                  # the putative novel type screen needs the alignment, not only the HTML
+    cmd = getattr(a, "command", "type")
+    print(f"[{cmd}] checking reference data and input...", file=sys.stderr)
     ty.cg.check_data()          # clear error if the bundled reference data is missing
     recs = [(r.id, str(r.seq)) for r in SeqIO.parse(a.fasta, "fasta")]
+    if not recs:
+        print(f"[{cmd}] no sequences found in {a.fasta}", file=sys.stderr)
+    else:
+        print(f"[{cmd}] loaded {len(recs)} sequence(s) from {a.fasta}", file=sys.stderr)
     with tempfile.TemporaryDirectory(prefix="calicityper_") as td:
         q = os.path.join(td, "all.fa")
         SeqIO.write([r for r in SeqIO.parse(a.fasta, "fasta")], q, "fasta")
+        print(f"[{cmd}] running genogroup detection (BLAST)...", file=sys.stderr)
         hits = ty.blast_genogroup(q, a.threads)
     rows, todo = {}, defaultdict(list)             # todo[(region, group)] -> [(index, seq)]
     for i, (rid, s) in enumerate(recs):
@@ -210,11 +269,16 @@ def _align_and_type(a):
         rows[i] = row
         for region, g, seq in jobs:
             todo[(region, g)].append((i, seq))
+    n_jobs = sum(len(lst) for lst in todo.values())
+    print(f"[{cmd}] planned {n_jobs} region typing job(s) across {len(todo)} region/genogroup group(s)", file=sys.stderr)
     tree.warmup()          # primes the on-disk kernel cache the workers load from
     chunks = []                                     # one aligner call per chunk of queries from one region/genogroup
     for (region, g), lst in todo.items():
         size = max(8, -(-len(lst) // (2 * a.threads)))
         chunks += [(region, g, lst[k:k + size]) for k in range(0, len(lst), size)]
+    if chunks:
+        mode = f"{a.threads} worker process(es)" if a.threads > 1 and len(chunks) > 1 else "1 process"
+        print(f"[{cmd}] aligning/typing {len(chunks)} chunk(s) with {mode}...", file=sys.stderr)
     if a.threads > 1 and len(chunks) > 1:
         with Pool(a.threads, initializer=_init, initargs=(a,)) as pool:
             results = [r for part in pool.map(_work, chunks, chunksize=1) for r in part]
@@ -226,6 +290,7 @@ def _align_and_type(a):
         if aln is not None:
             alns[(i, region)] = aln
     _apply_window_rules(rows, alns)
+    print(f"[{cmd}] completed typing for {len(recs)} sequence(s)", file=sys.stderr)
     return recs, rows, alns, todo
 
 
@@ -235,6 +300,7 @@ def _run_type(a):
         a.json = a.json or f"{a.report}.json"
         a.html = a.html or f"{a.report}.html"
     recs, rows, alns, todo = _align_and_type(a)
+    print("[type] running putative-novel screening...", file=sys.stderr)
     _screen_putative_novel(rows, alns, todo, only_unaccepted=not a.screen_all)
     ordered = [rows[i] for i in range(len(recs))]
     df = pd.DataFrame(ordered)
@@ -247,10 +313,14 @@ def _run_type(a):
     else:
         df.to_csv(a.out, sep="\t", index=False)
         from . import report
-        report.write_type_provenance(_provenance_sidecar_path(a.out), len(ordered),
-                                     meta=_type_meta(a, command="type"))
+        prov_path = _provenance_sidecar_path(a.out)
+        report.write_type_provenance(prov_path, len(ordered), meta=_type_meta(a, command="type"))
+        print(f"[type] wrote {a.out} and {prov_path}", file=sys.stderr)
     if a.md or a.json or a.html:
         _write_reports(a, ordered, alns)
+        written = [p for p in (a.md, a.json, a.html) if p]
+        if written:
+            print(f"[type] wrote reports: {', '.join(written)}", file=sys.stderr)
 
 def _run_novel(a):
     """`calicityper novel`: the Chhabra et al. 2019 2x SD screen, on its own.
@@ -309,6 +379,7 @@ def _run_novel(a):
                            distance=res.get("distance", ""), bound=res.get("bound", ""),
                            detail=res["detail"])
             out.append(rec)
+    print("[novel] assessing putative-novel status for screened region(s)...", file=sys.stderr)
     df = pd.DataFrame(out)
     if a.out == "-":
         df.to_csv(sys.stdout, sep="\t", index=False)
@@ -316,10 +387,12 @@ def _run_novel(a):
         df.to_csv(a.out, sep="\t", index=False)
         meta = _type_meta(a, command="novel")
         meta.update(region=a.region, screen_regions=list(regions))
-        report.write_novel_provenance(_provenance_sidecar_path(a.out), len(out), meta=meta)
+        prov_path = _provenance_sidecar_path(a.out)
+        report.write_novel_provenance(prov_path, len(out), meta=meta)
+        print(f"[novel] wrote {a.out} and {prov_path}", file=sys.stderr)
     n = int((df.flag.isin(putative_novel.FLAGGED)).sum()) if len(df) else 0
-    print(f"{n} of {len(df)} region calls flagged as putative novel "
-          f"(tentative: one sequence cannot designate a genotype)", file=sys.stderr)
+    print(f"[novel] {n} of {len(df)} region call(s) flagged as putative novel "
+          f"(tentative screening; not genotype designation)", file=sys.stderr)
     return 0
 
 
@@ -577,7 +650,7 @@ def _run_recomb(a):
     cfg.validate()
 
     if not a.alignment and not a.input:
-        sys.exit("calicityper recomb: give --alignment (aligned FASTA) or --input (unaligned FASTA)")
+        sys.exit("calicityper recomb: provide --alignment <aligned.fasta> or --input <unaligned.fasta>")
 
     outdir = Path(a.output)
     outdir.mkdir(parents=True, exist_ok=True)
@@ -588,8 +661,7 @@ def _run_recomb(a):
         # column-consistent alignment and silently mis-scanning unaligned input
         # would be worse than spending the MAFFT call.
         aln_path = str(outdir / "aligned.fasta")
-        if a.verbose:
-            print(f"[recomb] aligning {a.input} -> {aln_path}", file=sys.stderr)
+        print(f"[recomb] aligning input FASTA with MAFFT: {a.input} -> {aln_path}", file=sys.stderr)
         with open(aln_path, "w") as fh:
             subprocess.run([ty.cg.exe("mafft"), "--quiet", "--auto",
                             "--thread", str(max(1, a.threads)), a.input],

@@ -14,10 +14,12 @@ for released versions.
 - Release/versioning and packaging guidance (`RELEASING.md`, changelog, README/distribution notes).
 - Formalized output schema/provenance documentation (`docs/OUTPUT_SCHEMA.md`) covering `type`/`novel`/`recomb` TSV and JSON structures, column semantics, provenance fields, and schema versioning.
 - Machine-readable provenance for auditability: `type` JSON/provenance sidecars, `novel`/`type` TSV sidecars (`*.provenance.json`), and enriched `recomb` JSON/provenance sidecar records including tool version, effective parameters, and shipped reference-set DOI/version/manifest hash.
+- Detailed user/reference documentation (`docs/REFERENCE.md`) with supported-vs-unsupported matrix, troubleshooting, performance/scalability guidance, and citation/validation guidance.
 
 ### Changed
 - Public `main` no longer tracks detailed benchmarking artifacts/docs in-repo (moved out of HEAD; historical blobs remain in git history until a future history-rewrite, if performed).
-- README validation/install/distribution guidance clarified for current release status.
+- README restructured into a quickstart-focused entry point with links to detailed reference and schema docs.
+- CLI/UX polish: consistent subcommand help/descriptions and examples, clearer input/output behavior (stdin not supported; stdout TSV and stderr status/progress), predictable `--report` naming (`PREFIX.md/.json/.html`), improved progress messages, and clearer actionable errors/hints for missing reference data or external tools.
 
 ### Fixed
 - Stopped tracking generated reference-data cache artifacts and ignored `calicityper/data/.cache/`.
