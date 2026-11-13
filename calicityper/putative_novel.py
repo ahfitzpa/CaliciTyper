@@ -182,6 +182,27 @@ def rdrp_region_columns(group):
     return np.flatnonzero(occ >= RDRP_OCCUPANCY)
 
 
+_WARNED = set()
+
+
+def _warn_once(msg):
+    if msg not in _WARNED:
+        _WARNED.add(msg)
+        print(f"calicityper: {msg}", file=__import__("sys").stderr)
+
+
+def effective_measure(measure=None):
+    """The measure that will actually be used, after any fallback."""
+    m = "ml" if (measure or DISTANCE) == "patristic" else (measure or DISTANCE)
+    if m != "ml":
+        return m
+    try:
+        cg.exe("iqtree")
+    except FileNotFoundError:
+        return "nj"
+    return m
+
+
 def as_patristic(D, method=None, records=None, alphabet="nt", threads=1):
     """Measure distances between the taxa of `D` (and `records`) under `method`.
 
@@ -202,7 +223,19 @@ def as_patristic(D, method=None, records=None, alphabet="nt", threads=1):
         if records is None:
             raise ValueError("the ml measure needs the alignment, not only distances")
         from .patristic import ml_patristic
-        return ml_patristic(records, alphabet, threads)
+        try:
+            return ml_patristic(records, alphabet, threads)
+        except FileNotFoundError as e:
+            # IQ-TREE is a newer dependency than the rest of the tool. Falling
+            # back to the NJ tree is honest -- the measure is reported with the
+            # result and its own bounds are used -- and better than refusing to
+            # screen at all, but it is said out loud, because the ML tree is
+            # what lifts the RdRp and genogroup screens.
+            _warn_once(f"{e}\nFalling back to neighbour joining for the 2x SD screen "
+                       f"(CALICITYPER_NOVEL_DISTANCE=nj). Sensitivity is lower: RdRp P-type "
+                       f"52% rather than 64%, genogroup 21% rather than 51%.")
+            from .patristic import patristic_matrix
+            return patristic_matrix(D)
     raise ValueError(f"unknown distance measure {m!r} (use one of {MEASURES})")
 
 
@@ -521,7 +554,7 @@ def bounds(measure=None):
 
     A table written before the `distance` column existed holds observed-distance
     bounds, so it is read as such rather than silently treated as patristic."""
-    m = measure or DISTANCE
+    m = effective_measure(measure)
     with open(BOUNDS_FILE) as fh:
         rows = list(csv.DictReader(fh, delimiter="\t"))
     if rows and "distance" not in rows[0]:

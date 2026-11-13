@@ -228,6 +228,7 @@ def _run_novel(a):
         for region in regions:
             rec = dict(query=rid, genogroup=g, region=region,
                        basis=putative_novel.REGION[region]["basis"],
+                       distance=putative_novel.effective_measure(),
                        type=row.get(f"{region}_type", ""),
                        support=row.get(f"{region}_support", ""),
                        accepted=row.get(f"{region}_accepted", ""),

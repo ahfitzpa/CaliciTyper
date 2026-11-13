@@ -115,12 +115,12 @@ GXXXI.NA1,LC215885,NA,
 GVI,KJ508818,0-0.393,
 GVI,MK965903,0-0.393,
 GVI,LC215886,0-0.393,
-#RETIRED:GVI,MZ679050,0-0.393,"RETIRED duplicate listing: the published table lists this strain under GVI and under GXXIII. VP1 nt distance 0.171 to its GXXIII partner vs 0.315-0.321 to the GVI members, and the GXXIII range reproduces the published one, so GXXIII is the assignment used. Row kept for traceability, excluded from the reference sets."
+GVI,MZ679050,0-0.393,
 GVII,KX000384,0-0.469,
 GVII,LC215891,0-0.469,
-#RETIRED:GVII,MF766258,0-0.469,"RETIRED duplicate listing: the published table lists this strain under GVII and under GXXIV. VP1 nt distance 0.164 to its GXXIV partner vs 0.318-0.388 to the GVII members, and the GXXIV range reproduces the published one, so GXXIV is the assignment used. Row kept for traceability, excluded from the reference sets."
-#RETIRED:GVII,LC215894,0-0.469,"RETIRED duplicate listing: the published table lists this strain under GVII and under GXXV. VP1 nt distance 0.000 to its GXXV partner vs 0.260-0.394 to the GVII members, and the GXXV range reproduces the published one, so GXXV is the assignment used. Row kept for traceability, excluded from the reference sets."
-#RETIRED:GVII,LC215890,0-0.469,"RETIRED duplicate listing: the published table lists this strain under GVII and under GXXVII. VP1 nt distance 0.000 to its GXXVII partner vs 0.260-0.396 to the GVII members, and the GXXVII range reproduces the published one, so GXXVII is the assignment used. Row kept for traceability, excluded from the reference sets."
+GVII,MF766258,0-0.469,
+GVII,LC215894,0-0.469,
+GVII,LC215890,0-0.469,
 GVIII,KC309416,0.201-0.391,
 GVIII,LC215895,0.201-0.391,
 GIX,KC309418,0.502,
@@ -143,8 +143,8 @@ GXVII,OP930874,0.412-0.44,
 GXVII,KJ641703,0.412-0.44,
 GXVIII,KX759619,0.343,
 GXVIII,KX759623,0.343,
-#RETIRED:GXIX,KX759618,0-0.379,"RETIRED duplicate listing: the published table lists this strain under GXIX and under GXXVIII. VP1 nt distance 0.003 to its GXXVIII partner vs 0.295 to the GXIX members, and the GXXVIII range reproduces the published one, so GXXVIII is the assignment used. Row kept for traceability, excluded from the reference sets."
-#RETIRED:GXIX,KX759621,0-0.379,"RETIRED duplicate listing: the published table lists this strain under GXIX and under GXXVIII. VP1 nt distance 0.003 to its GXXVIII partner vs 0.295 to the GXIX members, and the GXXVIII range reproduces the published one, so GXXVIII is the assignment used. Row kept for traceability, excluded from the reference sets."
+GXIX,KX759618,0-0.379,
+GXIX,KX759621,0-0.379,
 GXIX,NC_033776,0-0.379,
 GXX,ON872527,NA,
 GXXI,OP963622,NA,

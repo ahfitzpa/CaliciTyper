@@ -42,7 +42,7 @@ GI.PNA1|WUG1,AB081723,GI.Pb,GI.PNA1
 GI.PNA2|Dhaka1882,MH130046,-,GI.PNA2
 GI.PNA3|V170707,AB447414,-,GI.PNA3
 GI.PNA4|No20-Saitama-98-17,LC342057,-,GI.PNA4
-GI.PNA4|No24-Saitama-98-26,LC342058,-,GII.PNA4
+GI.PNA4|No24-Saitama-98-26,LC342058,-,GI.PNA4,"corrected from GII.PNA4: the published table's assigned-P-type cell reads GII while the strain is GI. RIVM types this record GI / GI.PNA4 (GI.Pg) at bootstrap 100 and its VP1 as GI.6; over the 762 nt window it is 0.385 from the genuine GII.PNA4 (AB074893.1). Removed from the GII RdRp reference set 2026-11-13."
 GII.P1|Hawaii,U07611,GII.P1,GII.P1
 GII.P1|7EK-Hawaii,JX289822,GII.P1,GII.P1
 GII.P2|Melksham,X81879,GII.P2,GII.P2
