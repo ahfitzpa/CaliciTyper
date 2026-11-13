@@ -21,6 +21,9 @@ report = ["bokeh"]
 test = ["pytest", "bokeh"]
 [project.urls]
 Homepage = "https://github.com/ahfitzpa/calicityper"
+Repository = "https://github.com/ahfitzpa/calicityper"
+Issues = "https://github.com/ahfitzpa/CaliciTyper/issues"
+Changelog = "https://github.com/ahfitzpa/CaliciTyper/blob/main/CHANGELOG.md"
 [project.scripts]
 calicityper = "calicityper.cli:main"
 [build-system]

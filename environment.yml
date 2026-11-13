@@ -1,3 +1,11 @@
+# Development/runtime convenience environment for working from this repository.
+# Core Python package dependencies are declared in pyproject.toml ([project].dependencies
+# and optional extras: fast=numba, report=bokeh, test=pytest,bokeh). Keep overlapping
+# package intent/versions in sync when updating either file.
+# This file also includes non-Python/system tools (blast, mafft, clustalw, iqtree,
+# entrez-direct) and dev/test utilities not expressed as PyPI package deps.
+# No lock file is committed; for fully reproducible environments record resolved
+# versions (e.g. `conda env export`) or use a container image as appropriate.
 name: calicityper
 channels: [conda-forge, bioconda]
 dependencies:

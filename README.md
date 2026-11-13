@@ -41,31 +41,47 @@ HuCaT -- is web-only.
 
 ## Installation
 
-### Conda / Mamba (recommended)
+**Current distribution status:** CaliciTyper is currently installed from source
+(this repository) via conda/mamba or pip+git. It is **not yet published on
+PyPI or bioconda**. When published, the intended package install path will be
+`pip install calicityper` (PyPI) and/or a bioconda package; until then, use the
+methods below.
+
+### Conda / Mamba (recommended, from source)
+
+Provides Python and key non-Python dependencies (BLAST/MAFFT, etc.) from
+conda-forge/bioconda:
 
 ```bash
 git clone https://github.com/ahfitzpa/calicityper.git
 cd calicityper
 conda env create -f environment.yml
 conda activate calicityper
-calicityper setup                 # fetch the reference set (~1.3 MB) and verify it
+calicityper setup                 # fetch/install the verified reference set before first use
 ```
 
-### pip, with dependencies already present
+`environment.yml` is a convenience environment for running/developing from this
+repo (includes external tools and optional/dev packages). Core Python package
+dependencies are declared in `pyproject.toml`; keep overlapping versions/intent
+in sync when updating either.
 
-Needs `blast` and `mafft` on `PATH`:
+### pip (from source, dependencies already present)
+
+Requires compatible Python and external tools (at minimum `blast` and `mafft`
+on `PATH`) installed separately:
 
 ```bash
 pip install git+https://github.com/ahfitzpa/calicityper.git
+# or, from a local clone:
+# pip install .
 calicityper setup
 ```
 
-**`calicityper setup` is required before first use.** The reference set is not
-in the wheel or the repository: it is a Zenodo dataset
-([doi:10.5281/zenodo.24161236](https://doi.org/10.5281/zenodo.24161236)), and
-`setup` downloads it and verifies every file against a checksum manifest. It
-takes seconds. See [Reference data](#reference-data) for why it is distributed
-that way, and for sharing one copy across a cluster.
+**`calicityper setup` is required before first use** (unless a verified
+reference set is already available). The reference set is not shipped in the
+wheel/repository; it is installed and checksum-verified against the manifest
+shipped with your version. See [Reference data](#reference-data), including
+offline/air-gapped/cluster installs and `CALICITYPER_DATA`.
 
 ### OpenRDP (only for `calicityper recomb`)
 
@@ -80,7 +96,12 @@ conda deactivate
 export CALICITYPER_OPENRDP=$(conda info --base)/envs/openrdp/bin/openrdp
 ```
 
-OpenRDP is unpackaged (no PyPI or bioconda release). 
+OpenRDP is unpackaged (no PyPI or bioconda release).
+
+For fully bundled, reproducible deployments that include non-Python dependencies
+(BLAST, MAFFT, and optionally OpenRDP in a compatible environment), consider
+using/providing a container image (e.g. Docker/Apptainer) as part of release
+packaging; no official image is published yet. 
 
 ## Quick start
 
@@ -605,6 +626,20 @@ External programs are found on `PATH`, or via `CALICITYPER_BLASTN`,
 data location is overridable with `CALICITYPER_DATA`.
 
 ---
+
+## Releases and distribution
+
+- **Versioning:** Semantic Versioning (SemVer) policy, with tagged releases and
+  release notes; see [`CHANGELOG.md`](CHANGELOG.md) and [`RELEASING.md`](RELEASING.md)
+  for the release checklist (build, test matrix, wheel-data audit, manifest/data
+  provenance updates).
+- **Current channels:** source install via conda/mamba (`environment.yml`) or
+  pip from GitHub/a clone. **PyPI/bioconda packages are not yet published.**
+- **Planned channels:** `pip install calicityper` (PyPI) and/or bioconda when
+  release/distribution is finalized.
+- **Containers:** a container image bundling non-Python dependencies (BLAST,
+  MAFFT, and optionally OpenRDP in a compatible env) is a recommended option for
+  reproducible deployment but is not published yet.
 
 ## Roadmap
 
