@@ -6,6 +6,9 @@ build/
 dist/
 *.whl
 results/*.log
+results/
+docs/figures/
+BENCHMARKING.md
 rivm_test_set.fasta
 validation/results_rivm.csv
 validation/test_result_3.csv

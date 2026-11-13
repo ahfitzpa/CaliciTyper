@@ -233,7 +233,7 @@ def as_patristic(D, method=None, records=None, alphabet="nt", threads=1):
             # what lifts the RdRp and genogroup screens.
             _warn_once(f"{e}\nFalling back to neighbour joining for the 2x SD screen "
                        f"(CALICITYPER_NOVEL_DISTANCE=nj). Sensitivity is lower: RdRp P-type "
-                       f"52% rather than 64%, genogroup 21% rather than 51%.")
+                       f"50% rather than 63%, genogroup 21% rather than 52%.")
             from .patristic import patristic_matrix
             return patristic_matrix(D)
     raise ValueError(f"unknown distance measure {m!r} (use one of {MEASURES})")
@@ -608,7 +608,11 @@ def _na(region, why):
 def _result(region, flag, t, d, b, scope=""):
     info = REGION[region]
     rel = "within" if flag == KNOWN else "outside"
-    unit = "patristic" if DISTANCE == "patristic" else "p"
+    # The measure has to be named, and named after any IQ-TREE fallback: a
+    # patristic distance off an ML tree and a raw p distance are different
+    # quantities on different scales, and the bound is only read in its own
+    # units. Saying "p" for all three (as this did) hid which one was used.
+    unit = {"ml": "ML patristic", "nj": "NJ patristic", "p": "p"}[effective_measure()]
     detail = (f"{info['label']} {info['alphabet']}: average {unit} distance = {d:.3f} to {t}, "
               f"{rel} its 2x SD bound {b:.3f}{scope}")
     if flag in FLAGGED:

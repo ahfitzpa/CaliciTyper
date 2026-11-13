@@ -263,7 +263,7 @@ def apply_result(row, region, res, min_support):
     wanting it to re-run with a lower threshold. Acceptance has two conditions,
     both measured in this harness: at least `min_support`% bootstrap support,
     and at least cg.MIN_INFORMATIVE_SITES aligned sites, the point at which
-    leave-one-out F1 reaches 97% (see docs/figures/truncation_f1.png).
+    leave-one-out F1 reaches 97% (see validation/benchmarking materials, curated separately).
     """
     best = res.get("best_type") or res.get("type") or ""
     sites = int(res.get("n_sites") or 0)

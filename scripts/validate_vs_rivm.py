@@ -122,11 +122,33 @@ def summarise(d, label):
     )
 
 
+def _accepted_only(d, type_col, accepted_col):
+    """Blank the type wherever CaliciTyper did not accept it.
+
+    Not a filter: the row stays, so a rejected call is scored as a decline
+    (rivm_only) exactly as a pre-0.7.0 withheld call was, rather than vanishing
+    from the denominator.
+    """
+    d = d.copy()
+    if accepted_col not in d.columns:
+        return d
+    ok = d[accepted_col].fillna("").str.startswith("accepted")
+    d.loc[~ok, type_col] = None
+    return d
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("calicityper_tsv")
     ap.add_argument("--rivm", default="validation/results_rivm.csv")
     ap.add_argument("--out", default="results/rivm_comparison.csv")
+    ap.add_argument("--accepted-only", action="store_true",
+                    help="Score only calls CaliciTyper accepted. Since 0.7.0 the type is "
+                         "always reported, with *_accepted saying whether it was accepted, so "
+                         "the default scoring credits reported-but-rejected calls as assigned. "
+                         "That is the right default (it scores what the tool found), but it is "
+                         "not comparable with the pre-0.7.0 tables, which could only score "
+                         "accepted calls because nothing else was written out.")
     a = ap.parse_args()
 
     mine = pd.read_csv(a.calicityper_tsv, sep="\t", dtype=str)
@@ -152,6 +174,8 @@ def main():
         ("ORF1 P-type", "orf1_type", "polymerase type", "orf1_support", "polymerase type support"),
     ):
         d = noro.copy()
+        if a.accepted_only:
+            d = _accepted_only(d, mc, mc.split("_")[0] + "_accepted")
         d["nt"] = d[mc].map(genotype)
         d["rivm"] = d[rc].map(genotype)
         d = d[(d.nt != "unassigned") | (d.rivm != "unassigned")]
@@ -178,6 +202,8 @@ def main():
     # GII.4 variant, compared against RIVM's separate subtype column.
     g = noro[noro["capsid type"].map(genotype) == "GII.4"].copy()
     if len(g):
+        if a.accepted_only:
+            g = _accepted_only(g, "orf2_type", "orf2_accepted")
         g["nt"] = g["orf2_type"].map(variant).replace("", "unassigned")
         g["rivm"] = g["capsid subtype"].map(rivm_variant).replace("", "unassigned")
         g = g[(g.nt != "unassigned") | (g.rivm != "unassigned")]

@@ -11,7 +11,7 @@
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
 [![CI tested](https://img.shields.io/badge/CI-3.10%20%7C%203.12-blue.svg)](.github/workflows/ci.yml)
 [![Classification](https://img.shields.io/badge/classification-Chhabra_2019-green.svg)](https://doi.org/10.1099/jgv.0.001318)
-[![Status](https://img.shields.io/badge/status-research_code-orange.svg)](BENCHMARKING.md)
+[![Status](https://img.shields.io/badge/status-research_code-orange.svg)](#validation)
 
 # CaliciTyper: command-line calicivirus genotyping and recombination analysis
 
@@ -101,8 +101,7 @@ exactly.
 pytest tests/ -v                      # unit, CLI and regression tests
 ```
 
-The validation harnesses, and how to reproduce every published figure, are in
-[BENCHMARKING.md](BENCHMARKING.md).
+Additional validation harnesses and benchmarking workflows may be run separately (some require larger datasets/external tools and are not part of the default fast test suite). Detailed benchmarking artifacts are maintained outside the public repository during active development.
 
 ---
 
@@ -529,8 +528,7 @@ RdRp references, since fixed.
 The VP1 genotype screen is the reliable one. The RdRp P-type and VP1 genogroup
 screens are far less sensitive, because partial-RdRp P-types and VP1 genogroups
 genuinely overlap -- so a flag from either is meaningful, but `known` from
-either is weak evidence. Measured sensitivity and specificity are in
-[BENCHMARKING.md](BENCHMARKING.md).
+either is weak evidence. Sensitivity/specificity measurements and detailed benchmarking are maintained separately and will be published in a curated form when available.
 
 
 ### Recombination
@@ -689,12 +687,13 @@ same manifest discipline.
 
 | Data | Where | Notes |
 |---|---|---|
-| Typing reference sequences | `calicityper/data/` (installed with the package) | from Chhabra *et al.* 2019 |
+| Typing reference sequences | fetched by `calicityper setup` (not stored in this repository) | from Chhabra *et al.* 2019; verified against `calicityper/data/reference_manifest.json` |
 | Example input and outputs | [examples/](examples/) | three public GenBank genomes |
-| Benchmark datasets | Zenodo [doi:10.5281/zenodo.24161236](https://doi.org/10.5281/zenodo.24161236) | accession list, both tools' calls, per-record discordance, leave-one-out and runtime figures |
+| Benchmark datasets / detailed validation artifacts | curated separately (to be published) | Zenodo [doi:10.5281/zenodo.24161236](https://doi.org/10.5281/zenodo.24161236) is an out-of-date backup of repository/reference data, not the current curated benchmark release |
 
-What the tool has been tested on, and how it performed, is in
-**[BENCHMARKING.md](BENCHMARKING.md)**.
+## Validation
+
+CaliciTyper is research software. Norovirus GI/GII genotyping and genogroup detection across *Caliciviridae* are the primary validated use cases; other genogroups/capabilities have documented limitations (see above). Automated tests (`pytest tests/ -v`) cover core behavior in-repo; detailed benchmarking outputs, figures, and extended validation materials are maintained outside the public repository during active development and will be shared as curated records when available. Use the reference manifest/DOI recorded by `calicityper setup` and your run parameters for provenance.
 
 ## Citation
 

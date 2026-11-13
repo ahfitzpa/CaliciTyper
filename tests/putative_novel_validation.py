@@ -13,10 +13,13 @@ without it, in three scenarios:
 RdRp distances exist only within one genogroup's alignment, so the genogroup
 scenario is VP1-only. Run time: about a minute.
 
-Pass a distance measure to check either: `patristic` (the default, and what
-Chhabra et al. use) or `p`, the observed pairwise distance.
+Pass a distance measure: `ml` (the default -- patristic distances off a
+maximum likelihood tree, as Chhabra et al. use), `nj` (patristic off a
+neighbour-joining tree, the fallback when IQ-TREE is absent) or `p` (the
+observed pairwise distance, no tree). `patristic` is accepted as a retired
+alias for `ml`.
 
-    python tests/putative_novel_validation.py [patristic|p]
+    python tests/putative_novel_validation.py [ml|nj|p]
 """
 import sys
 from collections import Counter, defaultdict
