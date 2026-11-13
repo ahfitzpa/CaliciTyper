@@ -625,19 +625,53 @@ pre-computed alignments for the VP1 and RdRp typing regions plus the BLAST
 database used for genogroup assignment. The accessions are listed in
 [`calicityper/data/reference_accessions.tsv`](calicityper/data/reference_accessions.tsv).
 
-It is distributed as a **Zenodo dataset**
-([doi:10.5281/zenodo.24161236](https://doi.org/10.5281/zenodo.24161236)), not
-inside this repository or the wheel:
+It is distributed as a **versioned, checksummed dataset** (not inside this
+repository or the wheel). `calicityper setup` downloads/verifies the set
+described by the manifest shipped with your installed version and refuses to
+install a set that does not match:
 
 ```bash
-calicityper setup                      # fetch and verify, into ~/.cache/calicityper
-calicityper setup --verify-only        # check an existing copy
+calicityper setup                      # fetch and verify (default location for this install)
+calicityper setup --verify-only        # check an existing installation
 calicityper setup --source set.tar.gz --data-dir /shared/calicityper-ref
 ```
 
-`CALICITYPER_DATA` points the tool at a particular copy, so one download can be
-shared across a cluster. Fetch on a login node if compute nodes have no
-outbound network.
+The manifest [`calicityper/data/reference_manifest.json`](calicityper/data/reference_manifest.json)
+records the expected `reference_set_version`, DOI, download source, and
+SHA-256 checksum for every artefact; the installed archive must match it
+exactly (a different reference set can change calls silently).
+
+### Offline, air-gapped, and cluster installs (first-class)
+
+Use this flow when compute nodes lack outbound network access or you need to
+share one verified copy across a cluster:
+
+1. **Obtain the verified reference-set tarball out-of-band** (on a machine with
+   access). The tarball must correspond to the reference set/version and
+   checksums in the `reference_manifest.json` shipped with your CaliciTyper
+   install (check `reference_set_version` and `doi` recorded there). Do not use
+   an archive that does not verify against that manifest.
+2. **Install from the local archive** to a shared, readable location (on a login
+   node if compute nodes have no egress):
+   ```bash
+   calicityper setup --source /path/to/<reference-set>.tar.gz --data-dir /shared/calicityper-ref
+   ```
+3. **Verify the installation:**
+   ```bash
+   calicityper setup --verify-only --data-dir /shared/calicityper-ref
+   ```
+4. **Point all runs/jobs at the shared copy:**
+   ```bash
+   export CALICITYPER_DATA=/shared/calicityper-ref
+   ```
+   Set this in your job scripts/modules so every node uses the same verified set.
+5. **Share one copy across a cluster** by keeping `/shared/calicityper-ref` (or
+   your chosen path) on shared storage; individual users/jobs should not
+   redownload it per node.
+
+If you install into a non-default location, always pair it with
+`CALICITYPER_DATA` (or pass the same data directory where supported) so typing
+uses the verified set you installed.
 
 **Why the built alignments are distributed, not just the accessions.** Typing
 compares a query against reference alignment *columns*, and all three typing
@@ -646,18 +680,17 @@ An alignment rebuilt with a different aligner version can shift those windows
 and change calls with no other symptom. Shipping the built set removes that
 variable, and
 [`reference_manifest.json`](calicityper/data/reference_manifest.json) holds a
-SHA-256 for each of the 84 artefacts. `calicityper setup` verifies every one and
-**refuses to install a set that does not match** — a reference set that is not
-the one the manifest describes is an error, not a warning.
+checksum for every artefact. `calicityper setup` verifies every one and
+**refuses to install a set that does not match**.
 
-Each Zenodo version has its own DOI, recorded in the manifest, so a result can
-name the exact reference set that produced it.
+Each versioned reference set should be identifiable by the version/DOI recorded
+in its manifest so a result can name the exact reference set that produced it.
 
-**A note on restricted data.** Zenodo is still public redistribution. This path
-suits the public GenBank records above. A set built from a restricted
-surveillance source such as CaliciNet must not be deposited on Zenodo or
-GitHub: reference it by accession and have users build it locally, against the
-same manifest discipline.
+**A note on restricted data.** Public redistribution (e.g. via Zenodo) suits
+the public GenBank records above. A set built from a restricted surveillance
+source such as CaliciNet must not be deposited publicly: reference it by
+accession and have users build it locally, against the same manifest/checksum
+discipline.
 
 ## Resources
 
