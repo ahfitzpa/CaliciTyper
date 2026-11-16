@@ -68,7 +68,7 @@ def published_genogroups(path=ROOT / "validation" / "sapovirus_vp1_taxonomy.csv"
     """{genogroup: [accession]} from the published VP1 table."""
     out = collections.defaultdict(list)
     for r in csv.DictReader(l for l in open(path) if not l.startswith("#")):
-        if r["note"].startswith("UNRESOLVED"):
+        if r["note"].startswith(("UNRESOLVED", "RETIRED")):
             continue
         out[r["genotype"].split(".")[0]].append(r["accession"].split(".")[0])
     return out
@@ -128,27 +128,32 @@ def main():
     anchors = ex.project_canonical(list(recs.values()), aln)
     print(f"{len(anchors)} projection anchors")
 
-    chosen, failed = {}, []
+    # [(group, accession, coords)]: one representative per published genogroup,
+    # plus the prototypes below IN ADDITION (a dict keyed by group used to drop
+    # them, because every prototype's genogroup already had a representative).
+    chosen, failed = [], []
     for group, accs in sorted(published_genogroups().items()):
         acc, coords = pick(group, accs, recs, anchors, aln)
         if acc is None:
             failed.append(group)
             continue
-        chosen[group] = (acc, coords)
+        chosen.append((group, acc, coords))
     # the four prototypes the table does not list
     for acc, group in KEEP.items():
         if acc in recs:
             coords = region_coordinates(recs[acc], anchors, aln)
             if coords:
-                chosen.setdefault(group, (acc, coords))
+                if acc not in {c[1] for c in chosen}:
+                    chosen.append((group, acc, coords))
             else:
                 print(f"  {group}: prototype {acc} did not project", file=sys.stderr)
         else:
             print(f"  {group}: prototype {acc} is not in {a.genbank}", file=sys.stderr)
 
-    print(f"\n{len(chosen)} sapovirus genogroups with a subject and coordinates")
+    print(f"\n{len(chosen)} sapovirus subjects with coordinates, covering "
+          f"{len({c[0] for c in chosen})} genogroups")
     print("%-9s %-12s %-7s %-15s %-15s" % ("group", "accession", "ident", "rdrp", "vp1"))
-    for group, (acc, c) in sorted(chosen.items()):
+    for group, acc, c in sorted(chosen):
         print("%-9s %-12s %-7.3f %-15s %-15s" % (
             group, acc, c["identity"], f"{c['rdrp'][0]}-{c['rdrp'][1]}",
             f"{c['vp1'][0]}-{c['vp1'][1]}"))
@@ -169,14 +174,14 @@ def main():
     with open(FASTA, "w") as fh:
         for r in kept:
             fh.write(f">{r.description}\n{str(r.seq).upper()}\n")
-        for group, (acc, _) in sorted(chosen.items()):
+        for group, acc, _ in sorted(chosen):
             rec = recs[acc]
             fh.write(f">{PREFIX}{group}|{rec.id} {rec.description}\n{str(rec.seq).upper()}\n")
 
     rows = list(csv.DictReader(open(ANNOT)))
     have = {r["id"].split(".")[0] for r in rows}
     added = 0
-    for group, (acc, c) in sorted(chosen.items()):
+    for group, acc, c in sorted(chosen):
         if acc in have:
             continue
         rows.append(dict(id=recs[acc].id, rdrp_start=c["rdrp"][0], rdrp_end=c["rdrp"][1],

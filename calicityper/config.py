@@ -17,6 +17,21 @@ PKG = Path(__file__).resolve().parent
 DATA = Path(os.environ.get("CALICITYPER_DATA", PKG / "data"))
 BLAST_DB = DATA / "database" / "refseqdb_2"
 BLAST_FASTA = DATA / "database" / "refseq_2.fasta"
+# Fixed search-space size for the genogroup BLAST, in bases. BLAST scales its
+# statistics, and with them which HSP it reports under -max_hsps 1, with the
+# size of the database, so adding reference genomes moved a norovirus call:
+# MN567957.1 (GII.11, ~70% identity to everything) went GII -> GIX when the
+# sapovirus genogroups were added, because its best GII HSP shrank from
+# 5591 nt to 3306 nt. Pinning the size to the 0.7.0 norovirus-era database
+# (60 subjects, 452,925 bases) keeps every call reproducible as the database
+# grows and identical to the benchmarked 0.7.0 behaviour.
+BLAST_DBSIZE = 452925
+# Shortest BLAST alignment that may name a genogroup. Below this the hit is a
+# chance match, not evidence: on the RIVM set every call resting on <100 nt was
+# wrong -- six "other + strand ssRNA virus" records (astroviruses among them)
+# called norovirus GVI/GX, and short sapovirus hits landing in the wrong
+# sapovirus genogroup. Same floor as MIN_INPUT_NT and the typing overlap.
+MIN_GENOGROUP_HIT_NT = int(os.environ.get("CALICITYPER_MIN_GENOGROUP_HIT_NT", 100))
 ANNOTATION = DATA / "database" / "refseq_annotation.csv"
 REF_DIR = {"orf1": DATA / "reference_sequences_RdRp", "orf2": DATA / "reference_sequences_VP1"}
 

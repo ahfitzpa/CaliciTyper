@@ -39,7 +39,7 @@ MIN_MEMBERS = 1               # a group needs at least this many complete record
 def load_taxonomy(path, key):
     out = {}
     for r in csv.DictReader(l for l in open(path) if not l.startswith("#")):
-        if r["note"].startswith("UNRESOLVED"):
+        if r["note"].startswith(("UNRESOLVED", "RETIRED")):
             continue
         out[r["accession"].split(".")[0]] = r[key]
     return out

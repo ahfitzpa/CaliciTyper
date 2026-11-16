@@ -40,6 +40,26 @@ PAPER_TYPOS = {
     "KC469052": ("LC469052", "KC469052 is an uncultured bacterium clone; LC469052 is Porcine sapovirus Pig/HgYa2018"),
     "LC215696": ("LC215896", "LC215696 is a whitefly COI record; LC215896 is Sapovirus GX/HgTa2"),
 }
+# Strains the published table lists under two genogroups. A strain cannot be
+# routed to two reference sets, so each was settled by the paper's own criterion
+# (VP1 nt distance; commit 2bf3998). The broad legacy row is kept, so the counts
+# still match the paper, but marked RETIRED, and every consumer skips it.
+# Encoded here, not hand-edited into the CSV: regenerating the CSV (as the
+# no-op test does) used to silently undo the hand edit.
+RETIRED = {
+    ("GVI", "MZ679050"):
+        "the published table lists this strain under GVI and under GXXIII. VP1 nt distance 0.171 to its GXXIII partner vs 0.315-0.321 to the GVI members, and the GXXIII range reproduces the published one, so GXXIII is the assignment used. Row kept for traceability, excluded from the reference sets.",
+    ("GVII", "MF766258"):
+        "the published table lists this strain under GVII and under GXXIV. VP1 nt distance 0.164 to its GXXIV partner vs 0.318-0.388 to the GVII members, and the GXXIV range reproduces the published one, so GXXIV is the assignment used. Row kept for traceability, excluded from the reference sets.",
+    ("GVII", "LC215894"):
+        "the published table lists this strain under GVII and under GXXV. VP1 nt distance 0.000 to its GXXV partner vs 0.260-0.394 to the GVII members, and the GXXV range reproduces the published one, so GXXV is the assignment used. Row kept for traceability, excluded from the reference sets.",
+    ("GVII", "LC215890"):
+        "the published table lists this strain under GVII and under GXXVII. VP1 nt distance 0.000 to its GXXVII partner vs 0.260-0.396 to the GVII members, and the GXXVII range reproduces the published one, so GXXVII is the assignment used. Row kept for traceability, excluded from the reference sets.",
+    ("GXIX", "KX759618"):
+        "the published table lists this strain under GXIX and under GXXVIII. VP1 nt distance 0.003 to its GXXVIII partner vs 0.295 to the GXIX members, and the GXXVIII range reproduces the published one, so GXXVIII is the assignment used. Row kept for traceability, excluded from the reference sets.",
+    ("GXIX", "KX759621"):
+        "the published table lists this strain under GXIX and under GXXVIII. VP1 nt distance 0.003 to its GXXVIII partner vs 0.295 to the GXIX members, and the GXXVIII range reproduces the published one, so GXXVIII is the assignment used. Row kept for traceability, excluded from the reference sets.",
+}
 # Accessions that cannot be used, with the reason recorded in the CSV.
 UNRESOLVED = {
     "KC309412": "does not resolve to a calicivirus (Pseudomonas aeruginosa 16S, 366 nt); "
@@ -133,7 +153,7 @@ HEADER = """\
 
 
 def write_csv(path, what, key, groups):
-    corrected = unresolved = 0
+    corrected = unresolved = retired = 0
     with open(path, "w", newline="") as fh:
         fh.write(HEADER.format(what=what, xlsx=XLSX.name))
         w = csv.writer(fh)
@@ -149,10 +169,13 @@ def write_csv(path, what, key, groups):
                 elif bare in UNRESOLVED:
                     note = f"UNRESOLVED: {UNRESOLVED[bare]}"
                     unresolved += 1
+                elif (label, bare) in RETIRED:
+                    note = f"RETIRED duplicate listing: {RETIRED[(label, bare)]}"
+                    retired += 1
                 w.writerow([label, bare, groups[label]["range"], note])
     n = sum(len(v["accs"]) for v in groups.values())
     print(f"{path.name}: {len(groups)} labels, {n} accessions "
-          f"({corrected} corrected, {unresolved} unresolved)")
+          f"({corrected} corrected, {unresolved} unresolved, {retired} retired)")
 
 
 def main():

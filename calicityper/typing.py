@@ -109,7 +109,8 @@ def _annotation():
 def blast_genogroup(query_fa, threads=1):
     """Return per-query dict(genogroup, subject, sstart, send, reverse)."""
     cmd = [cg.exe("blastn"), "-query", query_fa, "-db", str(cg.BLAST_DB), "-evalue", "1e-5", "-task", "blastn",
-           "-max_target_seqs", "5", "-max_hsps", "1", "-num_threads", str(max(1, threads)),
+           "-max_target_seqs", "5", "-max_hsps", "1", "-dbsize", str(cg.BLAST_DBSIZE),
+           "-num_threads", str(max(1, threads)),
            "-outfmt", "6 qseqid sseqid pident length qstart qend sstart send evalue bitscore"]
     out = subprocess.run(cmd, check=True, capture_output=True, text=True).stdout
     best = {}
@@ -212,6 +213,10 @@ def plan_query(rec_id, seq, hit):
         return row, []
     if hit is None:
         row["note"] = "no BLAST hit (not a norovirus / Caliciviridae sequence in reference set)"
+        return row, []
+    if hit["aln_len"] < cg.MIN_GENOGROUP_HIT_NT:
+        row["note"] = (f"no genogroup: best BLAST hit ({hit['genogroup']}) aligns only "
+                       f"{hit['aln_len']} nt, below {cg.MIN_GENOGROUP_HIT_NT} nt, so it is a chance match")
         return row, []
     g = hit["genogroup"]
     row["genogroup"] = g
