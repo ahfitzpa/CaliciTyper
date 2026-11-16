@@ -191,7 +191,7 @@ def test_report_writes_tsv_md_json_and_html(tmp_path):
     assert doc["tool"] == "calicityper"
     assert doc["n_queries"] == 3
     assert len(doc["results"]) == 3
-    assert doc["meta"]["bootstraps"] == 30
+    assert doc["parameters"]["bootstraps"] == 30     # was "meta" before the schema formalization (1d17587)
     # runner-ups are structured in JSON, not a packed string
     typed = [r for r in doc["results"] if r["orf2_type"] not in ("", "unassigned")]
     assert typed, "expected at least one typed query"

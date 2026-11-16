@@ -6,9 +6,19 @@ name: CI
 # working laptop or cluster never notices.
 on:
   push:
-    branches: [main, rivm-replication]
+    branches: [main]
   pull_request:
   workflow_dispatch:
+
+# Reference set for CI. Zenodo still holds 0.6.1 on purpose (one deposit once
+# sapovirus genotyping is settled), while the manifest describes 0.7.0, so
+# `calicityper setup` from the manifest's download_url fails verification.
+# Until that deposit, CI installs the same archive from a GitHub pre-release.
+# `setup` still verifies every file against the manifest's checksums, so this
+# changes where the archive comes from, not what is accepted.
+# When Zenodo is updated: delete REFSET_URL and drop `--source "$REFSET_URL"`.
+env:
+  REFSET_URL: https://github.com/ahfitzpa/CaliciTyper/releases/download/reference-0.7.0/calicityper-reference-0.7.0.tar.gz
 
 jobs:
   test:
@@ -42,7 +52,7 @@ jobs:
         shell: bash -el {0}
         run: |
           pip install -e .
-          calicityper setup --in-package
+          calicityper setup --in-package --source "$REFSET_URL"
           calicityper setup --verify-only --in-package
 
       - name: Install calicityper

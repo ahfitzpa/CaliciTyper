@@ -66,7 +66,8 @@ MIN_INFORMATIVE_SITES = int(os.environ.get("CALICITYPER_MIN_SITES", 300))
 # rejecting usable sequence.
 MIN_INPUT_NT = int(os.environ.get("CALICITYPER_MIN_INPUT_NT", 100))
 
-TYPEABLE_GROUPS = ["GI", "GII"]
+DEFAULT_TYPEABLE_GROUPS = ["GI", "GII"]
+TYPEABLE_GROUPS = list(DEFAULT_TYPEABLE_GROUPS)
 if os.environ.get("CALICITYPER_TYPE_ALL_GROUPS", "").lower() in ("1", "true", "yes"):
     TYPEABLE_GROUPS = list(NOROVIRUS_GROUPS)
 

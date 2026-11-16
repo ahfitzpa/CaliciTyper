@@ -23,9 +23,29 @@ def _work(chunk):
         out.append(((i, region), res, (g, qa) if a._want_aln else None))
     return out
 
+def _apply_runtime_overrides(a):
+    """Apply the advanced command-line settings over their $CALICITYPER_* defaults.
+
+    A flag left unset (None) keeps the environment/default value. Runs in the
+    parent and again in every worker (_init): under the forkserver start method
+    workers do not inherit module state changed at run time, so setting it in
+    the parent alone would only take effect with --threads 1.
+    """
+    if getattr(a, "min_sites", None) is not None:
+        cg.MIN_INFORMATIVE_SITES = a.min_sites
+    if getattr(a, "rivm_window_mode", None) is not None:
+        cg.RIVM_WINDOW_MODE = a.rivm_window_mode
+    if getattr(a, "type_all_groups", None) is not None:
+        cg.TYPEABLE_GROUPS = list(cg.NOROVIRUS_GROUPS if a.type_all_groups
+                                  else cg.DEFAULT_TYPEABLE_GROUPS)
+    if getattr(a, "novel_distance", None) is not None:
+        from . import putative_novel
+        putative_novel.DISTANCE = a.novel_distance
+
 def _init(a):
     global _ARGS
     _ARGS = a
+    _apply_runtime_overrides(a)     # workers don't inherit the parent's overrides
     # Compile/load the numba kernel in THIS worker. Python 3.14+ defaults to the
     # "forkserver" start method on Linux, so workers are not forked from the
     # parent and a warmup() done there does not carry over -- every worker has to
