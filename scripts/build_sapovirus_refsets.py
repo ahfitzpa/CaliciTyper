@@ -117,6 +117,17 @@ def build(region, fasta, taxonomy, out_dir, recovered=None, threads=4):
                 fh_orf.write(f">{group}|{label}|{acc}\n{seq}\n")
         if len(members) > 1:
             mafft_clustal(orf, out_dir / f"{group}.aln", threads)
+        else:
+            # A one-member genogroup still types: the distance to its single
+            # reference decides the call. Without an .aln the typing path saw
+            # "no reference set" (13 VP1 and 5 RdRp genogroups, GXII among them).
+            from Bio import AlignIO
+            from Bio.Align import MultipleSeqAlignment
+            from Bio.Seq import Seq
+            from Bio.SeqRecord import SeqRecord
+            ((label, acc, seq),) = members
+            rec = SeqRecord(Seq(str(seq).lower()), id=acc, name=acc, description="")
+            AlignIO.write(MultipleSeqAlignment([rec]), str(out_dir / f"{group}.aln"), "clustal")
         written[group] = members
         print(f"  {region} {group:10} {len(members):3d} records, "
               f"{len({m[0] for m in members})} types"

@@ -60,6 +60,7 @@ One row per input query sequence (FASTA record), in input order. Columns are emi
 | `orf2_nearest` | string | Nearest reference sequence/accession label (ORF2). |
 | `orf2_nearest_identity` | number/string | Identity/similarity metric to nearest ORF2 reference. |
 | `orf2_nearest_type` | string | Type/genotype of nearest ORF2 reference. |
+| `orf1_coverage` / `orf2_coverage` | number | **Sapovirus only**: fraction of the region's reference-covered columns the query covers; acceptance needs at least the configured floor. |
 | `orf2_distance` | number | **Sapovirus only**: nucleotide p-distance to the nearest VP1 reference; decides the genotype call (<0.161 genotype, <0.503 genogroup). |
 | `orf2_accepted` | string | `accepted` or `rejected: ...` for ORF2. |
 | `orf2_window_cov` | string | Coverage of the RIVM ORF2 typing window as `covered/width`. |

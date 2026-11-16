@@ -316,6 +316,7 @@ def _apply_sapovirus_result(row, region, res):
     cov = sites / span if span else 0.0
     row[f"{region}_runners"] = format_runners(res.get("supports"))
     row[f"{region}_sites"] = sites
+    row[f"{region}_coverage"] = round(cov, 3) if span else ""
     row[f"{region}_nearest"] = res.get("nearest", "")
     row[f"{region}_nearest_identity"] = ident if ident not in (None, "") else ""
     row[f"{region}_nearest_type"] = nearest_type
