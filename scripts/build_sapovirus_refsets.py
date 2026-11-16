@@ -51,12 +51,27 @@ def ambiguous_fraction(seq):
 
 
 def mafft_clustal(in_fasta, out_aln, threads=4):
-    cmd = ["mafft", "--quiet", "--auto", "--clustalout",
-           "--thread", str(threads), str(in_fasta)]
+    """Align with MAFFT and write CLUSTAL named by bare accession.
+
+    Not `mafft --clustalout`: MAFFT's CLUSTAL writer cuts names to 15
+    characters, which turned "GII|GII.1|AJ271056" into "GII|GII.1|AJ271", so
+    no aligned reference matched its .orf label and the typing path loaded an
+    empty set. The norovirus alignments are named by bare accession, which is
+    what align.RefSet joins on; these now are too.
+    """
+    import io
+    from Bio import AlignIO
+    cmd = ["mafft", "--quiet", "--auto", "--thread", str(threads), str(in_fasta)]
     res = subprocess.run(cmd, capture_output=True, text=True)
     if res.returncode != 0:
         raise RuntimeError(f"mafft failed on {in_fasta}:\n{res.stderr[-500:]}")
-    Path(out_aln).write_text(res.stdout)
+    aln = AlignIO.read(io.StringIO(res.stdout), "fasta")
+    for r in aln:
+        r.id = r.id.split("|")[-1]
+        r.name, r.description = r.id, ""
+    if len({r.id for r in aln}) != len(aln):
+        raise RuntimeError(f"duplicate accessions in {in_fasta}")
+    AlignIO.write(aln, str(out_aln), "clustal")
 
 
 def build(region, fasta, taxonomy, out_dir, recovered=None, threads=4):

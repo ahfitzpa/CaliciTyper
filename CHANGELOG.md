@@ -9,6 +9,8 @@ for released versions.
 ## [Unreleased]
 
 ### Added
+- Experimental sapovirus genotyping (`--type-sapovirus`, or `CALICITYPER_TYPE_SAPOVIRUS=1`; off by default until benchmarked). VP1 genotype in the `orf2_*` columns and RdRp P-type in `orf1_*` (both regions lie in sapovirus ORF1). Calls follow the Zhao et al. 2024 nucleotide p-distance cut-offs: within the genotype cut-off of the nearest reference the call is its type; otherwise `untypeable` (with "possible novel genotype" inside the genogroup cut-off). Bootstrap support is reported beside the call, not used to decide it. New `orf1_distance`/`orf2_distance` columns. Acceptance provisionally requires >=90% coverage of the region until a sapovirus truncation curve exists. A genogroup with no reference set for a region (e.g. GIV RdRp) says so instead of borrowing another genogroup's.
+- Sapovirus genogroup database: 39 subjects over 35 genogroups (was 12/12).
 - First-class documentation for offline, air-gapped, and cluster reference-data installs (`--source`, `--data-dir`, `--verify-only`, `CALICITYPER_DATA`).
 - `tests/test_setup_data.py`: local-source/fixture validation of reference-set install, verification, and checksum-mismatch rejection.
 - Release/versioning and packaging guidance (`RELEASING.md`, changelog, README/distribution notes).
@@ -22,6 +24,10 @@ for released versions.
 - CLI/UX polish: consistent subcommand help/descriptions and examples, clearer input/output behavior (stdin not supported; stdout TSV and stderr status/progress), predictable `--report` naming (`PREFIX.md/.json/.html`), improved progress messages, and clearer actionable errors/hints for missing reference data or external tools.
 
 ### Fixed
+- Genogroup BLAST uses a fixed search-space size, so growing the database no longer moves calls (MN567957.1 GII.11 flipped to GIX when sapovirus subjects were added).
+- A BLAST hit shorter than 100 nt no longer names a genogroup; on the RIVM set every such call was wrong (non-calicivirus records called norovirus GVI/GX).
+- Sapovirus alignments were written with names truncated to 15 characters by MAFFT's CLUSTAL writer, so they could not be joined to their labels; now named by accession.
+- The six sapovirus strains listed under two genogroups are resolved in the taxonomy generator, so regenerating the CSV no longer undoes it.
 - Stopped tracking generated reference-data cache artifacts and ignored `calicityper/data/.cache/`.
 
 ## [0.7.0] - 2026 (baseline)

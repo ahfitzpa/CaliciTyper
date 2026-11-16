@@ -35,6 +35,50 @@ MIN_GENOGROUP_HIT_NT = int(os.environ.get("CALICITYPER_MIN_GENOGROUP_HIT_NT", 10
 ANNOTATION = DATA / "database" / "refseq_annotation.csv"
 REF_DIR = {"orf1": DATA / "reference_sequences_RdRp", "orf2": DATA / "reference_sequences_VP1"}
 
+# ---------------------------------------------------------------- sapovirus
+# Genogroups arrive from BLAST as "Caliciviridae_Sapovirus_<group>". Both typed
+# regions sit inside sapovirus ORF1 (one polyprotein), so the output's "orf1"
+# columns carry the RdRp (P-type) and "orf2" the VP1 genotype, as for norovirus.
+SAPOVIRUS_PREFIX = "Caliciviridae_Sapovirus_"
+SAPOVIRUS_REF_DIR = {"orf1": DATA / "reference_sequences_sapovirus_RdRp",
+                     "orf2": DATA / "reference_sequences_sapovirus_VP1"}
+# Zhao et al. 2024 (BMC Genomics 25:1131): nucleotide p-distance cut-offs,
+# (same genotype, same genogroup). The distance makes the call: a query
+# further than the genotype cut-off from every reference is untypeable, not
+# given its nearest neighbour's label. Bootstrap support is reported beside it.
+SAPOVIRUS_CUTOFFS = {"orf1": (0.266, 0.531), "orf2": (0.161, 0.503)}
+# Fraction of the region's reference-covered columns a query must cover for
+# its call to be accepted. PROVISIONAL: the cut-offs were derived on complete
+# regions and no truncation curve exists yet for sapovirus, so until one does,
+# a (near-)complete region is the honest requirement. Revisit from the curve.
+SAPOVIRUS_MIN_REGION_COVERAGE = float(os.environ.get("CALICITYPER_SAPOVIRUS_MIN_COVERAGE", 0.9))
+# Off by default until the sapovirus benchmark exists; --type-sapovirus or
+# CALICITYPER_TYPE_SAPOVIRUS=1 turns it on.
+TYPE_SAPOVIRUS = os.environ.get("CALICITYPER_TYPE_SAPOVIRUS", "").lower() in ("1", "true", "yes")
+
+
+def is_sapovirus(group):
+    return str(group).startswith(SAPOVIRUS_PREFIX)
+
+
+def ref_paths(region, group):
+    """(aln, orf) paths of the reference set typing `group` in `region`, or None.
+
+    Norovirus falls back to the all-genogroup set; sapovirus does not, because
+    its calls are distance cut-offs within a genogroup (e.g. GIV has no RdRp
+    set at all, and must report that rather than borrow another genogroup's).
+    """
+    if is_sapovirus(group):
+        d, stem = SAPOVIRUS_REF_DIR[region], group[len(SAPOVIRUS_PREFIX):]
+        aln, orf = d / f"{stem}.aln", d / f"{stem}.orf"
+        return (aln, orf) if aln.exists() and orf.exists() else None
+    d = REF_DIR[region]
+    if (d / f"{group}.aln").exists():
+        return d / f"{group}.aln", d / f"{group}.orf"
+    if (d / "all.aln").exists():
+        return d / "all.aln", d / "all.orf"
+    return None
+
 NOROVIRUS_GROUPS = ["GI", "GII", "GIII", "GIV", "GV", "GVI", "GVII", "GVIII", "GIX", "GX"]
 # Genotyping is validated for GI and GII only, and the reference sets for the
 # animal genogroups hold two or three sequences each -- enough to return a

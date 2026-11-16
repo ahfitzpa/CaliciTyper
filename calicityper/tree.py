@@ -235,7 +235,7 @@ def assign(names, types, query, codes, nrep=100, seed=1, min_support=70.0, max_r
     best = max(sup, key=sup.get)
     ranked = sorted(sup.items(), key=lambda kv: -kv[1])[:3]
     return dict(type=best if sup[best] >= min_support else None, support=sup[best],
-                best_type=best, supports=dict(ranked), n_sites=L, n_refs=len(refs))
+                best_type=best, supports=dict(ranked), all_supports=sup, n_sites=L, n_refs=len(refs))
 
 
 def warmup():

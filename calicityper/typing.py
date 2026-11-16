@@ -15,12 +15,7 @@ MIN_QUERY_FRAC_COLS = 0.5   # keep alignment columns where >=50% of references h
 @lru_cache(maxsize=None)
 def load_reference(region, group):
     """Return (aln_path, {accession: type}) for a region ('orf1'/'orf2') and genogroup."""
-    d = cg.REF_DIR[region]
-    aln = d / f"{group}.aln"
-    if not aln.exists():
-        aln, orf = d / "all.aln", d / "all.orf"
-    else:
-        orf = d / f"{group}.orf"
+    aln, orf = cg.ref_paths(region, group)
     types = {r.id.split("|")[2]: r.id.split("|")[1] for r in SeqIO.parse(orf, "fasta")}
     return str(aln), types
 
@@ -81,9 +76,10 @@ def type_aligned(ref, qaln, exclude=(), nrep=100, seed=1, min_support=70.0, max_
     cols = (codes[-1] < 4) & (frac >= MIN_QUERY_FRAC_COLS)
     if cols.sum() < MIN_OVERLAP:
         return dict(type=None, support=0.0, supports={}, n_sites=int(cols.sum()), n_refs=len(types),
-                    note="too few aligned sites")
+                    region_sites=int((frac >= MIN_QUERY_FRAC_COLS).sum()), note="too few aligned sites")
     res = tree.assign(names, types, "QUERY", codes[:, cols], nrep=nrep, seed=seed, min_support=min_support,
                       max_refs_per_type=max_refs_per_type)
+    res["region_sites"] = int((frac >= MIN_QUERY_FRAC_COLS).sum())   # columns the region spans
     acc, ident, n_ident = tree.nearest_reference(names, "QUERY", codes[:, cols])
     res.update(nearest=acc, nearest_identity=ident, nearest_sites=n_ident,
                nearest_type=types.get(acc, ""))
@@ -156,7 +152,7 @@ def type_query(rec_id, seq, hit, nrep=100, seed=1, min_support=70.0, max_refs_pe
         if region_overlap(hit, region) < MIN_OVERLAP:
             notes.append(f"{region}: <{MIN_OVERLAP} nt overlap")
             continue
-        if not (cg.REF_DIR[region] / f"{g}.aln").exists() and not (cg.REF_DIR[region] / "all.aln").exists():
+        if cg.ref_paths(region, g) is None:
             continue
         res = type_region(seq, g, region, nrep=nrep, seed=seed, min_support=min_support,
                           max_refs_per_type=max_refs_per_type)
@@ -220,10 +216,15 @@ def plan_query(rec_id, seq, hit):
         return row, []
     g = hit["genogroup"]
     row["genogroup"] = g
-    if g not in cg.NOROVIRUS_GROUPS:
+    if cg.is_sapovirus(g):
+        if not cg.TYPE_SAPOVIRUS:
+            row["note"] = ("sapovirus: genogroup only (sapovirus genotyping is not yet benchmarked; "
+                           "--type-sapovirus enables it)")
+            return row, []
+    elif g not in cg.NOROVIRUS_GROUPS:
         row["note"] = "other Caliciviridae: genogroup only"
         return row, []
-    if g not in cg.TYPEABLE_GROUPS:
+    elif g not in cg.TYPEABLE_GROUPS:
         row["note"] = (f"norovirus {g}: genogroup only, genotyping is validated for "
                        f"{'/'.join(cg.TYPEABLE_GROUPS)} only")
         return row, []
@@ -232,7 +233,10 @@ def plan_query(rec_id, seq, hit):
         if region_overlap(hit, region) < MIN_OVERLAP:
             notes.append(f"{region}: <{MIN_OVERLAP} nt overlap")
             continue
-        if not (cg.REF_DIR[region] / f"{g}.aln").exists() and not (cg.REF_DIR[region] / "all.aln").exists():
+        if cg.ref_paths(region, g) is None:
+            if cg.is_sapovirus(g):
+                label = "RdRp" if region == "orf1" else "VP1"
+                notes.append(f"{region}: no sapovirus {g[len(cg.SAPOVIRUS_PREFIX):]} {label} reference set")
             continue
         sub = str(seq)
         w = orf_window(hit, region)
@@ -270,6 +274,8 @@ def apply_result(row, region, res, min_support):
     and at least cg.MIN_INFORMATIVE_SITES aligned sites, the point at which
     leave-one-out F1 reaches 97% (see validation/benchmarking materials, curated separately).
     """
+    if cg.is_sapovirus(row.get("genogroup", "")):
+        return _apply_sapovirus_result(row, region, res)
     best = res.get("best_type") or res.get("type") or ""
     sites = int(res.get("n_sites") or 0)
     row[f"{region}_type"] = best or "unassigned"
@@ -286,6 +292,59 @@ def apply_result(row, region, res, min_support):
         why.append(f"support {res['support']:.0f}% < {min_support:.0f}%")
     if sites < cg.MIN_INFORMATIVE_SITES:
         why.append(f"{sites} aligned sites < {cg.MIN_INFORMATIVE_SITES}")
+    row[f"{region}_accepted"] = "accepted" if not why else "rejected: " + "; ".join(why)
+    if why:
+        row["note"] = "; ".join(x for x in (row["note"], f"{region}: " + "; ".join(why)) if x)
+
+
+def _apply_sapovirus_result(row, region, res):
+    """Sapovirus call by the published nucleotide distance cut-offs (Zhao et al. 2024).
+
+    The nearest reference's type is the call only if the query lies within the
+    genotype cut-off of it; otherwise the query is untypeable (a possible novel
+    genotype if still inside the genogroup cut-off). Bootstrap support for the
+    called type is reported beside it as a second, independent number and does
+    not decide the call. Acceptance also needs the query to cover at least
+    SAPOVIRUS_MIN_REGION_COVERAGE of the region (provisional; see config).
+    """
+    gt_cut, gg_cut = cg.SAPOVIRUS_CUTOFFS[region]
+    label = "RdRp" if region == "orf1" else "VP1"
+    nearest_type = res.get("nearest_type") or ""
+    ident = res.get("nearest_identity")
+    sites = int(res.get("n_sites") or 0)
+    span = int(res.get("region_sites") or 0)
+    cov = sites / span if span else 0.0
+    row[f"{region}_runners"] = format_runners(res.get("supports"))
+    row[f"{region}_sites"] = sites
+    row[f"{region}_nearest"] = res.get("nearest", "")
+    row[f"{region}_nearest_identity"] = ident if ident not in (None, "") else ""
+    row[f"{region}_nearest_type"] = nearest_type
+    why = []
+    if ident in (None, "") or not nearest_type:
+        row[f"{region}_type"], row[f"{region}_support"], row[f"{region}_distance"] = "unassigned", "", ""
+        why.append("no reference overlaps the query enough to measure a distance")
+    else:
+        d = round(1.0 - float(ident) / 100.0, 4)
+        row[f"{region}_distance"] = d
+        if d < gt_cut:
+            row[f"{region}_type"] = nearest_type
+            row[f"{region}_support"] = round(float((res.get("all_supports") or {}).get(nearest_type, 0.0)), 1)
+        else:
+            row[f"{region}_type"], row[f"{region}_support"] = "untypeable", ""
+            if d < gg_cut:
+                why.append(f"{label} p-distance {d:.3f} to the nearest reference ({nearest_type}) is over "
+                           f"the {gt_cut} genotype cut-off but within the {gg_cut} genogroup cut-off: "
+                           f"possible novel genotype")
+            else:
+                why.append(f"{label} p-distance {d:.3f} is over the {gg_cut} genogroup cut-off: "
+                           f"the BLAST genogroup is not confirmed")
+    if span and cov < cg.SAPOVIRUS_MIN_REGION_COVERAGE:
+        why.append(f"covers {sites}/{span} {label} columns ({cov:.0%} < "
+                   f"{cg.SAPOVIRUS_MIN_REGION_COVERAGE:.0%}; the cut-offs were derived on complete regions)")
+    called, boot = row[f"{region}_type"], res.get("best_type") or ""
+    if called not in ("untypeable", "unassigned") and boot and boot != called:
+        row["note"] = "; ".join(x for x in (row["note"], f"{region}: bootstrap favours {boot} "
+                                            f"over the distance call {called}") if x)
     row[f"{region}_accepted"] = "accepted" if not why else "rejected: " + "; ".join(why)
     if why:
         row["note"] = "; ".join(x for x in (row["note"], f"{region}: " + "; ".join(why)) if x)

@@ -48,6 +48,7 @@ One row per input query sequence (FASTA record), in input order. Columns are emi
 | `orf1_nearest` | string | Nearest reference sequence/accession label (ORF1). |
 | `orf1_nearest_identity` | number/string | Identity/similarity metric to nearest ORF1 reference (as computed/reported). |
 | `orf1_nearest_type` | string | Type/genotype of nearest ORF1 reference. |
+| `orf1_distance` | number | **Sapovirus only** (`--type-sapovirus`): nucleotide p-distance to the nearest RdRp reference, over the columns both cover. Decides the P-type call against the Zhao et al. 2024 cut-offs (<0.266 P-type, <0.531 P-group). |
 | `orf1_accepted` | string | `accepted` or `rejected: ...` describing why the call is not accepted (e.g. low support, insufficient sites, window-mode rejection when enabled). |
 | `orf1_window_cov` | string | Coverage of the RIVM ORF1 typing window as `covered/width` (reported; gating depends on `--rivm-window-mode`). |
 | `orf1_putative_novel` | string | Putative-novel screen status for ORF1 (e.g. `known`, `putative_novel_type`, `putative_novel_group`, `not_assessable`/NA marker, or empty depending on context). Tentative screening only. |
@@ -59,6 +60,7 @@ One row per input query sequence (FASTA record), in input order. Columns are emi
 | `orf2_nearest` | string | Nearest reference sequence/accession label (ORF2). |
 | `orf2_nearest_identity` | number/string | Identity/similarity metric to nearest ORF2 reference. |
 | `orf2_nearest_type` | string | Type/genotype of nearest ORF2 reference. |
+| `orf2_distance` | number | **Sapovirus only**: nucleotide p-distance to the nearest VP1 reference; decides the genotype call (<0.161 genotype, <0.503 genogroup). |
 | `orf2_accepted` | string | `accepted` or `rejected: ...` for ORF2. |
 | `orf2_window_cov` | string | Coverage of the RIVM ORF2 typing window as `covered/width`. |
 | `orf2_putative_novel` | string | Putative-novel screen status for ORF2 (tentative). |

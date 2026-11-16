@@ -16,11 +16,10 @@ class RefSet:
     """Reference alignment of one region/genogroup, loaded once."""
 
     def __init__(self, region, group):
-        d = cg.REF_DIR[region]
-        aln = d / f"{group}.aln"
-        orf = d / f"{group}.orf"
-        if not aln.exists():
-            aln, orf = d / "all.aln", d / "all.orf"
+        paths = cg.ref_paths(region, group)
+        if paths is None:
+            raise FileNotFoundError(f"no {region} reference set for {group}")
+        aln, orf = paths
         self.aln_path = str(aln)
         self.types_by_acc = {r.id.split("|")[2]: r.id.split("|")[1] for r in SeqIO.parse(orf, "fasta")}
         a = AlignIO.read(aln, "clustal")

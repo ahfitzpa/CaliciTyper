@@ -38,6 +38,8 @@ def _apply_runtime_overrides(a):
     if getattr(a, "type_all_groups", None) is not None:
         cg.TYPEABLE_GROUPS = list(cg.NOROVIRUS_GROUPS if a.type_all_groups
                                   else cg.DEFAULT_TYPEABLE_GROUPS)
+    if getattr(a, "type_sapovirus", None) is not None:
+        cg.TYPE_SAPOVIRUS = a.type_sapovirus
     if getattr(a, "novel_distance", None) is not None:
         from . import putative_novel
         putative_novel.DISTANCE = a.novel_distance
@@ -91,6 +93,10 @@ def _add_type_args(p):
     adv.add_argument("--type-all-groups", action=argparse.BooleanOptionalAction, default=None,
                      help="type all norovirus genogroups (GIII-GX) instead of restricting to validated GI/GII "
                           "(not validated). Overrides $CALICITYPER_TYPE_ALL_GROUPS.")
+    adv.add_argument("--type-sapovirus", action=argparse.BooleanOptionalAction, default=None,
+                     help="genotype sapovirus (VP1 genotype and RdRp P-type) by the Zhao et al. 2024 "
+                          "nucleotide distance cut-offs, instead of reporting genogroup only. Not yet "
+                          "benchmarked. Overrides $CALICITYPER_TYPE_SAPOVIRUS.")
     adv.add_argument("--rivm-window-mode", action=argparse.BooleanOptionalAction, default=None,
                      help="apply RIVM-style typing-window coverage gates (for comparison/replication). "
                           "Overrides $CALICITYPER_RIVM_WINDOW_MODE.")
@@ -203,7 +209,8 @@ def main(argv=None):
         description="Caliciviridae genogroup detection and norovirus typing/recombination analysis. "
                     "Validated/supported genotyping scope: norovirus GI/GII. Other norovirus "
                     "genogroups and non-norovirus Caliciviridae may be detected but genotyping "
-                    "is not validated; sapovirus genotyping is not implemented.")
+                    "is not validated; sapovirus genotyping (--type-sapovirus) is experimental and "
+                    "not yet benchmarked.")
     top.add_argument("--version", action="version", version=__version__)
     sub = top.add_subparsers(dest="command", required=True, metavar="{type,novel,recomb,setup}")
     _add_type_args(sub.add_parser(
@@ -326,7 +333,9 @@ def _run_type(a):
     df = pd.DataFrame(ordered)
     print("Scope: norovirus GI/GII genotyping validated/supported; other norovirus genogroups and "
           "non-norovirus Caliciviridae may be detected but genotyping is not validated. "
-          "Sapovirus genotyping not implemented. Putative-novel flags are tentative screening.",
+          + ("Sapovirus genotyping ON (experimental, not yet benchmarked). " if cg.TYPE_SAPOVIRUS
+             else "Sapovirus: genogroup only (--type-sapovirus enables experimental genotyping). ")
+          + "Putative-novel flags are tentative screening.",
           file=sys.stderr)
     if a.out == "-":
         df.to_csv(sys.stdout, sep="\t", index=False)
@@ -436,6 +445,8 @@ def _apply_window_rules(rows, alns):
             if (i, region) not in alns:
                 continue
             g, qa = alns[(i, region)]
+            if cg.is_sapovirus(g):
+                continue                  # RIVM windows are norovirus typing windows
             covered, width, frac = ty.rivm_window_coverage(
                 region, g, qa, genotype=row.get(f"{region}_type"))
             row[f"{region}_window_cov"] = f"{covered}/{width}"
@@ -495,6 +506,12 @@ def _screen_putative_novel(rows, alns, todo, only_unaccepted=True):
         for region in ("orf1", "orf2"):
             row[f"{region}_putative_novel"], row[f"{region}_putative_novel_detail"] = "", ""
             accepted = str(row.get(f"{region}_accepted", "")).startswith("accepted")
+            if ty.cg.is_sapovirus(row.get("genogroup", "")):
+                row[f"{region}_putative_novel"] = putative_novel.NA
+                row[f"{region}_putative_novel_detail"] = (
+                    "sapovirus: novelty is decided by the distance cut-off in the type call, "
+                    "not by the norovirus 2x SD screen")
+                continue
             if only_unaccepted and accepted:
                 row[f"{region}_putative_novel"] = putative_novel.KNOWN
                 row[f"{region}_putative_novel_detail"] = (
@@ -611,6 +628,7 @@ def _type_meta(a, command="type"):
                 min_sites=cg.MIN_INFORMATIVE_SITES,
                 typeable_groups=list(cg.TYPEABLE_GROUPS),
                 rivm_window_mode=bool(cg.RIVM_WINDOW_MODE),
+                type_sapovirus=bool(cg.TYPE_SAPOVIRUS),
                 novel_distance=putative_novel.effective_measure(),
                 threads=getattr(a, "threads", None),
                 command=command,
