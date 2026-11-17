@@ -45,58 +45,59 @@ apptainer build calicityper-tools.sif containers/calicityper-tools.def
 sha256sum calicityper-tools.sif          # record this beside your results
 ```
 
-> **This build does not currently work on Sonic.** Attempted 2026-11-17
-> (job 1159831): the build fails in `%post` with
-> `E: setgroups 65534 failed - setgroups (1: Operation not permitted)`,
-> because `apt-get` drops privileges and cannot. The account is not listed in
-> `/etc/subuid` or `/etc/subgid`, `fakeroot` is not installed, and neither is
-> `proot`, so Apptainer has no way to give the build a usable user namespace.
-> `--fakeroot` does not help; it is what was tried.
->
-> Three ways round it, in order of preference:
->
-> 1. **Ask the Sonic administrators** to add your account to `/etc/subuid`
->    and `/etc/subgid`, or to install `fakeroot` or `proot`. Any one of the
->    three makes the command above work as written.
-> 2. **Build elsewhere and copy the SIF.** On any machine where you have root
->    or Docker, `apptainer build` (or `docker build` then
->    `apptainer build x.sif docker-daemon://...`) produces a single file you
->    scp to the cluster. The image is portable; only the build needs privilege.
-> 3. **Pull prebuilt per-tool images**, which needs no privilege because there
->    is no `%post` to run:
->
->    ```bash
->    apptainer pull blast.sif  docker://quay.io/biocontainers/blast:2.17.0--h66d330f_0
->    apptainer pull mafft.sif  docker://quay.io/biocontainers/mafft:7.526--h4bc722e_0
->    ```
->
->    This pins BLAST+ and MAFFT, but there is no OpenRDP biocontainer, so
->    OpenRDP still needs the virtual environment below. Verify the tags before
->    relying on them; they are not pinned here because they have not been
->    tested on this system.
->
-> Until one of these is done, the virtual-environment route below is what is
-> actually in use, and the definition file remains **unverified**.
-
-Point CaliciTyper at the containerised binaries with small wrappers:
+UCD's own Apptainer guidance (ServiceNow KB0011720) gives the build command as:
 
 ```bash
-SIF=/path/to/calicityper-tools.sif
-mkdir -p ~/bin/ct-tools
-for t in blastn makeblastdb mafft openrdp; do
-  printf '#!/bin/sh\nexec apptainer exec %s %s "$@"\n' "$SIF" "$t" > ~/bin/ct-tools/$t
-  chmod +x ~/bin/ct-tools/$t
-done
-export CALICITYPER_BLASTN=~/bin/ct-tools/blastn
-export CALICITYPER_MAKEBLASTDB=~/bin/ct-tools/makeblastdb
-export CALICITYPER_MAFFT=~/bin/ct-tools/mafft
-export CALICITYPER_OPENRDP=~/bin/ct-tools/openrdp
+export APPTAINER_CACHEDIR=/scratch/$USER/APPTAINER_CACHE
+export APPTAINER_TMPDIR=/tmp
+apptainer build --fakeroot --sandbox --bind="$TMPDIR:/tmp" out.sif in.def
 ```
 
-Bind any path outside your home directory that the run must read or write,
-for example `apptainer exec -B /scratch "$SIF" ...`. On a cluster, build the
-image once on a machine where you have root (or use `--fakeroot`), then copy
-the SIF.
+Two notes on applying that here.
+
+**`--fakeroot` does not work for this account.** `fakeroot` is not installed on
+Sonic and the account has no `/etc/subuid` or `/etc/subgid` range, so Apptainer
+falls back to a root-mapped namespace. That is worth raising with the Sonic
+administrators, since their own documentation prescribes the flag: ask for a
+subuid range, or for `fakeroot` to be installed.
+
+**It is not needed for this image.** `--fakeroot` matters when `%post` must act
+as root, and the usual reason is a package manager. In a root-mapped namespace
+`apt-get` cannot drop privileges to the `_apt` user and dies with
+`E: setgroups 65534 failed - setgroups (1: Operation not permitted)`, which is
+what the first attempt at this image hit. Everything else in `%post` works
+normally. `containers/calicityper-tools.def` therefore uses no package manager
+at all: it starts from an image that already carries Python, and fetches BLAST+
+as its prebuilt tarball and MAFFT as its portable binary package, both unpacked
+with Python's standard library. No compilation, no apt, no privilege.
+
+**`--sandbox` is the fallback if the SIF step fails.** Building a SIF ends with
+`mksquashfs`, which on the login node fails with `Failed to create thread`
+against the process limit there. `--sandbox` writes a writable directory tree
+instead and never calls `mksquashfs`; the tools are usable directly from it, and
+it converts to a SIF afterwards:
+
+```bash
+apptainer build --sandbox tools.sandbox containers/calicityper-tools.def
+apptainer exec tools.sandbox blastn -version      # usable as-is
+apptainer build tools.sif tools.sandbox           # convert when convenient
+```
+
+Build on a compute node rather than the login node either way;
+`calicityper_runs/scripts/build_tools_sif.sh` does this, with the sandbox
+fallback wired in.
+
+**Prebuilt images need no privilege at all.** `apptainer pull` is the simplest
+route where a suitable image exists:
+
+```bash
+apptainer pull blast.sif docker://quay.io/biocontainers/blast:2.17.0--h66d330f_0
+apptainer pull mafft.sif docker://quay.io/biocontainers/mafft:7.526--h4bc722e_0
+```
+
+There is no OpenRDP biocontainer, so OpenRDP still needs the virtual
+environment below. Check the tags before relying on them; they are not pinned
+here because they have not been tested on this system.
 
 ## Alternative: a separate virtual environment
 

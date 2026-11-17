@@ -1,19 +1,22 @@
 Bootstrap: docker
-From: debian:12-slim
+From: python:3.11-slim
 
 # External tools for CaliciTyper, pinned, in one image.
 #
 #   apptainer build calicityper-tools.sif containers/calicityper-tools.def
 #
-# NOT YET VERIFIED. This fails on the UCD Sonic cluster because the account
-# is not in /etc/subuid and neither fakeroot nor proot is installed, so
-# apt-get in %post cannot drop privileges. See docs/INSTALL_TOOLS.md for the
-# three ways round it. The recipe itself is untested until one of them is
-# applied -- treat the pinned versions as intended, not as confirmed.
+# Built WITHOUT apt-get, deliberately. On an HPC system where the account has
+# no /etc/subuid range and neither fakeroot nor proot is installed, Apptainer
+# falls back to a root-mapped namespace in which apt-get cannot drop
+# privileges to the _apt user and dies with
+#   E: setgroups 65534 failed - setgroups (1: Operation not permitted)
+# Everything else in %post works in that namespace, so this recipe uses a base
+# image that already carries Python and installs the other two tools from
+# prebuilt binaries fetched and unpacked with Python's own stdlib. No
+# compilation, no package manager, no privilege.
 #
 # OpenRDP needs numpy<2 while CaliciTyper runs numpy>=2, so OpenRDP gets its
-# own interpreter inside the image and is never importable from the host
-# environment. See docs/INSTALL_TOOLS.md.
+# own interpreter inside the image. See docs/INSTALL_TOOLS.md.
 
 %labels
     Description  BLAST+, MAFFT and OpenRDP for CaliciTyper
@@ -23,32 +26,41 @@ From: debian:12-slim
 
 %post
     set -eux
-    export DEBIAN_FRONTEND=noninteractive
-    apt-get update
-    apt-get install -y --no-install-recommends \
-        ca-certificates curl python3 python3-venv python3-pip
-    rm -rf /var/lib/apt/lists/*
 
-    # --- BLAST+ 2.17.0 ---------------------------------------------------
-    cd /opt
-    curl -fsSL -o blast.tar.gz \
-      "https://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/2.17.0/ncbi-blast-2.17.0+-x64-linux.tar.gz"
-    tar xzf blast.tar.gz && rm blast.tar.gz
-    mv ncbi-blast-2.17.0+ /opt/blast
-    # keep only what is used, the full set is large
-    find /opt/blast/bin -maxdepth 1 -type f \
-        ! -name blastn ! -name makeblastdb -delete
+    python3 - <<'PY'
+import tarfile, urllib.request, pathlib, shutil, os
 
-    # --- MAFFT 7.526 -----------------------------------------------------
-    cd /opt
-    curl -fsSL -o mafft.tgz \
-      "https://mafft.cbrc.jp/alignment/software/mafft-7.526-without-extensions-src.tgz"
-    tar xzf mafft.tgz && rm mafft.tgz
-    cd mafft-7.526-without-extensions/core
-    make clean && make && make install
-    cd /opt && rm -rf mafft-7.526-without-extensions
+def fetch(url, dest):
+    print(f"fetching {url}", flush=True)
+    urllib.request.urlretrieve(url, dest)
 
-    # --- OpenRDP 0.1.0, isolated interpreter (numpy<2) -------------------
+# --- BLAST+ 2.17.0, prebuilt x64 linux ------------------------------------
+fetch("https://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/2.17.0/"
+      "ncbi-blast-2.17.0+-x64-linux.tar.gz", "/tmp/blast.tar.gz")
+with tarfile.open("/tmp/blast.tar.gz") as t:
+    t.extractall("/opt")
+os.rename("/opt/ncbi-blast-2.17.0+", "/opt/blast")
+os.remove("/tmp/blast.tar.gz")
+# the full set is ~300 MB; keep only what CaliciTyper invokes
+keep = {"blastn", "makeblastdb"}
+for p in pathlib.Path("/opt/blast/bin").iterdir():
+    if p.is_file() and p.name not in keep:
+        p.unlink()
+
+# --- MAFFT 7.526, portable package (no compilation) -----------------------
+fetch("https://mafft.cbrc.jp/alignment/software/mafft-7.526-linux.tgz",
+      "/tmp/mafft.tgz")
+with tarfile.open("/tmp/mafft.tgz") as t:
+    t.extractall("/opt")
+os.remove("/tmp/mafft.tgz")
+print("mafft tree:", os.listdir("/opt/mafft-linux64"), flush=True)
+PY
+
+    # the portable MAFFT entry point is a wrapper script that locates its own
+    # binaries relative to itself, so it is linked rather than copied
+    ln -s /opt/mafft-linux64/mafft.bat /usr/local/bin/mafft
+
+    # --- OpenRDP 0.1.0, isolated interpreter (numpy<2) --------------------
     python3 -m venv /opt/openrdp-venv
     /opt/openrdp-venv/bin/pip install --no-cache-dir --upgrade pip
     /opt/openrdp-venv/bin/pip install --no-cache-dir 'numpy<2' 'openrdp==0.1.0'
@@ -61,7 +73,7 @@ From: debian:12-slim
 %test
     set -e
     blastn -version
-    makeblastdb -version
+    makeblastdb -version | head -1
     mafft --version
     openrdp --help > /dev/null && echo "openrdp ok"
     /opt/openrdp-venv/bin/python -c "import numpy; assert numpy.__version__.startswith('1.'), numpy.__version__; print('openrdp numpy', numpy.__version__)"
@@ -80,6 +92,6 @@ From: debian:12-slim
 
       apptainer exec -B /scratch calicityper-tools.sif blastn ...
 
-    Point CaliciTyper at these binaries with CALICITYPER_BLASTN,
-    CALICITYPER_MAKEBLASTDB, CALICITYPER_MAFFT and CALICITYPER_OPENRDP;
-    docs/INSTALL_TOOLS.md has wrapper scripts that do this.
+    Point CaliciTyper at these with CALICITYPER_BLASTN, CALICITYPER_MAKEBLASTDB,
+    CALICITYPER_MAFFT and CALICITYPER_OPENRDP; docs/INSTALL_TOOLS.md has
+    wrapper scripts that do this.
