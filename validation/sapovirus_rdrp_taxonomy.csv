@@ -142,8 +142,8 @@ GXIX.P,KX759622,0-0.335,
 GXXVIII.P,KX759618,0.003,
 GXXVIII.P,KX759621,0.003,
 GNA1.P,OM480531,NA,
-GNA2.P,OQ818319,NA,
-GNA3.P,OP963623,NA,
+GNA3.P,OQ818319,NA,"RELABELLED from GNA2.P: Supplemental Table 1's RdRp block pairs GNA2.P with OQ818319 and GNA3.P with OP963623, crossing the VP1 block, which assigns GNA2 to OP963623 and GNA3 to OQ818319. The paper's pig/bat table gives the uncrossed pairing for both strains. Two lines of evidence favour the pig/bat table. First, all 18 other VP1/RdRp group discordances in the supplement place a strain in a PRE-EXISTING P-group, which is what recombination looks like; these two are the only ones naming a P-group coined in this same paper, and a de novo GNA2.P has no source for its label other than the capsid genogroup of its own strain, OP963623. Second, each strain is the only member of its P-group, so a reciprocal swap leaves every pairwise distance unchanged and cannot be detected or refuted from the sequence data; the published tables are the only evidence, and they are 1-1 against the supplement here."
+GNA2.P,OP963623,NA,"RELABELLED from GNA3.P: Supplemental Table 1's RdRp block pairs GNA2.P with OQ818319 and GNA3.P with OP963623, crossing the VP1 block, which assigns GNA2 to OP963623 and GNA3 to OQ818319. The paper's pig/bat table gives the uncrossed pairing for both strains. Two lines of evidence favour the pig/bat table. First, all 18 other VP1/RdRp group discordances in the supplement place a strain in a PRE-EXISTING P-group, which is what recombination looks like; these two are the only ones naming a P-group coined in this same paper, and a de novo GNA2.P has no source for its label other than the capsid genogroup of its own strain, OP963623. Second, each strain is the only member of its P-group, so a reciprocal swap leaves every pairwise distance unchanged and cannot be detected or refuted from the sequence data; the published tables are the only evidence, and they are 1-1 against the supplement here."
 GXII.P,MN543743,NA,
 GXV.P,MF175077,NA,
 GNA4.P,MH003837,NA,

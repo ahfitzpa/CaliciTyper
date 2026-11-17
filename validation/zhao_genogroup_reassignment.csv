@@ -1,0 +1,35 @@
+# Pig and bat sapoviruses in current and new genogroup assignment, as determined
+# by complete VP1 and RdRp, from Zhao et al. 2024 (BMC Genomics 25:1131).
+# Transcribed from the published table.
+#
+# This is an INDEPENDENT reference standard for three assignments our tables
+# make from Supplemental Table 1: the VP1 genogroup, the genogroup
+# reassignments that study introduced, and the RdRp P-GROUP (not P-type, which
+# this table does not give). Where the two disagree, one of them is a
+# transcription error. It already caught two: see validation/README notes and
+# the RELABEL entries in scripts/build_sapovirus_taxonomy.py.
+#
+# rdrp_group is a P-group, e.g. GIX.P, so our P-types (GIX.P1 etc.) are scored
+# against it at group level only.
+accession,host,current_vp1_genogroup,vp1_genogroup,rdrp_group,note
+FJ498788,pig,GIX,GIX,GIX.P,
+LC215896,pig,GX,GX,GX.P,
+LC215898,pig,GXI,GXI,GXI.P,
+MH003837,pig,GXV,GXV,GXV.P,"RESOLVED against the supplement, which assigns GNA4/GNA4.P: GNA4 is a genotype name coined in this paper and MH003837 is its only member, so were it GXV the name would never have been coined and the paper's own count of 53 VP1 genotypes would be 52. This table is in error; we keep GNA4/GNA4.P"
+AY974192,pig,GVI,GVI,GVI.P,not held in our reference sets
+LC483441,pig,GVI,GXXII,GVI.P,"VP1 reassigned GVI -> GXXII; RdRp stays GVI.P, so VP1 and RdRp groups differ"
+LC215888,pig,GVI,GXXIII,GVI.P,"VP1 reassigned GVI -> GXXIII; RdRp stays GVI.P"
+AB221130,pig,GVII,GVII,GVII.P,
+MF766258,pig,GVII,GXXIV,GXI.P,"VP1 reassigned GVII -> GXXIV; RdRp GXI.P, so the groups differ"
+LC215894,pig,GVII,GXXV,GXXV.P,VP1 reassigned GVII -> GXXV
+KC309421,pig,GVII,GXXVI,GXXV.P,"VP1 reassigned GVII -> GXXVI; RdRp GXXV.P, so the groups differ"
+LC215889,pig,GVII,GXXVII,GXXV.P,"VP1 reassigned GVII -> GXXVII; RdRp GXXV.P, so the groups differ"
+KX759619,bat,GXVIII,GXVIII,GXVIII.P,
+MW450824,bat,GXVI,GXVI,GXVI.P,
+NC_017936,bat,GXIV,GXIV,GXIV.P,printed as "NC 017936" in the published table
+NC_033776,bat,GXIX.1,GXIX,GXIX.P,printed as "NC 033776" in the published table
+KX759621,bat,GXIX.2,GXXVIII,GXXVIII.P,VP1 reassigned GXIX.2 -> GXXVIII
+OP963623,bat,None,GNA2,GNA2.P,"RESOLVED in favour of THIS table; the supplement crosses GNA2.P/GNA3.P between this strain and OQ818319. See the RELABEL entry in scripts/build_sapovirus_taxonomy.py"
+OQ818319,bat,None,GNA3,GNA3.P,"RESOLVED in favour of THIS table; see OP963623 and the RELABEL entry in scripts/build_sapovirus_taxonomy.py"
+OP963622,bat,None,GXXI,GXXI.P,
+ON872527,bat,None,GXX,GXX.P,

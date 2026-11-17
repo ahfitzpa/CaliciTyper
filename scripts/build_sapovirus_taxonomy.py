@@ -51,7 +51,32 @@ RELABEL = {
         "designates AJ606693 as GI.4[P1], i.e. P-type GI.P1. The sequence data agree: its RdRp "
         "is 0.272-0.281 from the GI.P2 references and 0.144 from GI.P1, and moving it returns "
         "GI.P2's within-type maximum from 0.281 to 0.035, inside the published 0-0.119 range."),
+    ("GNA3.P", "OP963623"): (
+        "GNA2.P",
+        "Supplemental Table 1's RdRp block pairs GNA2.P with OQ818319 and GNA3.P with OP963623, "
+        "crossing the VP1 block, which assigns GNA2 to OP963623 and GNA3 to OQ818319. The paper's "
+        "pig/bat table gives the uncrossed pairing for both strains. Two lines of evidence favour the "
+        "pig/bat table. First, all 18 other VP1/RdRp group discordances in the supplement place a "
+        "strain in a PRE-EXISTING P-group, which is what recombination looks like; these two are the "
+        "only ones naming a P-group coined in this same paper, and a de novo GNA2.P has no source for "
+        "its label other than the capsid genogroup of its own strain, OP963623. Second, each strain "
+        "is the only member of its P-group, so a reciprocal swap leaves every pairwise distance "
+        "unchanged and cannot be detected or refuted from the sequence data; the published tables are "
+        "the only evidence, and they are 1-1 against the supplement here."),
+    ("GNA2.P", "OQ818319"): (
+        "GNA3.P",
+        "Supplemental Table 1's RdRp block pairs GNA2.P with OQ818319 and GNA3.P with OP963623, "
+        "crossing the VP1 block, which assigns GNA2 to OP963623 and GNA3 to OQ818319. The paper's "
+        "pig/bat table gives the uncrossed pairing for both strains. Two lines of evidence favour the "
+        "pig/bat table. First, all 18 other VP1/RdRp group discordances in the supplement place a "
+        "strain in a PRE-EXISTING P-group, which is what recombination looks like; these two are the "
+        "only ones naming a P-group coined in this same paper, and a de novo GNA2.P has no source for "
+        "its label other than the capsid genogroup of its own strain, OP963623. Second, each strain "
+        "is the only member of its P-group, so a reciprocal swap leaves every pairwise distance "
+        "unchanged and cannot be detected or refuted from the sequence data; the published tables are "
+        "the only evidence, and they are 1-1 against the supplement here."),
 }
+
 # Strains the published table lists under two genogroups. A strain cannot be
 # routed to two reference sets, so each was settled by the paper's own criterion
 # (VP1 nt distance; commit 2bf3998). The broad legacy row is kept, so the counts
