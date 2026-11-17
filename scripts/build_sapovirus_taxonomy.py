@@ -75,8 +75,46 @@ RELABEL = {
         "is the only member of its P-group, so a reciprocal swap leaves every pairwise distance "
         "unchanged and cannot be detected or refuted from the sequence data; the published tables are "
         "the only evidence, and they are 1-1 against the supplement here."),
+    ("GI.P5", "LC380411"): (
+        "GI.P6",
+        "Supplemental Table 1's RdRp block has NO GI.P6 row at all, jumping GI.P5 to GI.P7, and lists "
+        "five strains under GI.P5. Table 2 of the same paper designates MG012443 as GI.6[P6], i.e. "
+        "P-type GI.P6, so GI.P6 exists in the scheme and its block was dropped from the supplement, "
+        "its members falling under GI.P5. Four independent lines agree on where the boundary lies. "
+        "The RdRp distances split the five into two tight clusters, DQ366345 + LC504396 at 0.050 and "
+        "LC380411 + MG012443 + MN509083 at 0.019-0.057, which are 0.249-0.255 apart. The published "
+        "GI.P5 range of 0-0.052 matches the first cluster exactly and is impossible for all five, "
+        "whose spread is 0.255. The VP1 genotypes partition on the same line: GI.5 for the first "
+        "cluster, GI.6 for the second. And Table 2's GI.P5 representative, DQ366345, sits in the "
+        "first. So the second cluster is GI.P6. GI.P6's own published range is left NA because the "
+        "supplement gives no row for it."),
+    ("GI.P5", "MG012443"): (
+        "GI.P6",
+        "Supplemental Table 1's RdRp block has NO GI.P6 row at all, jumping GI.P5 to GI.P7, and lists "
+        "five strains under GI.P5. Table 2 of the same paper designates MG012443 as GI.6[P6], i.e. "
+        "P-type GI.P6, so GI.P6 exists in the scheme and its block was dropped from the supplement, "
+        "its members falling under GI.P5. Four independent lines agree on where the boundary lies. "
+        "The RdRp distances split the five into two tight clusters, DQ366345 + LC504396 at 0.050 and "
+        "LC380411 + MG012443 + MN509083 at 0.019-0.057, which are 0.249-0.255 apart. The published "
+        "GI.P5 range of 0-0.052 matches the first cluster exactly and is impossible for all five, "
+        "whose spread is 0.255. The VP1 genotypes partition on the same line: GI.5 for the first "
+        "cluster, GI.6 for the second. And Table 2's GI.P5 representative, DQ366345, sits in the "
+        "first. So the second cluster is GI.P6. GI.P6's own published range is left NA because the "
+        "supplement gives no row for it."),
+    ("GI.P5", "MN509083"): (
+        "GI.P6",
+        "Supplemental Table 1's RdRp block has NO GI.P6 row at all, jumping GI.P5 to GI.P7, and lists "
+        "five strains under GI.P5. Table 2 of the same paper designates MG012443 as GI.6[P6], i.e. "
+        "P-type GI.P6, so GI.P6 exists in the scheme and its block was dropped from the supplement, "
+        "its members falling under GI.P5. Four independent lines agree on where the boundary lies. "
+        "The RdRp distances split the five into two tight clusters, DQ366345 + LC504396 at 0.050 and "
+        "LC380411 + MG012443 + MN509083 at 0.019-0.057, which are 0.249-0.255 apart. The published "
+        "GI.P5 range of 0-0.052 matches the first cluster exactly and is impossible for all five, "
+        "whose spread is 0.255. The VP1 genotypes partition on the same line: GI.5 for the first "
+        "cluster, GI.6 for the second. And Table 2's GI.P5 representative, DQ366345, sits in the "
+        "first. So the second cluster is GI.P6. GI.P6's own published range is left NA because the "
+        "supplement gives no row for it."),
 }
-
 # Strains the published table lists under two genogroups. A strain cannot be
 # routed to two reference sets, so each was settled by the paper's own criterion
 # (VP1 nt distance; commit 2bf3998). The broad legacy row is kept, so the counts
@@ -216,7 +254,8 @@ def write_csv(path, what, key, groups):
                     # carry the DESTINATION type's published range, not the one
                     # the strain was listed under, or the destination's range is
                     # overwritten by a value computed without this strain
-                    rng_out = groups.get(new_label, {}).get("range", groups[label]["range"])
+                    rng_out = (groups[new_label]["range"] if new_label in groups
+                               else "NA")   # destination has no published row
                 elif (label, bare) in RETIRED:
                     note = f"RETIRED duplicate listing: {RETIRED[(label, bare)]}"
                     retired += 1
