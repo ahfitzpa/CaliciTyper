@@ -40,6 +40,18 @@ PAPER_TYPOS = {
     "KC469052": ("LC469052", "KC469052 is an uncultured bacterium clone; LC469052 is Porcine sapovirus Pig/HgYa2018"),
     "LC215696": ("LC215896", "LC215696 is a whitefly COI record; LC215896 is Sapovirus GX/HgTa2"),
 }
+# Label corrections: (published label, accession) -> (corrected label, why).
+# Supplemental Table 1 and Table 2 of the same paper disagree for these; Table 2
+# gives the dual-typing designation per representative strain and is taken as
+# authoritative, with the measured distances recorded as corroboration.
+RELABEL = {
+    ("GI.P2", "AJ606693"): (
+        "GI.P1",
+        "Supplemental Table 1 lists this strain under GI.P2, but Table 2 of the same paper "
+        "designates AJ606693 as GI.4[P1], i.e. P-type GI.P1. The sequence data agree: its RdRp "
+        "is 0.272-0.281 from the GI.P2 references and 0.144 from GI.P1, and moving it returns "
+        "GI.P2's within-type maximum from 0.281 to 0.035, inside the published 0-0.119 range."),
+}
 # Strains the published table lists under two genogroups. A strain cannot be
 # routed to two reference sets, so each was settled by the paper's own criterion
 # (VP1 nt distance; commit 2bf3998). The broad legacy row is kept, so the counts
@@ -153,7 +165,7 @@ HEADER = """\
 
 
 def write_csv(path, what, key, groups):
-    corrected = unresolved = retired = 0
+    corrected = unresolved = retired = relabelled = 0
     with open(path, "w", newline="") as fh:
         fh.write(HEADER.format(what=what, xlsx=XLSX.name))
         w = csv.writer(fh)
@@ -162,6 +174,8 @@ def write_csv(path, what, key, groups):
             for acc in groups[label]["accs"]:
                 bare = tidy_accession(acc)
                 note = ""
+                label_out = label
+                rng_out = groups[label]["range"]
                 if bare in PAPER_TYPOS:
                     bare, why = PAPER_TYPOS[bare]
                     note = f"corrected from published table: {why}"
@@ -169,13 +183,23 @@ def write_csv(path, what, key, groups):
                 elif bare in UNRESOLVED:
                     note = f"UNRESOLVED: {UNRESOLVED[bare]}"
                     unresolved += 1
+                elif (label, bare) in RELABEL:
+                    new_label, why = RELABEL[(label, bare)]
+                    note = f"RELABELLED from {label}: {why}"
+                    label_out = new_label
+                    relabelled += 1
+                    # carry the DESTINATION type's published range, not the one
+                    # the strain was listed under, or the destination's range is
+                    # overwritten by a value computed without this strain
+                    rng_out = groups.get(new_label, {}).get("range", groups[label]["range"])
                 elif (label, bare) in RETIRED:
                     note = f"RETIRED duplicate listing: {RETIRED[(label, bare)]}"
                     retired += 1
-                w.writerow([label, bare, groups[label]["range"], note])
+                w.writerow([label_out, bare, rng_out, note])
     n = sum(len(v["accs"]) for v in groups.values())
     print(f"{path.name}: {len(groups)} labels, {n} accessions "
-          f"({corrected} corrected, {unresolved} unresolved, {retired} retired)")
+          f"({corrected} corrected, {unresolved} unresolved, {retired} retired, "
+          f"{relabelled} relabelled)")
 
 
 def main():

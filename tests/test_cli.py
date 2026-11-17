@@ -25,6 +25,7 @@ COLUMNS = ["query", "genogroup", "orf1_type", "orf1_support", "orf1_runners",
            "orf2_sites", "orf2_nearest", "orf2_nearest_identity", "orf2_nearest_type",
            "orf2_accepted",
            "orf1_window_cov", "orf2_window_cov", "gii4_window_cov",
+           "dual_type", "dual_type_discordant",
            "orf1_putative_novel", "orf1_putative_novel_detail",
            "orf2_putative_novel", "orf2_putative_novel_detail"]
 

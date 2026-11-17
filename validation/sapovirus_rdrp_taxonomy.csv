@@ -27,7 +27,7 @@ GI.P2,LC504379,0-0.119,
 GI.P2,MF431582,0-0.119,
 GI.P2,MG012442,0-0.119,
 GI.P2,MG515476,0-0.119,
-GI.P2,AJ606693,0-0.119,
+GI.P1,AJ606693,0-0.085,"RELABELLED from GI.P2: Supplemental Table 1 lists this strain under GI.P2, but Table 2 of the same paper designates AJ606693 as GI.4[P1], i.e. P-type GI.P1. The sequence data agree: its RdRp is 0.272-0.281 from the GI.P2 references and 0.144 from GI.P1, and moving it returns GI.P2's within-type maximum from 0.281 to 0.035, inside the published 0-0.119 range."
 GI.P3,LC504391,0-0.114,
 GI.P3,MK250989,0-0.114,
 GI.P3,AB623037,0-0.114,

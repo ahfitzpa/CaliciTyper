@@ -47,14 +47,17 @@ SAPOVIRUS_REF_DIR = {"orf1": DATA / "reference_sequences_sapovirus_RdRp",
 # further than the genotype cut-off from every reference is untypeable, not
 # given its nearest neighbour's label. Bootstrap support is reported beside it.
 SAPOVIRUS_CUTOFFS = {"orf1": (0.266, 0.531), "orf2": (0.161, 0.503)}
-# Fraction of the region's reference-covered columns a query must cover for
-# its call to be accepted. PROVISIONAL: the cut-offs were derived on complete
-# regions and no truncation curve exists yet for sapovirus, so until one does,
-# a (near-)complete region is the honest requirement. Revisit from the curve.
-SAPOVIRUS_MIN_REGION_COVERAGE = float(os.environ.get("CALICITYPER_SAPOVIRUS_MIN_COVERAGE", 0.9))
-# Off by default until the sapovirus benchmark exists; --type-sapovirus or
-# CALICITYPER_TYPE_SAPOVIRUS=1 turns it on.
-TYPE_SAPOVIRUS = os.environ.get("CALICITYPER_TYPE_SAPOVIRUS", "").lower() in ("1", "true", "yes")
+# Coverage of the typing region is REPORTED but does not exclude a call. The
+# truncation harness settled this: across 150-1,200 nt fragments VP1 precision
+# was 1.000 at every floor from 0.0 to 0.95 while recall fell from 1.000 to
+# 0.030, and no VP1 fragment at any length produced a wrong call. A floor
+# therefore discarded correct calls and prevented no error -- the same finding
+# the norovirus harness reached about the RIVM window gate. Set a value above 0
+# to restore a hard floor.
+SAPOVIRUS_MIN_REGION_COVERAGE = float(os.environ.get("CALICITYPER_SAPOVIRUS_MIN_COVERAGE", 0.0))
+# Sapovirus VP1/RdRp dual typing is ON by default. --no-type-sapovirus, or
+# CALICITYPER_TYPE_SAPOVIRUS=0, reverts to reporting genogroup only.
+TYPE_SAPOVIRUS = os.environ.get("CALICITYPER_TYPE_SAPOVIRUS", "1").lower() in ("1", "true", "yes")
 
 
 def is_sapovirus(group):

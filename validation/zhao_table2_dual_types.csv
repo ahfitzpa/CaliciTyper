@@ -1,0 +1,36 @@
+# Table 2 of Zhao et al. 2024 (BMC Genomics 25:1131): representative strains per
+# VP1 genotype / P-type, with the dual-typing designation introduced by that paper.
+# Transcribed from the published table. This is an INDEPENDENT check on the
+# tables built from Supplemental Table 1 by scripts/build_sapovirus_taxonomy.py:
+# where the two disagree, one of them is a transcription error in the paper.
+#
+# dual_type follows the paper's convention: VP1 genotype first, P-type in
+# brackets; the P-group is written out when it differs from the VP1 genogroup
+# (e.g. GIV.1[GII.P10]).
+accession,current_genotype,genotype,ptype,dual_type,note
+MN794206,GI.1,GI.1,GI.P1,GI.1[P1],
+LC549537,GI.2,GI.2,GI.P2,GI.2[P2],
+MK250989,GI.3,GI.3,GI.P3,GI.3[P3],
+AJ606693,GI.4,GI.4,GI.P1,GI.4[P1],
+DQ366345,GI.5,GI.5,GI.P5,GI.5[P5],
+MG012443,GI.6,GI.6,GI.P6,GI.6[P6],
+AB258428,GI.7,GI.7,GI.P7,GI.7[P7],
+MG012408,GII.1,GII.1,GII.P1,GII.1[P1],
+LC504406,GII.2,GII.2,GII.P2,GII.2[P2],
+LC504411,GII.3,GII.3,GII.P3,GII.3[P3],
+MH541043,GII.3,GII.3,GII.P9,GII.3[P9],recombinant (Table 3)
+LC504410,GII.3,GII.3,GII.PNA2,GII.3[PNA2],recombinant (Table 3)
+KX274477,GII.4,GII.4,GII.P4,GII.4[P4],
+MG012451,GII.5,GII.5,GII.P5,GII.5[P5],
+MH922773,GII.6,GII.6,GII.P6,GII.6[P6],
+AB630067,GII.7,GII.7,GII.P7,GII.7[P7],
+MK599471,GII.8,GII.8,GII.P8,GII.8[P8],
+MH922771,GII.NA1,GII.NA1,GII.PNA1,GII.NA1[PNA1],
+LC504431,GIV,GIV.1,GII.P10,GIV.1[GII.P10],GIV RdRp clusters within GII.P; no distinct GIV.P group exists
+MG571780,GV.1,GV.1,GV.P1,GV.1[P1],
+MN191594,GV.2,GV.2,GV.P2,GV.2[P2],
+AB521772,GV.3,GV.3,GV.P3,GV.3[P3],
+JN420370,GV.4,GXXX.1,GVIII.P1,GXXX.1[GVIII.P1],"PAPER INCONSISTENCY: Table 2 says GVIII.P1; the Results text and Table 3 both say GXIII.P"
+OK484997,,GXXIX.1,GV.P5,GXXIX.1[GV.P5],new genotype in that study
+KX431437,GV.2,GV.NA1,GV.PNA1,GV.NA1[PNA1],
+LC215885,,GXXIX.NA1,GV.PNA2,GXXIX.NA2[PNA2],"PAPER INCONSISTENCY: genotype column says GXXIX.NA1, dual-typing column says GXXIX.NA2"

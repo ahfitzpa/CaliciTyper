@@ -51,6 +51,8 @@ One row per input query sequence (FASTA record), in input order. Columns are emi
 | `orf1_distance` | number | **Sapovirus only** (`--type-sapovirus`): nucleotide p-distance to the nearest RdRp reference, over the columns both cover. Decides the P-type call against the Zhao et al. 2024 cut-offs (<0.266 P-type, <0.531 P-group). |
 | `orf1_accepted` | string | `accepted` or `rejected: ...` describing why the call is not accepted (e.g. low support, insufficient sites, window-mode rejection when enabled). |
 | `orf1_window_cov` | string | Coverage of the RIVM ORF1 typing window as `covered/width` (reported; gating depends on `--rivm-window-mode`). |
+| `dual_type` | string | Dual-typing designation, capsid genotype with the P-type in brackets. The P-group is written out only when it differs from the capsid genogroup: `GII.4[P16]` and `GI.5[P5]` where they agree, `GIV.1[GII.P10]` where they do not. Empty when either region was not typed. |
+| `dual_type_discordant` | string | Non-empty when the capsid and polymerase are placed in different groups, giving the two groups. Reports incongruence only; it is **not** a recombination call, for which see `calicityper recomb`. |
 | `orf1_putative_novel` | string | Putative-novel screen status for ORF1 (e.g. `known`, `putative_novel_type`, `putative_novel_group`, `not_assessable`/NA marker, or empty depending on context). Tentative screening only. |
 | `orf1_putative_novel_detail` | string | Explanation/detail for the ORF1 putative-novel screen result. |
 | `orf2_type` | string | Best ORF2 (VP1/capsid type, including GII.4 variant suffix when applicable) or empty/`unassigned`. |

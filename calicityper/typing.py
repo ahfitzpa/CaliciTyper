@@ -249,6 +249,30 @@ def plan_query(rec_id, seq, hit):
     return row, jobs
 
 
+def dual_type(genotype, ptype):
+    """The dual-typing designation: VP1 genotype first, P-type in brackets.
+
+    Follows Zhao et al. 2024 for sapovirus and the established norovirus
+    convention: the P-group is written out only when it differs from the VP1
+    genogroup, so GI.5 with GI.P5 is "GI.5[P5]" while GIV.1 with GII.P10 --
+    whose RdRp sits in a different group from its capsid -- is
+    "GIV.1[GII.P10]". That asymmetry is the point of dual typing: it makes an
+    incongruent pairing visible in the name itself.
+    """
+    g, p = (genotype or "").strip(), (ptype or "").strip()
+    if not g or g in ("unassigned", "untypeable") or not p or p in ("unassigned", "untypeable"):
+        return ""
+    # The GII.4 variant is reported in its own right (orf2_type, gii4_window_cov);
+    # the dual-typing convention is the genotype stem, GII.4[P16] not
+    # GII.4_Sydney[P16].
+    g = g.split("_", 1)[0]
+    gg = g.split(".")[0]                      # VP1 genogroup, e.g. GI from GI.5
+    pg, _, rest = p.partition(".P")           # P-group and P-type number
+    if rest and pg == gg:
+        return f"{g}[P{rest}]"                # same group: short form
+    return f"{g}[{p}]"                        # different group: write it out
+
+
 MAX_RUNNERS = 3          # how many ranked types to report per region
 
 

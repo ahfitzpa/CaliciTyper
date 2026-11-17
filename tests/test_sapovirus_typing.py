@@ -73,12 +73,40 @@ def test_bootstrap_support_does_not_decide_the_call():
     assert "bootstrap favours GII.1" in row["note"]
 
 
-def test_a_partial_region_is_typed_but_not_accepted():
-    """The cut-offs were derived on complete regions (provisional coverage floor)."""
+def test_a_partial_region_is_typed_and_accepted_with_coverage_reported():
+    """Coverage is reported but does not exclude a call.
+
+    The truncation harness settled this: VP1 precision was 1.000 at every
+    coverage floor from 0.0 to 0.95 while recall fell from 1.000 to 0.030, and
+    no VP1 fragment at any length 150-1,200 nt produced a wrong call, so a
+    floor discarded correct calls and prevented no error.
+    """
     row = _row()
     ty.apply_result(row, "orf2", _res(95.0, sites=600, span=1650), min_support=70.0)
     assert row["orf2_type"] == "GII.2"
+    assert row["orf2_accepted"] == "accepted"
+    assert row["orf2_coverage"] == round(600 / 1650, 3)       # reported, not enforced
+
+
+def test_a_coverage_floor_can_still_be_restored(monkeypatch):
+    """Setting the floor above 0 brings the hard gate back, for anyone who wants it."""
+    monkeypatch.setattr(cg, "SAPOVIRUS_MIN_REGION_COVERAGE", 0.9)
+    row = _row()
+    ty.apply_result(row, "orf2", _res(95.0, sites=600, span=1650), min_support=70.0)
     assert row["orf2_accepted"].startswith("rejected") and "complete regions" in row["orf2_accepted"]
+
+
+def test_dual_type_follows_the_published_convention():
+    """The P-group is written out only when it differs from the capsid genogroup."""
+    assert ty.dual_type("GI.5", "GI.P5") == "GI.5[P5]"
+    assert ty.dual_type("GII.4", "GII.P16") == "GII.4[P16]"
+    assert ty.dual_type("GIV.1", "GII.P10") == "GIV.1[GII.P10]"      # Zhao et al. Table 2
+    assert ty.dual_type("GXXX.1", "GXIII.P1") == "GXXX.1[GXIII.P1]"  # sea lion strain
+    assert ty.dual_type("GI.5", "untypeable") == ""
+
+
+def test_sapovirus_typing_is_on_by_default():
+    assert cg.TYPE_SAPOVIRUS is True
 
 
 def test_sapovirus_is_genogroup_only_unless_enabled(monkeypatch):

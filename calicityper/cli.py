@@ -94,9 +94,9 @@ def _add_type_args(p):
                      help="type all norovirus genogroups (GIII-GX) instead of restricting to validated GI/GII "
                           "(not validated). Overrides $CALICITYPER_TYPE_ALL_GROUPS.")
     adv.add_argument("--type-sapovirus", action=argparse.BooleanOptionalAction, default=None,
-                     help="genotype sapovirus (VP1 genotype and RdRp P-type) by the Zhao et al. 2024 "
-                          "nucleotide distance cut-offs, instead of reporting genogroup only. Not yet "
-                          "benchmarked. Overrides $CALICITYPER_TYPE_SAPOVIRUS.")
+                     help="sapovirus VP1/RdRp dual typing by the Zhao et al. 2024 nucleotide "
+                          "distance cut-offs [default: on]. --no-type-sapovirus reports genogroup "
+                          "only. Overrides $CALICITYPER_TYPE_SAPOVIRUS.")
     adv.add_argument("--rivm-window-mode", action=argparse.BooleanOptionalAction, default=None,
                      help="apply RIVM-style typing-window coverage gates (for comparison/replication). "
                           "Overrides $CALICITYPER_RIVM_WINDOW_MODE.")
@@ -317,6 +317,7 @@ def _align_and_type(a):
         if aln is not None:
             alns[(i, region)] = aln
     _apply_window_rules(rows, alns)
+    _apply_dual_type(rows)
     print(f"[{cmd}] completed typing for {len(recs)} sequence(s)", file=sys.stderr)
     return recs, rows, alns, todo
 
@@ -423,6 +424,31 @@ def _run_novel(a):
     print(f"[novel] {n} of {len(df)} region call(s) flagged as putative novel "
           f"(tentative screening; not genotype designation)", file=sys.stderr)
     return 0
+
+
+def _apply_dual_type(rows):
+    """Compose the dual-typing designation and flag genogroup incongruence.
+
+    Discordance is reported as discordance, not as recombination: a capsid and
+    a polymerase placed in different groups may reflect a recombination event,
+    but also differential evolutionary rates or simple phylogenetic
+    uncertainty. Zhao et al. make the same distinction for the sea lion strain,
+    whose VP1/RdRp incongruence dedicated software found NOT to be
+    recombination. `calicityper recomb` is what tests the recombination
+    hypothesis; this column only says the two regions disagree.
+    """
+    for row in rows.values():
+        gt, pt = row.get("orf2_type", ""), row.get("orf1_type", "")
+        row["dual_type"] = ty.dual_type(gt, pt)
+        row["dual_type_discordant"] = ""
+        if not row["dual_type"]:
+            continue
+        gg = str(gt).split(".")[0]
+        pg = str(pt).partition(".P")[0]
+        if pg and gg and pg != gg:
+            row["dual_type_discordant"] = (
+                f"capsid {gg} with polymerase {pg}: regions placed in different groups; "
+                f"potential recombination or evolutionary incongruence, test with `calicityper recomb`")
 
 
 def _apply_window_rules(rows, alns):
