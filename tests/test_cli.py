@@ -309,19 +309,23 @@ def test_sapovirus_taxonomy_csvs_match_the_published_table():
 
 
 def test_sapovirus_tables_have_the_published_counts():
-    """53 VP1 genotypes / 156 strains and 46 P-types / 139 strains.
+    """52 VP1 genotypes / 156 strains and 45 P-types / 139 strains.
 
-    The VP1 counts are the paper's. The P-type count is 46, not the 45 that
-    Supplemental Table 1 yields, because that table has no GI.P6 row at all --
-    it jumps GI.P5 to GI.P7 and lists GI.P6's three strains under GI.P5. GI.P6
-    is nonetheless a type the paper names: it runs GI.P1-GI.P3 and GI.P5-GI.P7
-    (there is no GI.P4, merged into GI.P1), and Table 2 designates MG012443 as
-    GI.6[P6]. See the GI.P6 RELABEL entries in build_sapovirus_taxonomy.py for
-    the distance and VP1-genotype evidence that fixes the cluster boundary.
+    The P-type count is the paper's own 45, reached by two corrections that
+    cancel. GI.P6 is restored (+1): Supplemental Table 1 has no GI.P6 row at
+    all, jumping GI.P5 to GI.P7 and listing GI.P6's three strains under GI.P5,
+    yet the paper names GI.P1-GI.P3 and GI.P5-GI.P7 and Table 2 designates
+    MG012443 as GI.6[P6]. GNA4.P is emptied (-1): MH003837 is GXV/GXV.P, not
+    GNA4/GNA4.P.
+
+    VP1 is 52, one short of the paper's 53, for that same reason -- GNA4 has
+    no members once MH003837 moves to GXV. Both MH003837 and OP963623 were
+    confirmed manually against the published tables by A. Fitzpatrick
+    (2026-11-17); see the RELABEL entries in build_sapovirus_taxonomy.py.
     """
     root = Path(__file__).resolve().parent.parent
-    for name, key, labels, accs in (("sapovirus_vp1_taxonomy.csv", "genotype", 53, 156),
-                                    ("sapovirus_rdrp_taxonomy.csv", "ptype", 46, 139)):
+    for name, key, labels, accs in (("sapovirus_vp1_taxonomy.csv", "genotype", 52, 156),
+                                    ("sapovirus_rdrp_taxonomy.csv", "ptype", 45, 139)):
         rows = [r for r in csv.DictReader(
             l for l in open(root / "validation" / name) if not l.startswith("#"))]
         assert len(rows) == accs, (name, len(rows))

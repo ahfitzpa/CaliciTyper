@@ -55,13 +55,6 @@ ACCEPTED = {
         "Table 2 is self-contradictory here, saying GXXIX.NA1 in its genotype column and "
         "GXXIX.NA2 in its dual-typing column, and both differ from the supplement's GXXXI.NA1 "
         "at the genogroup level. We keep the supplement."),
-    ("MH003837", "VP1 genogroup"): (
-        "the pig/bat table says GXV, the supplement says GNA4. GNA4 is a genotype name "
-        "coined in this paper and MH003837 is its only member, so were it GXV the name "
-        "would never have been coined and the paper's own count of 53 VP1 genotypes "
-        "would be 52. We follow the supplement."),
-    ("MH003837", "RdRp P-group"): (
-        "follows the VP1 decision above: GNA4.P is this strain's own P-group."),
 }
 
 

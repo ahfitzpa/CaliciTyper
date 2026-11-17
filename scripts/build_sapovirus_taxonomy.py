@@ -114,8 +114,25 @@ RELABEL = {
         "cluster, GI.6 for the second. And Table 2's GI.P5 representative, DQ366345, sits in the "
         "first. So the second cluster is GI.P6. GI.P6's own published range is left NA because the "
         "supplement gives no row for it."),
-}
-# Strains the published table lists under two genogroups. A strain cannot be
+    ("GNA4", "MH003837"): (
+        "GXV",
+        "Supplemental Table 1 assigns this strain GNA4/GNA4.P, but the paper's pig/bat table gives "
+        "GXV/GXV.P, and GXV/GXV.P is the assignment confirmed manually against the published tables "
+        "by A. Fitzpatrick (2026-11-17). We follow that. This supersedes an earlier decision here to "
+        "keep GNA4 on the argument that a name coined in the paper cannot be empty: that inference is "
+        "outweighed by a direct reading of the tables. The consequence is that GNA4 and GNA4.P have "
+        "no members, GXV gains a second strain alongside MF175077, and GXV.P a second alongside "
+        "MF175077."),
+    ("GNA4.P", "MH003837"): (
+        "GXV.P",
+        "Supplemental Table 1 assigns this strain GNA4/GNA4.P, but the paper's pig/bat table gives "
+        "GXV/GXV.P, and GXV/GXV.P is the assignment confirmed manually against the published tables "
+        "by A. Fitzpatrick (2026-11-17). We follow that. This supersedes an earlier decision here to "
+        "keep GNA4 on the argument that a name coined in the paper cannot be empty: that inference is "
+        "outweighed by a direct reading of the tables. The consequence is that GNA4 and GNA4.P have "
+        "no members, GXV gains a second strain alongside MF175077, and GXV.P a second alongside "
+        "MF175077."),
+}# Strains the published table lists under two genogroups. A strain cannot be
 # routed to two reference sets, so each was settled by the paper's own criterion
 # (VP1 nt distance; commit 2bf3998). The broad legacy row is kept, so the counts
 # still match the paper, but marked RETIRED, and every consumer skips it.
