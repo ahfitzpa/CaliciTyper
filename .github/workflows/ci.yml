@@ -10,15 +10,22 @@ on:
   pull_request:
   workflow_dispatch:
 
-# Reference set for CI. Zenodo still holds 0.6.1 on purpose (one deposit once
-# sapovirus genotyping is settled), while the manifest describes 0.7.0, so
-# `calicityper setup` from the manifest's download_url fails verification.
-# Until that deposit, CI installs the same archive from a GitHub pre-release.
-# `setup` still verifies every file against the manifest's checksums, so this
-# changes where the archive comes from, not what is accepted.
-# When Zenodo is updated: delete REFSET_URL and drop `--source "$REFSET_URL"`.
+# Reference set for CI. The manifest describes reference set 0.8.0 (232
+# artefacts, 148 of them sapovirus). The old reference-0.7.0 pre-release
+# predates the sapovirus sets being included at all, so it cannot satisfy this
+# manifest and `setup --verify-only` fails against it.
+#
+# This URL therefore points at the v0.8.0 release asset. It 404s until that
+# release is published, and the reference-set step is red until then; it needs
+# no further commit once the asset is uploaded. `setup` verifies every file
+# against the manifest's checksums either way, so this changes where the
+# archive comes from, not what is accepted.
+#
+# Once the manifest's own download_url points at the same asset, delete
+# REFSET_URL and drop `--source "$REFSET_URL"` so CI exercises the path real
+# users take.
 env:
-  REFSET_URL: https://github.com/ahfitzpa/CaliciTyper/releases/download/reference-0.7.0/calicityper-reference-0.7.0.tar.gz
+  REFSET_URL: https://github.com/ahfitzpa/CaliciTyper/releases/download/v0.8.0/calicityper-reference-0.8.0.tar.gz
 
 jobs:
   test:

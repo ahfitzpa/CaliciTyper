@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import platform
+import resource
 import subprocess
 import sys
 import time
@@ -72,9 +73,18 @@ def main():
         for t in a.threads:
             out = wd / f"out_{n}_{t}.tsv"
             cmd = ["calicityper", "type", str(fa), "-o", str(out), "--threads", str(t)]
+            # peak RSS of the child tree, so the table reports memory as well as
+            # time: reviewers and cluster users both need to know what to request.
+            before = resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss
             start = time.monotonic()
             p = subprocess.run(cmd, capture_output=True, text=True)
             wall = time.monotonic() - start
+            after = resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss
+            # ru_maxrss is the high-water mark across ALL children, so it never
+            # decreases; the delta understates nothing but attributes the peak to
+            # whichever run set it. Report the running maximum, which is what a
+            # user must provision for.
+            peak_mb = max(before, after) / 1024.0
             if p.returncode != 0:
                 print(f"  n={n} threads={t}: FAILED\n{p.stderr[-400:]}")
                 continue
@@ -86,7 +96,8 @@ def main():
 
     outp = Path(a.out)
     outp.parent.mkdir(parents=True, exist_ok=True)
-    cols = ["sequences", "threads", "wall_seconds", "seconds_per_sequence", "genogroups"]
+    cols = ["sequences", "threads", "wall_seconds", "seconds_per_sequence",
+            "peak_rss_mb", "genogroups"]
     with open(outp, "w") as fh:
         fh.write("# host=%s cpus=%s source=%s\n" % (platform.node(),
                                                     len(__import__("os").sched_getaffinity(0)),
