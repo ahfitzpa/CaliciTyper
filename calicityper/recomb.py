@@ -198,36 +198,74 @@ class Hit:
         return [float(self.start), float(self.end)]
 
 
-def run_openrdp(alignment_path, cfg, workdir, timeout=7200):
-    """Run OpenRDP and return (hits, used_methods, skipped, stderr).
-
-    OpenRDP lives in its own environment (numpy<2), so it is invoked as a
-    subprocess. A failure is reported, not raised: the caller still produces a
-    result from whatever other evidence exists.
-    """
-    exe = cfg.openrdp()
-    if not exe:
-        return [], [], [("openrdp", "not found: set $CALICITYPER_OPENRDP or put it on PATH")], ""
-    out_csv = Path(workdir) / "openrdp.csv"
+def _openrdp_once(exe, alignment_path, out_csv, cfg, methods, timeout):
+    """One OpenRDP invocation. Returns (hits, error_or_None, stderr)."""
     # The input path must come BEFORE -m: OpenRDP declares --methods with
     # nargs="*", so a trailing positional is swallowed as a method name and the
     # run dies with "invalid choice". Ordering it first is the whole fix.
     cmd = [exe, str(alignment_path), "-o", str(out_csv), "-s", str(cfg.seed),
-           "-m", *list(cfg.methods)]
+           "-m", *list(methods)]
     try:
         p = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
     except subprocess.TimeoutExpired:
-        return [], [], [("openrdp", f"timed out after {timeout}s")], ""
+        return None, f"timed out after {timeout}s", ""
     except OSError as e:
-        return [], [], [("openrdp", f"could not execute: {e}")], ""
+        return None, f"could not execute: {e}", ""
     if p.returncode != 0 or not out_csv.exists():
         msg = (p.stderr or p.stdout or "no output").strip().splitlines()
-        return [], [], [("openrdp", f"exit {p.returncode}: {msg[-1] if msg else '?'}")], p.stderr
-    hits = parse_openrdp(out_csv.read_text())
+        return None, f"exit {p.returncode}: {msg[-1] if msg else '?'}", p.stderr
+    return parse_openrdp(out_csv.read_text()), None, p.stderr
+
+
+def run_openrdp(alignment_path, cfg, workdir, timeout=7200):
+    """Run OpenRDP and return (hits, used, skipped, stderr, executed).
+
+    OpenRDP lives in its own environment (numpy<2), so it is invoked as a
+    subprocess. A failure is reported, not raised: the caller still produces a
+    result from whatever other evidence exists.
+
+    `used` is the methods that produced hits; `executed` is the methods that
+    ran to completion. The two differ whenever a scanner runs and finds
+    nothing, and only `executed` can distinguish "no recombination found"
+    from "nothing was looked for".
+
+    All methods normally run in one invocation. If that invocation fails, the
+    methods are retried one at a time, because OpenRDP aborts the whole run on
+    a single scanner's error -- one crashing method would otherwise discard
+    the evidence from the other six.
+    """
+    exe = cfg.openrdp()
+    if not exe:
+        return [], [], [("openrdp", "not found: set $CALICITYPER_OPENRDP or put it on PATH")], "", []
+    out_csv = Path(workdir) / "openrdp.csv"
+    methods = list(cfg.methods)
+
+    hits, err, stderr = _openrdp_once(exe, alignment_path, out_csv, cfg, methods, timeout)
+    if err is None:
+        used = sorted({h.method.lower() for h in hits})
+        skipped = [(m, "ran but reported nothing significant")
+                   for m in methods if m not in used]
+        return hits, used, skipped, stderr, methods
+
+    # Combined run failed. Retry per method so one bad scanner costs only its
+    # own evidence. Each gets a share of the budget, with a floor so a short
+    # overall timeout does not starve every method at once.
+    per = max(600, timeout // max(1, len(methods)))
+    hits, executed, skipped = [], [], []
+    for m in methods:
+        h, e, _ = _openrdp_once(exe, alignment_path, Path(workdir) / f"openrdp_{m}.csv",
+                                cfg, [m], per)
+        if e is not None:
+            skipped.append((m, e))
+            continue
+        executed.append(m)
+        hits.extend(h)
+    if not executed:
+        return [], [], [("openrdp", f"all methods failed; combined run: {err}")] + skipped, stderr, []
     used = sorted({h.method.lower() for h in hits})
-    skipped = [(m, "ran but reported nothing significant")
-               for m in cfg.methods if m not in used]
-    return hits, used, skipped, p.stderr
+    skipped += [(m, "ran but reported nothing significant")
+                for m in executed if m not in used]
+    return hits, used, skipped, stderr, executed
 
 
 def parse_openrdp(text):
@@ -668,7 +706,8 @@ def analyse(alignment_path, queries, cfg, metadata_path=None, workdir=None,
         for n, s in zip(aln.names, aln.seqs):
             fh.write(f">{n}\n{s}\n")
 
-    hits, used, skipped, _ = run_openrdp(clean, cfg, tmp, timeout=openrdp_timeout)
+    hits, used, skipped, _, executed = run_openrdp(clean, cfg, tmp,
+                                                   timeout=openrdp_timeout)
     if cfg.run_gard:
         skipped.append(("gard", "not implemented yet (stage 3)"))
 
@@ -692,8 +731,8 @@ def analyse(alignment_path, queries, cfg, metadata_path=None, workdir=None,
     # -- then every query is UNASSESSED, not negative. Without this a tool failure
     # is indistinguishable in the output from "no recombination found", which is
     # the more dangerous of the two to get wrong.
-    if not used:
-        why = "; ".join(f"{t}: {r}" for t, r in skipped) or "no scanner produced output"
+    if not executed:
+        why = "; ".join(f"{t}: {r}" for t, r in skipped) or "no scanner ran"
         for r in results:
             rec = r["recombination"]
             if rec["status"] not in UNASSESSED:

@@ -302,6 +302,51 @@ def test_missing_openrdp_is_reported_not_fatal(tmp_path, cfg, monkeypatch):
     assert "openrdp" in skipped, provenance["tools_skipped"]
 
 
+def test_scanners_that_run_and_find_nothing_report_none(tmp_path, cfg, monkeypatch):
+    """A clean sequence must stay "none", not become not_assessed.
+
+    The not_assessed path keys off methods that EXECUTED, not methods that
+    produced hits, precisely so that scanners running and finding nothing is
+    still a negative result. The real-OpenRDP version of this is
+    test_synthetic_dataset_status[non_recombinant], which is gated behind
+    needs_openrdp, so this covers the distinction without the binary.
+    """
+    monkeypatch.setattr(R, "_openrdp_once",
+                        lambda exe, aln, out, c, methods, timeout: ([], None, ""))
+    monkeypatch.setattr(type(cfg), "openrdp", lambda self: "/bin/true", raising=False)
+    p = tmp_path / "x.fasta"
+    synthetic.non_recombinant(str(p))
+    aln = R.read_alignment(str(p))
+    results, provenance = R.analyse(str(p), [aln.names[-1]], cfg,
+                                    workdir=str(tmp_path / "w"))
+    rec = results[0]["recombination"]
+    assert rec["status"] not in R.UNASSESSED, rec
+    assert rec["status"] == "none", rec
+    assert provenance["tools_used"] == [], provenance["tools_used"]
+
+
+def test_one_crashing_scanner_does_not_void_the_others(tmp_path, cfg, monkeypatch):
+    """OpenRDP aborts the whole run on one scanner's error, so a failed
+    combined run is retried method by method. Only the bad method is lost."""
+    calls = []
+
+    def fake(exe, aln, out, c, methods, timeout):
+        calls.append(list(methods))
+        if len(methods) > 1:
+            return None, "exit 1: IndexError: index 7879 out of bounds", ""
+        if methods[0] == "siscan":
+            return None, "exit 1: IndexError: index 7879 out of bounds", ""
+        return [], None, ""
+
+    monkeypatch.setattr(R, "_openrdp_once", fake)
+    monkeypatch.setattr(type(cfg), "openrdp", lambda self: "/bin/true", raising=False)
+    hits, used, skipped, _, executed = R.run_openrdp("ignored.fasta", cfg, str(tmp_path))
+    assert len(calls) == 1 + len(cfg.methods), calls
+    assert "siscan" not in executed and executed, executed
+    assert sorted(executed) == sorted(m for m in cfg.methods if m != "siscan")
+    assert any(t == "siscan" and "IndexError" in r for t, r in skipped), skipped
+
+
 def test_unknown_query_id_is_an_error(tmp_path, cfg):
     p = tmp_path / "x.fasta"
     synthetic.non_recombinant(str(p))
