@@ -166,6 +166,10 @@ def _add_recomb_args(p):
     p.add_argument("--max-breakpoint-distance", type=int, help="override max_breakpoint_distance")
     p.add_argument("--methods", nargs="+", metavar="M",
                    help=f"subset of methods to request: {' '.join(_rc.ALL_METHODS)}")
+    p.add_argument("--openrdp-timeout", type=int, default=7200, metavar="S",
+                   help="seconds to allow the combined OpenRDP run; on failure the methods "
+                        "are retried one at a time, each with a share of this budget "
+                        "[default: 7200]")
     p.add_argument("--skip-gard", action="store_true", help="do not run HyPhy GARD")
     p.add_argument("--skip-rdp", action="store_true", help="do not run OpenRDP scanners")
     p.add_argument("--no-segment-trees", action="store_true",
@@ -761,7 +765,8 @@ def _run_recomb(a):
 
     results, provenance = R.analyse(aln_path, queries, cfg,
                                     metadata_path=a.reference_metadata,
-                                    workdir=str(outdir / "work"))
+                                    workdir=str(outdir / "work"),
+                                    openrdp_timeout=a.openrdp_timeout)
     js = R.write_json(results, provenance, outdir / "recombination.json")
     tsv = R.write_tsv(results, outdir / "recombination.tsv")
     R.write_provenance_sidecar(provenance, outdir / "recombination.tsv.provenance.json",

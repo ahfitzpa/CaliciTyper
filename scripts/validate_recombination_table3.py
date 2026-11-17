@@ -102,7 +102,7 @@ def panel_for(query_fa, workdir, n=PANEL_SIZE):
     return keep[:n]
 
 
-def run_one(idx, out_dir, threads):
+def run_one(idx, out_dir, threads, openrdp_timeout=7200):
     from Bio import SeqIO
     from calicityper import config as cg
     acc, host, genotype, ptype, expect = TABLE3[idx]
@@ -148,7 +148,8 @@ def run_one(idx, out_dir, threads):
 
     o = w / "recomb"
     cmd = [sys.executable, "-m", "calicityper.cli", "recomb", "--input", str(combined),
-           "--query", acc, "--virus", "sapovirus", "-o", str(o), "--threads", str(threads)]
+           "--query", acc, "--virus", "sapovirus", "-o", str(o), "--threads", str(threads),
+           "--openrdp-timeout", str(openrdp_timeout)]
     p = subprocess.run(cmd, capture_output=True, text=True)
     (w / "recomb.log").write_text(p.stdout + "\n--- stderr ---\n" + p.stderr)
     jf = o / "recombination.json"
@@ -183,6 +184,10 @@ def run_one(idx, out_dir, threads):
 
 
 DETECTED = {"likely", "strong"}
+#: statuses meaning the question was not answered, as against answered "no".
+#: These must never be scored as negatives -- a scanner that timed out or
+#: crashed has not told us the sequence is clean.
+UNASSESSED = {"not_assessed", "failed", "insufficient_sequence"}
 
 
 def summarise(out_dir):
@@ -199,7 +204,8 @@ def summarise(out_dir):
         regions = {e.get("region") for e in d.get("events", []) if e.get("region")}
         rows.append(dict(accession=acc, host=host, dual=f"{genotype}[{ptype}]", expect=expect,
                          status=d.get("status"), score=d.get("score"),
-                         n_events=d.get("n_events"), regions="; ".join(sorted(r for r in regions if r))))
+                         n_events=d.get("n_events"), notes=d.get("notes", ""),
+                         regions="; ".join(sorted(r for r in regions if r))))
     print(f"\n{'accession':11s} {'dual type':22s} {'expected':9s} {'status':9s} {'score':>6s} {'ev':>3s}  regions")
     agree = tested = 0
     for r in rows:
@@ -212,8 +218,16 @@ def summarise(out_dir):
         sc = f"{r['score']:.3f}" if isinstance(r.get("score"), (int, float)) else "-"
         print(f"{r['accession']:11s} {str(r.get('dual','')):22s} {exp:9s} {st:9s} {sc:>6s} "
               f"{str(r.get('n_events','-')):>3s}  {r.get('regions','')}")
+    unassessed = [r for r in rows if str(r.get("status")) in UNASSESSED
+                  or str(r.get("status")) in ("NOT RUN", "FAILED")]
     if tested:
-        print(f"\nagreement with the published result: {agree}/{tested}")
+        print(f"\nagreement with the published result: {agree}/{tested} assessed")
+        print(f"  (detected = {sorted(DETECTED)}; 'possible' counts as not detected)")
+    if unassessed:
+        print(f"\nNOT ASSESSED ({len(unassessed)}) -- excluded from the score above, because a\n"
+              f"scanner that did not run has not said the sequence is clean:")
+        for r in unassessed:
+            print(f"  {r['accession']:11s} {str(r.get('status')):18s} {r.get('notes','')}")
     neg = [r for r in rows if r.get("expect") is False and str(r.get("status")) in
            DETECTED | {"none", "weak", "possible"}]
     for r in neg:
@@ -222,7 +236,7 @@ def summarise(out_dir):
               f"{'as published (no recombination)' if ok else 'DISAGREES with the published result'}")
     with open(Path(out_dir) / "table3_summary.csv", "w", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=["accession", "host", "dual", "expect", "status",
-                                           "score", "n_events", "regions"])
+                                           "score", "n_events", "regions", "notes"])
         w.writeheader()
         for r in rows:
             w.writerow({k: r.get(k, "") for k in w.fieldnames})
@@ -236,13 +250,15 @@ def main():
     ap.add_argument("--summarise", action="store_true")
     ap.add_argument("--out-dir", default="results/recomb_table3")
     ap.add_argument("--threads", type=int, default=8)
+    ap.add_argument("--openrdp-timeout", type=int, default=7200,
+                    help="combined-run budget; methods are retried singly on failure")
     a = ap.parse_args()
     Path(a.out_dir).mkdir(parents=True, exist_ok=True)
     if a.summarise:
         return summarise(a.out_dir)
     if a.index is None or not 0 <= a.index < len(TABLE3):
         raise SystemExit(f"--index must be 0..{len(TABLE3)-1}")
-    return run_one(a.index, a.out_dir, a.threads)
+    return run_one(a.index, a.out_dir, a.threads, a.openrdp_timeout)
 
 
 if __name__ == "__main__":
