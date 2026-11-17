@@ -24,6 +24,7 @@ P-types at all.
 from __future__ import annotations
 
 import csv
+import re
 import sys
 from pathlib import Path
 
@@ -36,6 +37,24 @@ V = ROOT / "validation"
 # reported as accepted rather than failing the check. Anything NOT listed here
 # is a real problem.
 ACCEPTED = {
+    ("AB630067", "VP1 genotype"): (
+        "Table 2 gives the pre-reassignment name. The supplement reassigns this strain to "
+        "GXXIX.1 and leaves GII.7 with no members at all, which is what a retired name should "
+        "look like. One principle covers these cases: a type this paper COINS must be "
+        "non-empty, a type it RETIRES should be empty. We follow the supplement."),
+    ("MK599471", "VP1 genotype"): (
+        "as AB630067: Table 2 gives the pre-reassignment GII.8, which the supplement leaves "
+        "empty, having reassigned this strain to GXXIX.2 along with four others."),
+    ("JN420370", "VP1 genotype"): (
+        "Table 2 adds a subtype level, GXXX.1, that Supplemental Table 1 does not use; GXXX "
+        "holds this one strain. A granularity difference, not a disagreement about placement."),
+    ("JN420370", "P-type"): (
+        "Table 2 says GVIII.P1, but the Results text, Table 3 and Supplemental Table 1 all say "
+        "GXIII.P. Table 2 is the outlier three to one, so we keep GXIII.P."),
+    ("LC215885", "VP1 genotype"): (
+        "Table 2 is self-contradictory here, saying GXXIX.NA1 in its genotype column and "
+        "GXXIX.NA2 in its dual-typing column, and both differ from the supplement's GXXXI.NA1 "
+        "at the genogroup level. We keep the supplement."),
     ("MH003837", "VP1 genogroup"): (
         "the pig/bat table says GXV, the supplement says GNA4. GNA4 is a genotype name "
         "coined in this paper and MH003837 is its only member, so were it GXV the name "
@@ -44,6 +63,17 @@ ACCEPTED = {
     ("MH003837", "RdRp P-group"): (
         "follows the VP1 decision above: GNA4.P is this strain's own P-group."),
 }
+
+
+def canon(label):
+    """Canonical form of a type label, for comparing across the paper's tables.
+
+    The tables punctuate provisional names inconsistently -- Table 2 writes
+    GII.NA1 where Supplemental Table 1 writes GII.NA.1 -- which is a spelling
+    difference, not a disagreement. Nothing else is normalised: a real
+    difference in genogroup, number or subtype must still show up.
+    """
+    return re.sub(r"\.NA\.?(\d)", r".NA.\1", (label or "").strip())
 
 
 def read(path, skip_retired=True):
@@ -88,7 +118,7 @@ def main():
                     continue
                 if mine is None:
                     missing.append((a, label, want))
-                elif mine != want:
+                elif canon(mine) != canon(want):
                     if (a, label) in ACCEPTED:
                         accepted.append((a, label, want, mine))
                         continue
