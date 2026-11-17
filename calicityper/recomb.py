@@ -37,7 +37,14 @@ from . import recomb_config as rcfg
 from . import tree
 
 VALID_CHARS = set("ATGCN-")
-STATUSES = ("none", "weak", "possible", "likely", "strong", "insufficient_sequence")
+# Ranked by strength of evidence for the first five. The trailing three are
+# NOT evidence levels: they say the question was not answered. They sit at the
+# end because only event statuses, which are always one of the first five, are
+# ever ranked by index.
+STATUSES = ("none", "weak", "possible", "likely", "strong",
+            "insufficient_sequence", "not_assessed", "failed")
+#: statuses that mean "we did not get an answer", as opposed to "the answer is no"
+UNASSESSED = ("insufficient_sequence", "not_assessed", "failed")
 
 
 class AlignmentError(ValueError):
@@ -676,10 +683,24 @@ def analyse(alignment_path, queries, cfg, metadata_path=None, workdir=None,
             results.append(analyse_query(aln, q, hits, cfg, metadata))
         except Exception as e:                       # one bad query must not sink the rest
             results.append({"sequence_id": q,
-                            "recombination": {"status": "none", "score": 0.0,
+                            "recombination": {"status": "failed", "score": 0.0,
                                               "confidence": "low", "events": [],
                                               "notes": f"failed: {type(e).__name__}: {e}"},
                             "qc": {}})
+
+    # If no scanner ran at all -- OpenRDP timed out, crashed, or produced nothing
+    # -- then every query is UNASSESSED, not negative. Without this a tool failure
+    # is indistinguishable in the output from "no recombination found", which is
+    # the more dangerous of the two to get wrong.
+    if not used:
+        why = "; ".join(f"{t}: {r}" for t, r in skipped) or "no scanner produced output"
+        for r in results:
+            rec = r["recombination"]
+            if rec["status"] not in UNASSESSED:
+                rec["status"] = "not_assessed"
+                rec["confidence"] = "none"
+                rec["score"] = 0.0
+                rec["notes"] = f"no recombination scanner ran ({why})"
 
     parameters = {
         # the virus model changes the biological_plausibility term, so a

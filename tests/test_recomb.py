@@ -284,7 +284,9 @@ def test_multi_query_reports_each_query(tmp_path, cfg):
 
 def test_missing_openrdp_is_reported_not_fatal(tmp_path, cfg, monkeypatch):
     """Without OpenRDP the command still runs and says which methods it skipped,
-    rather than failing."""
+    rather than failing -- and reports the query as not_assessed, NOT as
+    negative. This sequence is a synthetic clear recombinant, so "none" here
+    would be a wrong answer dressed up as a confident one."""
     monkeypatch.setenv("CALICITYPER_OPENRDP", str(tmp_path / "nope"))
     cfg2 = RC.load(None)
     p = tmp_path / "x.fasta"
@@ -292,7 +294,10 @@ def test_missing_openrdp_is_reported_not_fatal(tmp_path, cfg, monkeypatch):
     aln = R.read_alignment(str(p))
     results, provenance = R.analyse(str(p), [aln.names[-1]], cfg2,
                                     workdir=str(tmp_path / "w"))
-    assert results[0]["recombination"]["status"] in ("none", "weak")
+    rec = results[0]["recombination"]
+    assert rec["status"] == "not_assessed", rec
+    assert rec["status"] in R.UNASSESSED
+    assert "openrdp" in rec.get("notes", ""), rec.get("notes")
     skipped = {t["tool"] for t in provenance["tools_skipped"]}
     assert "openrdp" in skipped, provenance["tools_skipped"]
 
