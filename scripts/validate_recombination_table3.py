@@ -174,7 +174,9 @@ def run_one(idx, out_dir, threads, openrdp_timeout=7200):
                expect_recombination=expect, status=block.get("status"),
                score=block.get("score"), confidence=block.get("confidence"),
                n_events=len(events), events=events, query_nt=len(rec.seq),
-               panel=len(panel))
+               panel=len(panel), notes=block.get("notes", ""),
+               tools_skipped=[f"{t['tool']}: {t['reason']}"
+                              for t in d.get("provenance", {}).get("tools_skipped", [])])
     json.dump(out, open(w / "result.json", "w"), indent=1)
     print(f"    status={out['status']} score={out['score']} events={len(events)}", flush=True)
     for e in events[:4]:
@@ -205,6 +207,7 @@ def summarise(out_dir):
         rows.append(dict(accession=acc, host=host, dual=f"{genotype}[{ptype}]", expect=expect,
                          status=d.get("status"), score=d.get("score"),
                          n_events=d.get("n_events"), notes=d.get("notes", ""),
+                         tools_skipped=d.get("tools_skipped") or [],
                          regions="; ".join(sorted(r for r in regions if r))))
     print(f"\n{'accession':11s} {'dual type':22s} {'expected':9s} {'status':9s} {'score':>6s} {'ev':>3s}  regions")
     agree = tested = 0
@@ -227,7 +230,8 @@ def summarise(out_dir):
         print(f"\nNOT ASSESSED ({len(unassessed)}) -- excluded from the score above, because a\n"
               f"scanner that did not run has not said the sequence is clean:")
         for r in unassessed:
-            print(f"  {r['accession']:11s} {str(r.get('status')):18s} {r.get('notes','')}")
+            print(f"  {r['accession']:11s} {str(r.get('status')):18s} "
+                  f"{r.get('notes','') or '; '.join(r.get('tools_skipped') or [])}")
     neg = [r for r in rows if r.get("expect") is False and str(r.get("status")) in
            DETECTED | {"none", "weak", "possible"}]
     for r in neg:
