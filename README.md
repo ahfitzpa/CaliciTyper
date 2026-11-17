@@ -17,26 +17,70 @@
 CaliciTyper (`calicityper`) assigns norovirus genogroup, ORF1 polymerase (P-) type, and ORF2 capsid type to assembled contigs/genomes (FASTA), and provides evidence-weighted recombination analysis for norovirus/sapovirus alignments.
 
 - **Validated/supported genotyping scope:** norovirus **GI/GII** (ORF1 + ORF2) and broad Caliciviridae genogroup detection.
-- **Not validated / not implemented:** non-GI/GII norovirus genotyping calls may be reported but are not validated; sapovirus genotyping is not implemented.
+- **Sapovirus:** VP1 genotyping and RdRp P-typing per Zhao *et al.* 2024, on by default, reported as a dual type (`GI.4[P1]`). VP1 is reliable; RdRp assigns accurately among known P-types but **cannot flag a novel P-type** — see [`docs/SAPOVIRUS_STATUS.md`](docs/SAPOVIRUS_STATUS.md). Disable with `CALICITYPER_TYPE_SAPOVIRUS=0`.
+- **Not validated:** non-GI/GII norovirus genotyping calls may be reported but are not validated.
 - **Research software:** independent reimplementation (not produced by or affiliated with RIVM).
 
 Detailed reference: [`docs/REFERENCE.md`](docs/REFERENCE.md) • Output schemas/provenance: [`docs/OUTPUT_SCHEMA.md`](docs/OUTPUT_SCHEMA.md)
 
 ## Quickstart
 
-### 1) Install (from source, recommended conda/mamba)
+### 1) Install
+
+**From the GitHub release (recommended).** Each release carries a wheel, an
+sdist and the matching reference-set archive.
 
 ```bash
-git clone https://github.com/ahfitzpa/calicityper.git
-cd calicityper
-conda env create -f environment.yml
-conda activate calicityper
-calicityper setup   # required before first typing use (installs/verifies reference set)
+pip install https://github.com/ahfitzpa/CaliciTyper/releases/download/v0.8.0/calicityper-0.8.0-py3-none-any.whl
+calicityper setup --source calicityper-reference-0.8.0.tar.gz
 ```
 
-Pip/source install is also supported when Python and external tools are already available (`blastn`, `mafft` on `PATH`): `pip install .` (or from Git) then `calicityper setup`.
+Or straight from Git:
 
-> Distribution status: source install only at present (not yet published on PyPI/bioconda). `environment.yml` is a convenience environment (not a lock file); for reproducibility pin/export resolved environments.
+```bash
+pip install git+https://github.com/ahfitzpa/CaliciTyper@v0.8.0
+calicityper setup
+```
+
+**From source, with conda/mamba:**
+
+```bash
+git clone https://github.com/ahfitzpa/CaliciTyper.git
+cd CaliciTyper
+conda env create -f environment.yml
+conda activate calicityper
+calicityper setup
+```
+
+`environment.yml` is a convenience environment, not a lock file. Pin or export
+a resolved environment if you need reproducibility, or use the Apptainer image
+described in [`docs/INSTALL_TOOLS.md`](docs/INSTALL_TOOLS.md), which fixes
+BLAST+, MAFFT and OpenRDP at known versions in a single file you can checksum.
+
+> Not yet on PyPI or bioconda.
+
+### `calicityper setup`
+
+**Required before first use.** The wheel deliberately contains no reference
+data; `setup` fetches the reference archive, verifies every artefact against
+the manifest's SHA-256 list, and refuses to install a set that does not match,
+because a different reference set changes calls silently.
+
+```bash
+calicityper setup                       # download, verify, install
+calicityper setup --verify-only         # check an existing install
+calicityper setup --source ref.tar.gz   # install from a local archive (offline)
+calicityper setup --data-dir /shared/calicityper-ref   # shared location
+```
+
+Set `CALICITYPER_DATA` to use a non-default location afterwards. For
+air-gapped systems, copy the archive across and use `--source`; nothing in
+`setup` requires network access when a local archive is given.
+
+External tools (`blastn`, `makeblastdb`, `mafft`, and `openrdp` for
+recombination) are found on `PATH` or via `CALICITYPER_*` variables — see
+[`docs/INSTALL_TOOLS.md`](docs/INSTALL_TOOLS.md). Note that **OpenRDP cannot
+share an environment with CaliciTyper**: it requires numpy<2.
 
 ### 2) Type example sequences
 
