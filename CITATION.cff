@@ -6,9 +6,10 @@ authors:
   - family-names: Fitzpatrick
     given-names: Amy
     affiliation: University College Dublin
-version: 0.6.1
+version: 0.8.0
+date-released: "2026-11-17"
 license: MIT
-repository-code: "https://github.com/ahfitzpa/calicityper"
+repository-code: "https://github.com/ahfitzpa/CaliciTyper"
 abstract: >-
   calicityper assigns norovirus genogroup, ORF1 polymerase (P-) type and ORF2
   capsid type to assembled contigs or whole genomes, replicating the published

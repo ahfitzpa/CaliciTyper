@@ -30,7 +30,7 @@ from calicityper import config as cg, setup_data as sd          # noqa: E402
 SKIP_SUFFIX = {".dnd", ".bak", ".npy"}
 SKIP_NAME = {"reference_manifest.json", "reference_accessions.tsv",
              "putative_novel_bounds.tsv", "sapovirus_excluded.tsv"}
-SKIP_DIR = {".cache", "reference_sequences_sapovirus_VP1", "reference_sequences_sapovirus_RdRp"}
+SKIP_DIR = {".cache"}
 
 
 def artefacts(data_dir):
@@ -66,6 +66,11 @@ def main():
         return 0
 
     m["sha256_16"] = dict(sorted(sums.items()))
+    # n_artefacts is quoted in the docs and the setup output, so keep it in step
+    # with the checksum table rather than letting it drift as it did at 0.7.0.
+    if m.get("n_artefacts") != len(sums):
+        print(f"  n_artefacts {m.get('n_artefacts')} -> {len(sums)}")
+    m["n_artefacts"] = len(sums)
     if a.version:
         print(f"version {m.get('reference_set_version')} -> {a.version}")
         m["reference_set_version"] = a.version

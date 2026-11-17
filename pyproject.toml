@@ -1,6 +1,6 @@
 [project]
 name = "calicityper"
-version = "0.7.0"
+version = "0.8.0"
 description = "CaliciTyper: command-line typing for Caliciviridae"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -20,8 +20,8 @@ fast = ["numba"]
 report = ["bokeh"]
 test = ["pytest", "bokeh"]
 [project.urls]
-Homepage = "https://github.com/ahfitzpa/calicityper"
-Repository = "https://github.com/ahfitzpa/calicityper"
+Homepage = "https://github.com/ahfitzpa/CaliciTyper"
+Repository = "https://github.com/ahfitzpa/CaliciTyper"
 Issues = "https://github.com/ahfitzpa/CaliciTyper/issues"
 Changelog = "https://github.com/ahfitzpa/CaliciTyper/blob/main/CHANGELOG.md"
 [project.scripts]

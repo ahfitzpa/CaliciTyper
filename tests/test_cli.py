@@ -469,6 +469,24 @@ def test_setup_refuses_an_archive_that_does_not_match(tmp_path):
     assert not target.exists(), "nothing may be installed when verification fails"
 
 
+def test_allowed_top_covers_everything_the_manifest_lists():
+    """Every top-level entry the manifest checksums must be extractable.
+
+    setup_data.ALLOWED_TOP filters what `calicityper setup` unpacks, and
+    anything missing from it is dropped without comment -- the archive and the
+    manifest can both be right and the data still never arrives. That is how
+    the sapovirus reference sets were absent from installs at 0.7.0.
+    """
+    import json
+    from calicityper import setup_data, config as cg
+
+    manifest = json.loads((cg.DATA / "reference_manifest.json").read_text())
+    tops = {k.split("calicityper/data/", 1)[1].split("/")[0]
+            for k in manifest["sha256_16"]}
+    missing = sorted(tops - setup_data.ALLOWED_TOP)
+    assert not missing, f"manifest lists these but setup would drop them: {missing}"
+
+
 def test_setup_merges_into_a_directory_that_already_has_the_manifest(tmp_path):
     """The package data directory always holds the manifest, accession list and
     bounds table. Treating "not empty" as a reason to refuse made
@@ -486,7 +504,8 @@ def test_setup_merges_into_a_directory_that_already_has_the_manifest(tmp_path):
 
     arch = tmp_path / "ref.tar.gz"
     with tarfile.open(arch, "w:gz") as tar:
-        for d in ("database", "reference_sequences_RdRp", "reference_sequences_VP1"):
+        for d in ("database", "reference_sequences_RdRp", "reference_sequences_VP1",
+                  "reference_sequences_sapovirus_RdRp", "reference_sequences_sapovirus_VP1"):
             if (cg.DATA / d).exists():
                 tar.add(cg.DATA / d, arcname=d)
 

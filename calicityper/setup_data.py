@@ -36,7 +36,11 @@ from . import config as cg
 MANIFEST = Path(__file__).resolve().parent / "data" / "reference_manifest.json"
 # Members the typing path reads. Anything outside these is not extracted, so a
 # tampered archive cannot drop files elsewhere on the filesystem.
+# Anything not named here is dropped during extraction, so a directory missing
+# from this set is silently discarded even when the archive and the manifest
+# both carry it -- which is how the sapovirus sets went missing at 0.7.0.
 ALLOWED_TOP = {"database", "reference_sequences_RdRp", "reference_sequences_VP1",
+               "reference_sequences_sapovirus_RdRp", "reference_sequences_sapovirus_VP1",
                "putative_novel_bounds.tsv", "reference_accessions.tsv",
                "reference_manifest.json"}
 
