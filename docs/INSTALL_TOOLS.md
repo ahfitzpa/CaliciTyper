@@ -45,6 +45,39 @@ apptainer build calicityper-tools.sif containers/calicityper-tools.def
 sha256sum calicityper-tools.sif          # record this beside your results
 ```
 
+> **This build does not currently work on Sonic.** Attempted 2026-11-17
+> (job 1159831): the build fails in `%post` with
+> `E: setgroups 65534 failed - setgroups (1: Operation not permitted)`,
+> because `apt-get` drops privileges and cannot. The account is not listed in
+> `/etc/subuid` or `/etc/subgid`, `fakeroot` is not installed, and neither is
+> `proot`, so Apptainer has no way to give the build a usable user namespace.
+> `--fakeroot` does not help; it is what was tried.
+>
+> Three ways round it, in order of preference:
+>
+> 1. **Ask the Sonic administrators** to add your account to `/etc/subuid`
+>    and `/etc/subgid`, or to install `fakeroot` or `proot`. Any one of the
+>    three makes the command above work as written.
+> 2. **Build elsewhere and copy the SIF.** On any machine where you have root
+>    or Docker, `apptainer build` (or `docker build` then
+>    `apptainer build x.sif docker-daemon://...`) produces a single file you
+>    scp to the cluster. The image is portable; only the build needs privilege.
+> 3. **Pull prebuilt per-tool images**, which needs no privilege because there
+>    is no `%post` to run:
+>
+>    ```bash
+>    apptainer pull blast.sif  docker://quay.io/biocontainers/blast:2.17.0--h66d330f_0
+>    apptainer pull mafft.sif  docker://quay.io/biocontainers/mafft:7.526--h4bc722e_0
+>    ```
+>
+>    This pins BLAST+ and MAFFT, but there is no OpenRDP biocontainer, so
+>    OpenRDP still needs the virtual environment below. Verify the tags before
+>    relying on them; they are not pinned here because they have not been
+>    tested on this system.
+>
+> Until one of these is done, the virtual-environment route below is what is
+> actually in use, and the definition file remains **unverified**.
+
 Point CaliciTyper at the containerised binaries with small wrappers:
 
 ```bash

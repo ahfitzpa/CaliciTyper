@@ -5,6 +5,12 @@ From: debian:12-slim
 #
 #   apptainer build calicityper-tools.sif containers/calicityper-tools.def
 #
+# NOT YET VERIFIED. This fails on the UCD Sonic cluster because the account
+# is not in /etc/subuid and neither fakeroot nor proot is installed, so
+# apt-get in %post cannot drop privileges. See docs/INSTALL_TOOLS.md for the
+# three ways round it. The recipe itself is untested until one of them is
+# applied -- treat the pinned versions as intended, not as confirmed.
+#
 # OpenRDP needs numpy<2 while CaliciTyper runs numpy>=2, so OpenRDP gets its
 # own interpreter inside the image and is never importable from the host
 # environment. See docs/INSTALL_TOOLS.md.

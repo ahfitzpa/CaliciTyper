@@ -338,8 +338,10 @@ def _run_type(a):
     df = pd.DataFrame(ordered)
     print("Scope: norovirus GI/GII genotyping validated/supported; other norovirus genogroups and "
           "non-norovirus Caliciviridae may be detected but genotyping is not validated. "
-          + ("Sapovirus genotyping ON (experimental, not yet benchmarked). " if cg.TYPE_SAPOVIRUS
-             else "Sapovirus: genogroup only (--type-sapovirus enables experimental genotyping). ")
+          + ("Sapovirus genotyping ON: VP1 genotype and RdRp P-type, benchmarked; "
+             "RdRp cannot flag a novel P-type, so P-types are provisional. "
+             if cg.TYPE_SAPOVIRUS
+             else "Sapovirus: genogroup only (CALICITYPER_TYPE_SAPOVIRUS=1 enables typing). ")
           + "Putative-novel flags are tentative screening.",
           file=sys.stderr)
     if a.out == "-":
