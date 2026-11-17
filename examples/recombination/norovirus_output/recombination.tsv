@@ -1,0 +1,8 @@
+sequence_id	status	score	confidence	event_id	breakpoint_alignment_start	breakpoint_alignment_end	breakpoint_query_start	breakpoint_query_end	supporting_methods	candidate_major_parent	candidate_minor_parent	phylogenetic_support	biological_region	notes
+QUERY	strong	0.898	high	event_2	5060	5350	5061	5351	bootscan,geneconv,threeseq	lineage2_ref0	lineage0_ref1	high	ORF1-ORF2 junction	ambiguous minor parent: lineage0_ref1 and lineage2_ref1 are implicated equally often
+QUERY	possible	0.67	medium	event_7	4747	4747	4748	4748	threeseq	lineage0_ref0	lineage2_ref1	high	ORF1 (nonstructural)	
+QUERY	weak	0.645	medium	event_6	5570	5570	5571	5571	bootscan	lineage0_ref0	lineage1_ref0	moderate	ORF1-ORF2 junction	
+QUERY	possible	0.547	medium	event_1	0	104	1	105	bootscan,geneconv,rdp,threeseq	lineage0_ref1	lineage0_ref0	none	at alignment terminus: likely an edge artefact, not a breakpoint	segment shorter than min_segment_sites (69 / 1000 columns)
+QUERY	possible	0.501	medium	event_4	6260	6530	6261	6531	bootscan,threeseq	lineage0_ref1	lineage1_ref0	none	ORF2 (VP1 capsid)	same nearest neighbour on both sides: no topological change
+QUERY	possible	0.494	low	event_3	7500	7580	7500	7500	bootscan,geneconv,threeseq	lineage2_ref1	lineage2_ref0	none	at alignment terminus: likely an edge artefact, not a breakpoint	segment shorter than min_segment_sites (1000 / 1 columns)
+QUERY	weak	0.443	low	event_5	7190	7212	7191	7213	rdp	lineage0_ref0	lineage0_ref1	none	ORF3 (VP2)	same nearest neighbour on both sides: no topological change; ambiguous minor parent: lineage0_ref1 and lineage2_ref0 are implicated equally often

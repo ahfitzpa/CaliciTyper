@@ -195,6 +195,12 @@ def nearest_reference(names, query, codes):
 MIN_IDENTITY_SITES = 50
 
 
+# The acceptance threshold stays at 70%. Calibration across three datasets put
+# every error at support <= 71, so 75 would be the lowest threshold with no
+# errors anywhere -- but the whole margin is a single observation at 71%, and
+# raising it would withhold correct calls to catch that one. Decision taken
+# 2026-11-17: keep 70 and report support beside every call so a borderline
+# result is visible. Revisit only with more than one observation in the gap.
 def assign(names, types, query, codes, nrep=100, seed=1, min_support=70.0, max_refs_per_type=None):
     """names: aligned sequence names (references + query); types: {ref_name: type}; query: its name.
     Returns dict(type, support, supports, n_sites, n_refs)."""

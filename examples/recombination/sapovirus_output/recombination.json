@@ -1,0 +1,495 @@
+{
+  "schema": {
+    "name": "calicityper.recomb",
+    "version": "1.0"
+  },
+  "tool": "calicityper",
+  "tool_version": "0.7.0",
+  "command": "recomb",
+  "generated": "2026-11-16T17:22:16+00:00",
+  "provenance": {
+    "tool": "calicityper",
+    "tool_version": "0.7.0",
+    "command": "recomb",
+    "generated": "2026-11-16T17:22:16+00:00",
+    "alignment_file": "/home/people/fitzpatria/scratch/calicityper_runs/recomb_example/sapovirus_clear_recombinant.fasta",
+    "alignment_sequences": 9,
+    "alignment_length": 7200,
+    "ambiguity_chars_masked": 0,
+    "reference_metadata": "",
+    "tools_used": [
+      "OpenRDP (bootscan,geneconv,rdp,threeseq)"
+    ],
+    "tools_skipped": [
+      {
+        "tool": "maxchi",
+        "reason": "ran but reported nothing significant"
+      },
+      {
+        "tool": "chimaera",
+        "reason": "ran but reported nothing significant"
+      },
+      {
+        "tool": "siscan",
+        "reason": "ran but reported nothing significant"
+      }
+    ],
+    "parameters": {
+      "virus": "sapovirus",
+      "regions": {
+        "RdRp-VP1 junction": [
+          4800,
+          5500
+        ],
+        "ORF1 nonstructural (NS1-NS7)": [
+          10,
+          5100
+        ],
+        "ORF1 VP1 capsid": [
+          5100,
+          6800
+        ],
+        "ORF2 (VP2)": [
+          6700,
+          7200
+        ]
+      },
+      "pvalue_threshold": 0.05,
+      "multiple_testing_correction": "bonferroni",
+      "n_tests_for_correction": 36,
+      "max_breakpoint_distance": 250,
+      "minimum_sequence_length": 5000,
+      "min_informative_sites": 500,
+      "segment_window": 1000,
+      "segment_bootstraps": 100,
+      "seed": 3,
+      "methods_requested": [
+        "rdp",
+        "geneconv",
+        "bootscan",
+        "maxchi",
+        "chimaera",
+        "siscan",
+        "threeseq"
+      ],
+      "scoring_weights": {
+        "method_support": 0.35,
+        "phylogenetic_support": 0.2,
+        "breakpoint_consistency": 0.2,
+        "parental_distinctness": 0.15,
+        "biological_plausibility": 0.1
+      },
+      "queries_requested": [
+        "QUERY"
+      ],
+      "openrdp_timeout": 7200
+    },
+    "reference_set": {
+      "manifest_path": "/scratch/fitzpatria/calicityper/calicityper/data/reference_manifest.json",
+      "available": true,
+      "doi": "10.5281/zenodo.24161236",
+      "reference_set_version": "0.7.0",
+      "download_url": "https://zenodo.org/records/24161236/files/calicityper-reference-0.6.1.tar.gz?download=1",
+      "n_accessions": 309,
+      "n_records": 455,
+      "n_artefacts": 84,
+      "manifest_sha256": "c1d542e935a6c1730e797be18b914135fe4cdbf4c33cd2939b40038344944fee"
+    }
+  },
+  "results": [
+    {
+      "sequence_id": "QUERY",
+      "recombination": {
+        "status": "likely",
+        "score": 0.787,
+        "confidence": "high",
+        "alignment_length": 7200,
+        "informative_sites": 2063,
+        "events": [
+          {
+            "event_id": "event_1",
+            "breakpoints": [
+              {
+                "alignment_start": 4948,
+                "alignment_end": 5414,
+                "query_start": 4949,
+                "query_end": 5415
+              }
+            ],
+            "supporting_methods": [
+              "bootscan",
+              "geneconv",
+              "rdp",
+              "threeseq"
+            ],
+            "method_pvalues": {
+              "threeseq": 1.6646346e-07,
+              "bootscan": 9.945915348118406e-14,
+              "geneconv": 0.0,
+              "rdp": 1.0811490420049954e-280
+            },
+            "candidate_major_parent": "lineage0_ref0",
+            "candidate_minor_parent": "lineage0_ref1",
+            "candidate_major_parent_id": "lineage0_ref0",
+            "candidate_minor_parent_id": "lineage0_ref1",
+            "parental_distinctness": 0.16,
+            "phylogenetic_support": "high",
+            "phylogenetic_detail": {
+              "left_neighbour": "lineage0_ref0",
+              "right_neighbour": "lineage2_ref0",
+              "left_stability": 1.0,
+              "right_stability": 1.0,
+              "score": 1.0,
+              "label": "high",
+              "note": ""
+            },
+            "breakpoint_consistency": 0.581,
+            "biological_region": "RdRp-VP1 junction",
+            "biological_plausibility": 1.0,
+            "score": 0.787,
+            "status": "likely",
+            "score_components": {
+              "method_support": 0.992,
+              "phylogenetic_support": 1.0,
+              "breakpoint_consistency": 0.581,
+              "parental_distinctness": 0.16,
+              "biological_plausibility": 1.0
+            },
+            "notes": ""
+          },
+          {
+            "event_id": "event_2",
+            "breakpoints": [
+              {
+                "alignment_start": 0,
+                "alignment_end": 320,
+                "query_start": 1,
+                "query_end": 321
+              }
+            ],
+            "supporting_methods": [
+              "bootscan",
+              "geneconv",
+              "rdp",
+              "threeseq"
+            ],
+            "method_pvalues": {
+              "threeseq": 5.6354256e-195,
+              "geneconv": 0.0,
+              "rdp": 5.67749312608085e-97,
+              "bootscan": 1.5605277486151764e-26
+            },
+            "candidate_major_parent": "lineage0_ref0",
+            "candidate_minor_parent": "lineage0_ref1",
+            "candidate_major_parent_id": "lineage0_ref0",
+            "candidate_minor_parent_id": "lineage0_ref1",
+            "parental_distinctness": 0.16,
+            "phylogenetic_support": "none",
+            "phylogenetic_detail": {
+              "left_neighbour": "lineage0_ref0",
+              "right_neighbour": "lineage0_ref0",
+              "left_stability": 1.0,
+              "right_stability": 1.0,
+              "score": 0.0,
+              "label": "none",
+              "note": "same nearest neighbour on both sides: no topological change"
+            },
+            "breakpoint_consistency": 0.626,
+            "biological_region": "at alignment terminus: likely an edge artefact, not a breakpoint",
+            "biological_plausibility": 0.05,
+            "score": 0.503,
+            "status": "possible",
+            "score_components": {
+              "method_support": 0.996,
+              "phylogenetic_support": 0.0,
+              "breakpoint_consistency": 0.626,
+              "parental_distinctness": 0.16,
+              "biological_plausibility": 0.05
+            },
+            "notes": "same nearest neighbour on both sides: no topological change"
+          },
+          {
+            "event_id": "event_3",
+            "breakpoints": [
+              {
+                "alignment_start": 7200,
+                "alignment_end": 7280,
+                "query_start": 7200,
+                "query_end": 7200
+              }
+            ],
+            "supporting_methods": [
+              "bootscan",
+              "geneconv",
+              "threeseq"
+            ],
+            "method_pvalues": {
+              "geneconv": 0.0,
+              "threeseq": 5.339282399999999e-40,
+              "bootscan": 2.3809504506872357e-06
+            },
+            "candidate_major_parent": "lineage2_ref0",
+            "candidate_minor_parent": "lineage2_ref1",
+            "candidate_major_parent_id": "lineage2_ref0",
+            "candidate_minor_parent_id": "lineage2_ref1",
+            "parental_distinctness": 0.157,
+            "phylogenetic_support": "none",
+            "phylogenetic_detail": {
+              "left_neighbour": "",
+              "right_neighbour": "",
+              "left_stability": 0.0,
+              "right_stability": 0.0,
+              "score": 0.0,
+              "label": "none",
+              "note": "segment shorter than min_segment_sites (1000 / 1 columns)"
+            },
+            "breakpoint_consistency": 0.883,
+            "biological_region": "at alignment terminus: likely an edge artefact, not a breakpoint",
+            "biological_plausibility": 0.05,
+            "score": 0.49,
+            "status": "possible",
+            "score_components": {
+              "method_support": 0.813,
+              "phylogenetic_support": 0.0,
+              "breakpoint_consistency": 0.883,
+              "parental_distinctness": 0.157,
+              "biological_plausibility": 0.05
+            },
+            "notes": "segment shorter than min_segment_sites (1000 / 1 columns)"
+          },
+          {
+            "event_id": "event_4",
+            "breakpoints": [
+              {
+                "alignment_start": 524,
+                "alignment_end": 908,
+                "query_start": 525,
+                "query_end": 909
+              }
+            ],
+            "supporting_methods": [
+              "rdp"
+            ],
+            "method_pvalues": {
+              "rdp": 6.2162731891746675e-161
+            },
+            "candidate_major_parent": "lineage1_ref1",
+            "candidate_minor_parent": "lineage2_ref0",
+            "candidate_major_parent_id": "lineage1_ref1",
+            "candidate_minor_parent_id": "lineage2_ref0",
+            "parental_distinctness": 1.0,
+            "phylogenetic_support": "none",
+            "phylogenetic_detail": {
+              "left_neighbour": "lineage0_ref0",
+              "right_neighbour": "lineage0_ref0",
+              "left_stability": 1.0,
+              "right_stability": 1.0,
+              "score": 0.0,
+              "label": "none",
+              "note": "same nearest neighbour on both sides: no topological change"
+            },
+            "breakpoint_consistency": 0.556,
+            "biological_region": "ORF1 nonstructural (NS1-NS7)",
+            "biological_plausibility": 0.6,
+            "score": 0.487,
+            "status": "weak",
+            "score_components": {
+              "method_support": 0.475,
+              "phylogenetic_support": 0.0,
+              "breakpoint_consistency": 0.556,
+              "parental_distinctness": 1.0,
+              "biological_plausibility": 0.6
+            },
+            "notes": "same nearest neighbour on both sides: no topological change; ambiguous minor parent: lineage2_ref0 and lineage3_ref0 are implicated equally often"
+          },
+          {
+            "event_id": "event_8",
+            "breakpoints": [
+              {
+                "alignment_start": 5997,
+                "alignment_end": 5997,
+                "query_start": 5998,
+                "query_end": 5998
+              }
+            ],
+            "supporting_methods": [
+              "threeseq"
+            ],
+            "method_pvalues": {
+              "threeseq": 1.6646346e-07
+            },
+            "candidate_major_parent": "lineage0_ref1",
+            "candidate_minor_parent": "lineage1_ref1",
+            "candidate_major_parent_id": "lineage0_ref1",
+            "candidate_minor_parent_id": "lineage1_ref1",
+            "parental_distinctness": 1.0,
+            "phylogenetic_support": "none",
+            "phylogenetic_detail": {
+              "left_neighbour": "lineage2_ref0",
+              "right_neighbour": "lineage2_ref0",
+              "left_stability": 1.0,
+              "right_stability": 1.0,
+              "score": 0.0,
+              "label": "none",
+              "note": "same nearest neighbour on both sides: no topological change"
+            },
+            "breakpoint_consistency": 0.5,
+            "biological_region": "ORF1 VP1 capsid",
+            "biological_plausibility": 0.6,
+            "score": 0.476,
+            "status": "weak",
+            "score_components": {
+              "method_support": 0.475,
+              "phylogenetic_support": 0.0,
+              "breakpoint_consistency": 0.5,
+              "parental_distinctness": 1.0,
+              "biological_plausibility": 0.6
+            },
+            "notes": "same nearest neighbour on both sides: no topological change"
+          },
+          {
+            "event_id": "event_7",
+            "breakpoints": [
+              {
+                "alignment_start": 1092,
+                "alignment_end": 1092,
+                "query_start": 1093,
+                "query_end": 1093
+              }
+            ],
+            "supporting_methods": [
+              "threeseq"
+            ],
+            "method_pvalues": {
+              "threeseq": 4.2780132e-06
+            },
+            "candidate_major_parent": "lineage0_ref1",
+            "candidate_minor_parent": "lineage2_ref1",
+            "candidate_major_parent_id": "lineage0_ref1",
+            "candidate_minor_parent_id": "lineage2_ref1",
+            "parental_distinctness": 1.0,
+            "phylogenetic_support": "none",
+            "phylogenetic_detail": {
+              "left_neighbour": "lineage0_ref0",
+              "right_neighbour": "lineage0_ref0",
+              "left_stability": 1.0,
+              "right_stability": 1.0,
+              "score": 0.0,
+              "label": "none",
+              "note": "same nearest neighbour on both sides: no topological change"
+            },
+            "breakpoint_consistency": 0.5,
+            "biological_region": "ORF1 nonstructural (NS1-NS7)",
+            "biological_plausibility": 0.6,
+            "score": 0.462,
+            "status": "weak",
+            "score_components": {
+              "method_support": 0.435,
+              "phylogenetic_support": 0.0,
+              "breakpoint_consistency": 0.5,
+              "parental_distinctness": 1.0,
+              "biological_plausibility": 0.6
+            },
+            "notes": "same nearest neighbour on both sides: no topological change"
+          },
+          {
+            "event_id": "event_6",
+            "breakpoints": [
+              {
+                "alignment_start": 6815,
+                "alignment_end": 6831,
+                "query_start": 6816,
+                "query_end": 6832
+              }
+            ],
+            "supporting_methods": [
+              "rdp"
+            ],
+            "method_pvalues": {
+              "rdp": 2.438972456919518e-26
+            },
+            "candidate_major_parent": "lineage0_ref0",
+            "candidate_minor_parent": "lineage0_ref1",
+            "candidate_major_parent_id": "lineage0_ref0",
+            "candidate_minor_parent_id": "lineage0_ref1",
+            "parental_distinctness": 0.16,
+            "phylogenetic_support": "none",
+            "phylogenetic_detail": {
+              "left_neighbour": "lineage2_ref0",
+              "right_neighbour": "lineage2_ref0",
+              "left_stability": 1.0,
+              "right_stability": 1.0,
+              "score": 0.0,
+              "label": "none",
+              "note": "same nearest neighbour on both sides: no topological change"
+            },
+            "breakpoint_consistency": 0.971,
+            "biological_region": "ORF2 (VP2)",
+            "biological_plausibility": 0.6,
+            "score": 0.444,
+            "status": "weak",
+            "score_components": {
+              "method_support": 0.475,
+              "phylogenetic_support": 0.0,
+              "breakpoint_consistency": 0.971,
+              "parental_distinctness": 0.16,
+              "biological_plausibility": 0.6
+            },
+            "notes": "same nearest neighbour on both sides: no topological change; ambiguous minor parent: lineage0_ref1 and lineage2_ref0 are implicated equally often"
+          },
+          {
+            "event_id": "event_5",
+            "breakpoints": [
+              {
+                "alignment_start": 5660,
+                "alignment_end": 5730,
+                "query_start": 5661,
+                "query_end": 5731
+              }
+            ],
+            "supporting_methods": [
+              "bootscan"
+            ],
+            "method_pvalues": {
+              "bootscan": 0.002571474443672376
+            },
+            "candidate_major_parent": "lineage0_ref0",
+            "candidate_minor_parent": "lineage0_ref1",
+            "candidate_major_parent_id": "lineage0_ref0",
+            "candidate_minor_parent_id": "lineage0_ref1",
+            "parental_distinctness": 0.16,
+            "phylogenetic_support": "none",
+            "phylogenetic_detail": {
+              "left_neighbour": "lineage2_ref0",
+              "right_neighbour": "lineage2_ref0",
+              "left_stability": 0.81,
+              "right_stability": 1.0,
+              "score": 0.0,
+              "label": "none",
+              "note": "same nearest neighbour on both sides: no topological change"
+            },
+            "breakpoint_consistency": 0.864,
+            "biological_region": "ORF1 VP1 capsid",
+            "biological_plausibility": 0.6,
+            "score": 0.351,
+            "status": "weak",
+            "score_components": {
+              "method_support": 0.27,
+              "phylogenetic_support": 0.0,
+              "breakpoint_consistency": 0.864,
+              "parental_distinctness": 0.16,
+              "biological_plausibility": 0.6
+            },
+            "notes": "same nearest neighbour on both sides: no topological change"
+          }
+        ]
+      },
+      "qc": {
+        "ungapped_length": 7200,
+        "ambiguous_bases": 0,
+        "ambiguous_fraction": 0.0,
+        "alignment_coverage": 1.0
+      }
+    }
+  ]
+}

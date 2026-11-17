@@ -1,0 +1,79 @@
+Bootstrap: docker
+From: debian:12-slim
+
+# External tools for CaliciTyper, pinned, in one image.
+#
+#   apptainer build calicityper-tools.sif containers/calicityper-tools.def
+#
+# OpenRDP needs numpy<2 while CaliciTyper runs numpy>=2, so OpenRDP gets its
+# own interpreter inside the image and is never importable from the host
+# environment. See docs/INSTALL_TOOLS.md.
+
+%labels
+    Description  BLAST+, MAFFT and OpenRDP for CaliciTyper
+    BLAST        2.17.0+
+    MAFFT        7.526
+    OpenRDP      0.1.0
+
+%post
+    set -eux
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update
+    apt-get install -y --no-install-recommends \
+        ca-certificates curl python3 python3-venv python3-pip
+    rm -rf /var/lib/apt/lists/*
+
+    # --- BLAST+ 2.17.0 ---------------------------------------------------
+    cd /opt
+    curl -fsSL -o blast.tar.gz \
+      "https://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/2.17.0/ncbi-blast-2.17.0+-x64-linux.tar.gz"
+    tar xzf blast.tar.gz && rm blast.tar.gz
+    mv ncbi-blast-2.17.0+ /opt/blast
+    # keep only what is used, the full set is large
+    find /opt/blast/bin -maxdepth 1 -type f \
+        ! -name blastn ! -name makeblastdb -delete
+
+    # --- MAFFT 7.526 -----------------------------------------------------
+    cd /opt
+    curl -fsSL -o mafft.tgz \
+      "https://mafft.cbrc.jp/alignment/software/mafft-7.526-without-extensions-src.tgz"
+    tar xzf mafft.tgz && rm mafft.tgz
+    cd mafft-7.526-without-extensions/core
+    make clean && make && make install
+    cd /opt && rm -rf mafft-7.526-without-extensions
+
+    # --- OpenRDP 0.1.0, isolated interpreter (numpy<2) -------------------
+    python3 -m venv /opt/openrdp-venv
+    /opt/openrdp-venv/bin/pip install --no-cache-dir --upgrade pip
+    /opt/openrdp-venv/bin/pip install --no-cache-dir 'numpy<2' 'openrdp==0.1.0'
+    ln -s /opt/openrdp-venv/bin/openrdp /usr/local/bin/openrdp
+
+%environment
+    export PATH=/opt/blast/bin:/usr/local/bin:$PATH
+    export LC_ALL=C
+
+%test
+    set -e
+    blastn -version
+    makeblastdb -version
+    mafft --version
+    openrdp --help > /dev/null && echo "openrdp ok"
+    /opt/openrdp-venv/bin/python -c "import numpy; assert numpy.__version__.startswith('1.'), numpy.__version__; print('openrdp numpy', numpy.__version__)"
+
+%runscript
+    exec "$@"
+
+%help
+    Pinned external tools for CaliciTyper.
+
+      apptainer exec calicityper-tools.sif blastn -version
+      apptainer exec calicityper-tools.sif mafft --version
+      apptainer exec calicityper-tools.sif openrdp --help
+
+    Bind anything outside $HOME that a run must read or write:
+
+      apptainer exec -B /scratch calicityper-tools.sif blastn ...
+
+    Point CaliciTyper at these binaries with CALICITYPER_BLASTN,
+    CALICITYPER_MAKEBLASTDB, CALICITYPER_MAFFT and CALICITYPER_OPENRDP;
+    docs/INSTALL_TOOLS.md has wrapper scripts that do this.

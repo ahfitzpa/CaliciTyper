@@ -37,6 +37,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
+from calicityper.typing import dual_type   # noqa: E402
 
 EUTILS = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
 
@@ -204,7 +205,7 @@ def summarise(out_dir):
             rows.append(dict(accession=acc, status=d.get("skipped") or "FAILED", expect=expect))
             continue
         regions = {e.get("region") for e in d.get("events", []) if e.get("region")}
-        rows.append(dict(accession=acc, host=host, dual=f"{genotype}[{ptype}]", expect=expect,
+        rows.append(dict(accession=acc, host=host, dual=dual_type(genotype, ptype), expect=expect,
                          status=d.get("status"), score=d.get("score"),
                          n_events=d.get("n_events"), notes=d.get("notes", ""),
                          tools_skipped=d.get("tools_skipped") or [],
