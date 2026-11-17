@@ -4,7 +4,7 @@
   "n_accessions": 309,
   "n_artefacts": 232,
   "n_records": 455,
-  "note": "Reference set distributed as a Zenodo dataset (doi above). `calicityper setup` downloads download_url and verifies every artefact against sha256_16, refusing to install a set that does not match.",
+  "note": "Reference set distributed as a release asset (download_url). `calicityper setup` downloads it and verifies every artefact against sha256_16, refusing to install a set that does not match. Build it with scripts/build_reference_archive.py.",
   "reference_set_version": "0.8.0",
   "sha256_16": {
     "calicityper/data/database/refseq_2.fasta": "e33bddc89268deb5",

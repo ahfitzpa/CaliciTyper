@@ -46,6 +46,12 @@ def artefacts(data_dir):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--version", help="new reference_set_version (e.g. 0.7.0)")
+    ap.add_argument("--download-url", metavar="URL",
+                    help="set download_url to the released asset (what "
+                         "`calicityper setup` fetches); checked with a HEAD "
+                         "request unless --no-check-url")
+    ap.add_argument("--no-check-url", action="store_true",
+                    help="skip the reachability check on --download-url")
     ap.add_argument("--apply", action="store_true")
     a = ap.parse_args()
 
@@ -61,7 +67,7 @@ def main():
     for label, keys in (("added", added), ("removed", removed), ("checksum changed", changed)):
         for k in keys:
             print(f"  {label:17} {k}")
-    if not (added or removed or changed) and not a.version:
+    if not (added or removed or changed) and not a.version and not a.download_url:
         print("nothing to do")
         return 0
 
@@ -74,9 +80,26 @@ def main():
     if a.version:
         print(f"version {m.get('reference_set_version')} -> {a.version}")
         m["reference_set_version"] = a.version
-        for key in ("download_url",):
-            if m.get(key):
-                print(f"  NOTE: {key} still points at the previous deposit:\n    {m[key]}")
+    if a.download_url:
+        if not a.no_check_url:
+            import urllib.request, urllib.error
+            req = urllib.request.Request(a.download_url, method="HEAD")
+            try:
+                with urllib.request.urlopen(req, timeout=30) as r:
+                    size = r.headers.get("Content-Length")
+                    print(f"  URL reachable: HTTP {r.status}"
+                          + (f", {int(size)/1e6:.1f} MB" if size else ""))
+            except Exception as e:
+                print(f"  WARNING: could not reach the URL ({e}).")
+                print("  Set it anyway with --no-check-url if you are sure, but a "
+                      "download_url that 404s makes `calicityper setup` fail for "
+                      "everyone who is not installing from a local archive.")
+                return 1
+        print(f"download_url:\n  old {m.get('download_url')}\n  new {a.download_url}")
+        m["download_url"] = a.download_url
+    elif m.get("download_url") and a.version:
+        print(f"  NOTE: download_url still points at the previous deposit:\n"
+              f"    {m['download_url']}\n  Pass --download-url once the asset is uploaded.")
     if not a.apply:
         print("\nreport only; pass --apply to write")
         return 0
