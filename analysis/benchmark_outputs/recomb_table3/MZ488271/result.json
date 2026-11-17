@@ -1,0 +1,197 @@
+{
+ "accession": "MZ488271",
+ "host": "human",
+ "genotype": "GII.4",
+ "ptype": "GII.P1",
+ "expect_recombination": true,
+ "status": "weak",
+ "score": 0.696,
+ "confidence": "medium",
+ "n_events": 17,
+ "events": [
+  {
+   "event": "event_15",
+   "start": 1040,
+   "end": 1040,
+   "region": "ORF1 nonstructural (NS1-NS7)",
+   "methods": [
+    "bootscan"
+   ],
+   "plausibility": 0.6
+  },
+  {
+   "event": "event_4",
+   "start": 500,
+   "end": 691,
+   "region": "ORF1 nonstructural (NS1-NS7)",
+   "methods": [
+    "bootscan",
+    "rdp"
+   ],
+   "plausibility": 0.6
+  },
+  {
+   "event": "event_1",
+   "start": 0,
+   "end": 299,
+   "region": "at alignment terminus: likely an edge artefact, not a breakpoint",
+   "methods": [
+    "bootscan",
+    "rdp",
+    "threeseq"
+   ],
+   "plausibility": 0.05
+  },
+  {
+   "event": "event_6",
+   "start": 5500,
+   "end": 5830,
+   "region": "RdRp-VP1 junction",
+   "methods": [
+    "bootscan"
+   ],
+   "plausibility": 1.0
+  },
+  {
+   "event": "event_9",
+   "start": 3920,
+   "end": 4260,
+   "region": "ORF1 nonstructural (NS1-NS7)",
+   "methods": [
+    "bootscan"
+   ],
+   "plausibility": 0.6
+  },
+  {
+   "event": "event_2",
+   "start": 4900,
+   "end": 5360,
+   "region": "ORF1 nonstructural (NS1-NS7)",
+   "methods": [
+    "bootscan",
+    "threeseq"
+   ],
+   "plausibility": 0.6
+  },
+  {
+   "event": "event_13",
+   "start": 2300,
+   "end": 2590,
+   "region": "ORF1 nonstructural (NS1-NS7)",
+   "methods": [
+    "bootscan"
+   ],
+   "plausibility": 0.6
+  },
+  {
+   "event": "event_5",
+   "start": 1459,
+   "end": 1720,
+   "region": "ORF1 nonstructural (NS1-NS7)",
+   "methods": [
+    "bootscan",
+    "rdp"
+   ],
+   "plausibility": 0.6
+  },
+  {
+   "event": "event_17",
+   "start": 7940,
+   "end": 7940,
+   "region": "at alignment terminus: likely an edge artefact, not a breakpoint",
+   "methods": [
+    "bootscan"
+   ],
+   "plausibility": 0.05
+  },
+  {
+   "event": "event_3",
+   "start": 7480,
+   "end": 7678,
+   "region": "outside the defined regions",
+   "methods": [
+    "bootscan",
+    "rdp"
+   ],
+   "plausibility": 0.2
+  },
+  {
+   "event": "event_16",
+   "start": 1840,
+   "end": 1840,
+   "region": "ORF1 nonstructural (NS1-NS7)",
+   "methods": [
+    "bootscan"
+   ],
+   "plausibility": 0.6
+  },
+  {
+   "event": "event_12",
+   "start": 3600,
+   "end": 3760,
+   "region": "ORF1 nonstructural (NS1-NS7)",
+   "methods": [
+    "bootscan"
+   ],
+   "plausibility": 0.6
+  },
+  {
+   "event": "event_10",
+   "start": 6070,
+   "end": 6360,
+   "region": "ORF1 VP1 capsid",
+   "methods": [
+    "bootscan"
+   ],
+   "plausibility": 0.6
+  },
+  {
+   "event": "event_11",
+   "start": 6940,
+   "end": 7300,
+   "region": "ORF1 VP1 capsid",
+   "methods": [
+    "bootscan"
+   ],
+   "plausibility": 0.6
+  },
+  {
+   "event": "event_14",
+   "start": 2980,
+   "end": 3200,
+   "region": "ORF1 nonstructural (NS1-NS7)",
+   "methods": [
+    "bootscan"
+   ],
+   "plausibility": 0.6
+  },
+  {
+   "event": "event_7",
+   "start": 4390,
+   "end": 4740,
+   "region": "ORF1 nonstructural (NS1-NS7)",
+   "methods": [
+    "bootscan"
+   ],
+   "plausibility": 0.6
+  },
+  {
+   "event": "event_8",
+   "start": 6480,
+   "end": 6840,
+   "region": "ORF1 VP1 capsid",
+   "methods": [
+    "bootscan"
+   ],
+   "plausibility": 0.6
+  }
+ ],
+ "query_nt": 7398,
+ "panel": 10,
+ "notes": "",
+ "tools_skipped": [
+  "maxchi: exit 1: IndexError: index 7872 is out of bounds for axis 0 with size 7872",
+  "siscan: timed out after 600s",
+  "chimaera: ran but reported nothing significant"
+ ]
+}

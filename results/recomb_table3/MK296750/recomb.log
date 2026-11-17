@@ -1,0 +1,7 @@
+MK296750	strong	0.746	17 event(s)
+
+--- stderr ---
+[recomb] aligning input FASTA with MAFFT: results/recomb_table3/MK296750/panel.fasta -> results/recomb_table3/MK296750/recomb/aligned.fasta
+[recomb] skipped chimaera: ran but reported nothing significant
+[recomb] skipped siscan: ran but reported nothing significant
+[recomb] wrote results/recomb_table3/MK296750/recomb/recombination.json and results/recomb_table3/MK296750/recomb/recombination.tsv

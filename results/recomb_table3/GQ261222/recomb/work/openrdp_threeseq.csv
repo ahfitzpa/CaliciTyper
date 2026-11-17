@@ -1,0 +1,13 @@
+Method,Start,End,Recombinant,Parent1,Parent2,Pvalue
+Threeseq,5336,7723,Caliciviridae_Sapovirus_GII|NC_006554.1,Caliciviridae_Sapovirus_GIV|DQ366346.1,Caliciviridae_Sapovirus_GV|KX431437.1,8.672488e-21
+Threeseq,6791,7529,Caliciviridae_Sapovirus_GII|NC_006554.1,Caliciviridae_Sapovirus_GIV|OP654149.1,Caliciviridae_Sapovirus_GV|KX431437.1,2.333711e-19
+Threeseq,0,5303,Caliciviridae_Sapovirus_GI|MG515479.1,Caliciviridae_Sapovirus_GI|NC_006269.1,GQ261222,4.913693e-227
+Threeseq,4454,7868,Caliciviridae_Sapovirus_GI|NC_006269.1,Caliciviridae_Sapovirus_GI|MG515479.1,GQ261222,1.711408e-11
+Threeseq,0,6031,Caliciviridae_Sapovirus_GXIII|JN387134.2,Caliciviridae_Sapovirus_GIV|OP654149.1,Caliciviridae_Sapovirus_GXXIX|MN102408.1,1.234181e-07
+Threeseq,65,5327,Caliciviridae_Sapovirus_GXXIX|MN102408.1,Caliciviridae_Sapovirus_GII|NC_006554.1,Caliciviridae_Sapovirus_GIV|DQ366346.1,2.518368e-47
+Threeseq,67,5327,Caliciviridae_Sapovirus_GXXIX|MN102408.1,Caliciviridae_Sapovirus_GII|NC_006554.1,Caliciviridae_Sapovirus_GIV|DQ366346.1,2.518368e-47
+Threeseq,64,5327,Caliciviridae_Sapovirus_GXXIX|MN102408.1,Caliciviridae_Sapovirus_GII|LC715150.1,Caliciviridae_Sapovirus_GIV|OP654149.1,9.235007e-46
+Threeseq,68,5327,Caliciviridae_Sapovirus_GXXIX|MN102408.1,Caliciviridae_Sapovirus_GII|LC715150.1,Caliciviridae_Sapovirus_GIV|OP654149.1,9.235007e-46
+Threeseq,75,5327,Caliciviridae_Sapovirus_GXXIX|MN102408.1,Caliciviridae_Sapovirus_GII|LC715150.1,Caliciviridae_Sapovirus_GIV|OP654149.1,9.235007e-46
+Threeseq,5558,7529,Caliciviridae_Sapovirus_GXXIX|MN102408.1,Caliciviridae_Sapovirus_GV|KX431437.1,Caliciviridae_Sapovirus_GXXX|JN420370.2,2.687129e-15
+Threeseq,6004,7304,GQ261222,Caliciviridae_Sapovirus_GI|MG515479.1,Caliciviridae_Sapovirus_GI|NC_006269.1,2.104104e-13

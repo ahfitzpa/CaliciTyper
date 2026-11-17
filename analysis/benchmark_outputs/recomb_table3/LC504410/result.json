@@ -1,0 +1,188 @@
+{
+ "accession": "LC504410",
+ "host": "human",
+ "genotype": "GII.3",
+ "ptype": "GII.PNA2",
+ "expect_recombination": true,
+ "status": "possible",
+ "score": 0.644,
+ "confidence": "medium",
+ "n_events": 16,
+ "events": [
+  {
+   "event": "event_1",
+   "start": 0,
+   "end": 291,
+   "region": "at alignment terminus: likely an edge artefact, not a breakpoint",
+   "methods": [
+    "bootscan",
+    "geneconv",
+    "rdp",
+    "threeseq"
+   ],
+   "plausibility": 0.05
+  },
+  {
+   "event": "event_2",
+   "start": 5222,
+   "end": 5620,
+   "region": "RdRp-VP1 junction",
+   "methods": [
+    "bootscan",
+    "rdp",
+    "threeseq"
+   ],
+   "plausibility": 1.0
+  },
+  {
+   "event": "event_9",
+   "start": 1720,
+   "end": 1751,
+   "region": "ORF1 nonstructural (NS1-NS7)",
+   "methods": [
+    "bootscan",
+    "rdp"
+   ],
+   "plausibility": 0.6
+  },
+  {
+   "event": "event_10",
+   "start": 7585,
+   "end": 7647,
+   "region": "outside the defined regions",
+   "methods": [
+    "rdp",
+    "threeseq"
+   ],
+   "plausibility": 0.2
+  },
+  {
+   "event": "event_13",
+   "start": 850,
+   "end": 850,
+   "region": "ORF1 nonstructural (NS1-NS7)",
+   "methods": [
+    "bootscan"
+   ],
+   "plausibility": 0.6
+  },
+  {
+   "event": "event_7",
+   "start": 376,
+   "end": 679,
+   "region": "ORF1 nonstructural (NS1-NS7)",
+   "methods": [
+    "bootscan",
+    "rdp"
+   ],
+   "plausibility": 0.6
+  },
+  {
+   "event": "event_4",
+   "start": 2010,
+   "end": 2220,
+   "region": "ORF1 nonstructural (NS1-NS7)",
+   "methods": [
+    "bootscan",
+    "geneconv"
+   ],
+   "plausibility": 0.6
+  },
+  {
+   "event": "event_8",
+   "start": 4690,
+   "end": 4813,
+   "region": "ORF1 nonstructural (NS1-NS7)",
+   "methods": [
+    "bootscan",
+    "maxchi"
+   ],
+   "plausibility": 0.6
+  },
+  {
+   "event": "event_6",
+   "start": 7180,
+   "end": 7520,
+   "region": "ORF2 (VP2)",
+   "methods": [
+    "bootscan",
+    "threeseq"
+   ],
+   "plausibility": 0.6
+  },
+  {
+   "event": "event_3",
+   "start": 6680,
+   "end": 7020,
+   "region": "ORF1 VP1 capsid",
+   "methods": [
+    "bootscan",
+    "threeseq"
+   ],
+   "plausibility": 0.6
+  },
+  {
+   "event": "event_14",
+   "start": 2660,
+   "end": 2660,
+   "region": "ORF1 nonstructural (NS1-NS7)",
+   "methods": [
+    "bootscan"
+   ],
+   "plausibility": 0.6
+  },
+  {
+   "event": "event_5",
+   "start": 4020,
+   "end": 4440,
+   "region": "ORF1 nonstructural (NS1-NS7)",
+   "methods": [
+    "bootscan",
+    "threeseq"
+   ],
+   "plausibility": 0.6
+  },
+  {
+   "event": "event_12",
+   "start": 3010,
+   "end": 3210,
+   "region": "ORF1 nonstructural (NS1-NS7)",
+   "methods": [
+    "bootscan"
+   ],
+   "plausibility": 0.6
+  },
+  {
+   "event": "event_11",
+   "start": 3340,
+   "end": 3880,
+   "region": "ORF1 nonstructural (NS1-NS7)",
+   "methods": [
+    "bootscan"
+   ],
+   "plausibility": 0.6
+  },
+  {
+   "event": "event_16",
+   "start": 6183,
+   "end": 6183,
+   "region": "ORF1 VP1 capsid",
+   "methods": [
+    "maxchi"
+   ],
+   "plausibility": 0.6
+  },
+  {
+   "event": "event_15",
+   "start": 7960,
+   "end": 7960,
+   "region": "at alignment terminus: likely an edge artefact, not a breakpoint",
+   "methods": [
+    "bootscan"
+   ],
+   "plausibility": 0.05
+  }
+ ],
+ "query_nt": 7495,
+ "panel": 10
+}

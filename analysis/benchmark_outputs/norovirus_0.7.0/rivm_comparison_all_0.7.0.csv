@@ -1,0 +1,6 @@
+region,n,both_assigned,agree_of_both,rivm_only,calicityper_only,agree_overall,precision,recall,f1
+Genogroup,5887,5871,98.06,16,0,97.79,98.06,97.79,97.92
+Genogroup (norovirus only),4295,4294,98.35,1,0,98.32,98.35,98.32,98.34
+ORF2 capsid,4095,4042,99.58,50,3,98.29,99.51,98.36,98.93
+ORF1 P-type,3862,3787,99.84,31,44,97.9,98.69,99.03,98.86
+GII.4 variant,1854,1756,96.24,6,92,91.15,91.45,95.91,93.63

@@ -1,0 +1,7 @@
+MN794218	possible	0.705	15 event(s)
+
+--- stderr ---
+[recomb] aligning input FASTA with MAFFT: results/recomb_table3/MN794218/panel.fasta -> results/recomb_table3/MN794218/recomb/aligned.fasta
+[recomb] skipped chimaera: ran but reported nothing significant
+[recomb] skipped siscan: ran but reported nothing significant
+[recomb] wrote results/recomb_table3/MN794218/recomb/recombination.json and results/recomb_table3/MN794218/recomb/recombination.tsv

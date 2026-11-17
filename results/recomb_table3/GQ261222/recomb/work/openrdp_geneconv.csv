@@ -1,0 +1,17 @@
+Method,Start,End,Recombinant,Parent1,Parent2,Pvalue
+Geneconv,5385,7796,Caliciviridae_Sapovirus_GI|MG515479.1,GQ261222,-,0.00000
+Geneconv,48,5393,Caliciviridae_Sapovirus_GI|NC_006269.1,GQ261222,-,0.00000
+Geneconv,80,531,Caliciviridae_Sapovirus_GIV|OP654149.1,Caliciviridae_Sapovirus_GII|NC_006554.1,-,0.00000
+Geneconv,5270,5612,Caliciviridae_Sapovirus_GI|NC_006269.1,Caliciviridae_Sapovirus_GI|MG515479.1,-,0.00000
+Geneconv,80,531,Caliciviridae_Sapovirus_GIV|DQ366346.1,Caliciviridae_Sapovirus_GII|NC_006554.1,-,0.00001
+Geneconv,2102,2358,Caliciviridae_Sapovirus_GIV|DQ366346.1,Caliciviridae_Sapovirus_GII|NC_006554.1,-,0.00147
+Geneconv,80,493,Caliciviridae_Sapovirus_GIV|OP654149.1,Caliciviridae_Sapovirus_GII|LC715150.1,-,0.00272
+Geneconv,5178,5293,Caliciviridae_Sapovirus_GIV|OP654149.1,Caliciviridae_Sapovirus_GII|LC715150.1,-,0.00567
+Geneconv,6482,7796,Caliciviridae_Sapovirus_GII|NC_006554.1,Caliciviridae_Sapovirus_GII|LC715150.1,-,0.00909
+Geneconv,80,493,Caliciviridae_Sapovirus_GIV|DQ366346.1,Caliciviridae_Sapovirus_GII|LC715150.1,-,0.01203
+Geneconv,5178,5293,Caliciviridae_Sapovirus_GIV|DQ366346.1,Caliciviridae_Sapovirus_GII|LC715150.1,-,0.02505
+Geneconv,26,862,Caliciviridae_Sapovirus_GII|NC_006554.1,Caliciviridae_Sapovirus_GII|LC715150.1,-,0.04334
+Geneconv,6945,6975,Caliciviridae_Sapovirus_GIV|OP654149.1,Caliciviridae_Sapovirus_GXIII|JN387134.2,-,0.05634
+Geneconv,6945,6975,Caliciviridae_Sapovirus_GIV|DQ366346.1,Caliciviridae_Sapovirus_GXIII|JN387134.2,-,0.06031
+Geneconv,7725,7795,Caliciviridae_Sapovirus_GI|MG515479.1,Caliciviridae_Sapovirus_GII|LC715150.1,-,0.07349
+Geneconv,7725,7795,Caliciviridae_Sapovirus_GI|MG515479.1,Caliciviridae_Sapovirus_GII|NC_006554.1,-,0.07690

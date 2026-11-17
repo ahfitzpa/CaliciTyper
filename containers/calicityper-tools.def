@@ -22,7 +22,7 @@ From: python:3.11-slim
     Description  BLAST+, MAFFT and OpenRDP for CaliciTyper
     BLAST        2.17.0+
     MAFFT        7.526
-    OpenRDP      0.1.0
+    OpenRDP      0.1.0 (PoonLab/OpenRDP @ b42d9e5, master)
 
 %post
     set -eux
@@ -54,16 +54,41 @@ with tarfile.open("/tmp/mafft.tgz") as t:
     t.extractall("/opt")
 os.remove("/tmp/mafft.tgz")
 print("mafft tree:", os.listdir("/opt/mafft-linux64"), flush=True)
+
+# --- OpenRDP source, pinned commit (tag v0.1.0) ---------------------------
+# OpenRDP is NOT on PyPI: `pip install openrdp` fails with "from versions:
+# none". The commit tarball is used rather than git+https, because git is not
+# in this base image and cannot be apt-installed here.
+# b42d9e5 (master, 2025-08-23) declares numpy>=1.17.4,<2.0.0. The v0.1.0 TAG
+# does not cap numpy, so pinning the tag resolves numpy 2.x and defeats the
+# whole reason for isolating OpenRDP. This commit is what the working
+# environment on Sonic was built from (its METADATA shows the <2.0.0 cap).
+SHA = "b42d9e5fb84c14e817e08aab2668aeb2c6a94f83"
+fetch(f"https://github.com/PoonLab/OpenRDP/archive/{SHA}.tar.gz", "/tmp/openrdp.tar.gz")
+with tarfile.open("/tmp/openrdp.tar.gz") as t:
+    t.extractall("/opt")
+os.rename(f"/opt/OpenRDP-{SHA}", "/opt/openrdp-src")
+os.remove("/tmp/openrdp.tar.gz")
 PY
+
+    # tarfile.extractall does not reliably preserve the executable bit in a
+    # root-mapped namespace, which made %test fail with "blastn: Permission
+    # denied" (exit 127). Set it explicitly.
+    chmod -R a+rX /opt/blast /opt/mafft-linux64
+    chmod a+x /opt/blast/bin/* /opt/mafft-linux64/mafft.bat
+    find /opt/mafft-linux64/mafftdir/bin -type f -exec chmod a+x {} +
 
     # the portable MAFFT entry point is a wrapper script that locates its own
     # binaries relative to itself, so it is linked rather than copied
     ln -s /opt/mafft-linux64/mafft.bat /usr/local/bin/mafft
 
     # --- OpenRDP 0.1.0, isolated interpreter (numpy<2) --------------------
+    # Source fetched above, pinned to the commit tagged v0.1.0. Its declared
+    # dependencies (numpy<2, scipy, h5py) resolve from PyPI as usual.
     python3 -m venv /opt/openrdp-venv
     /opt/openrdp-venv/bin/pip install --no-cache-dir --upgrade pip
-    /opt/openrdp-venv/bin/pip install --no-cache-dir 'numpy<2' 'openrdp==0.1.0'
+    /opt/openrdp-venv/bin/pip install --no-cache-dir /opt/openrdp-src
+    /opt/openrdp-venv/bin/python -c "import numpy, sys; v=numpy.__version__; print('openrdp numpy', v); sys.exit(0 if v.startswith('1.') else 1)"
     ln -s /opt/openrdp-venv/bin/openrdp /usr/local/bin/openrdp
 
 %environment

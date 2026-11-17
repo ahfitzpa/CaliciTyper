@@ -64,7 +64,7 @@ Machine-readable outputs record provenance for reproducibility/auditability (too
 ## Commands and options
 
 ### `calicityper type`
-Assign genogroup and norovirus GI/GII ORF1/ORF2 types (validated scope). Other norovirus genogroups/non-norovirus Caliciviridae may be detected but genotyping is not validated; sapovirus genotyping is not implemented.
+Assign genogroup and norovirus GI/GII ORF1/ORF2 types (validated scope). Other norovirus genogroups/non-norovirus Caliciviridae may be detected but genotyping is not validated; sapovirus VP1 genotyping and RdRp P-typing are implemented and enabled by default, reported as a dual type; RdRp cannot reliably flag a novel P-type, so P-types are provisional (see docs/SAPOVIRUS_STATUS.md).
 
 **Usage:** `calicityper type FASTA [-o OUT] [options]`
 

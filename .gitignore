@@ -6,9 +6,8 @@ build/
 dist/
 *.whl
 results/*.log
-results/
+results/          # working output; the curated set is in analysis/benchmark_outputs/
 docs/figures/
-BENCHMARKING.md
 rivm_test_set.fasta
 validation/results_rivm.csv
 validation/test_result_3.csv

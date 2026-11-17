@@ -1,0 +1,4 @@
+orf1 n=147 assigned=93.9% correct(of all)=93.2% wrong=1
+orf2 n=125 assigned=100.0% correct(of all)=100.0% wrong=0
+region  accession    truth    call  support
+  orf1 AB074893.1 GII.PNA4 GII.P11     99.0

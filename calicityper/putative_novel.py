@@ -29,8 +29,15 @@ sequence (or a single location) "not assigned" (e.g. GII.NA1). So a flag means
 means the query lacks what the rule is defined on: a complete VP1 open reading
 frame, or the RdRp typing region.
 
-Sapovirus has published cut-offs (Zhao et al. 2024, BMC Genomics 25:1131) but
-no bundled VP1/RdRp reference sets yet, so sapovirus calls are not assessed.
+Sapovirus is not screened here. Its VP1 and RdRp reference sets are bundled and
+used for typing, but the published RdRp cut-off (Zhao et al. 2024, BMC Genomics
+25:1131) overlaps the body of the between-type distance distribution: only 1 of 20
+testable P-types is separated from every other P-type in its genogroup by the
+cut-off, and none of five singleton P-types was reported untypeable when its only
+reference was removed. The cut-off therefore cannot establish that a query belongs
+to none of the known P-types, which is what a novelty screen must do. VP1 passes
+that test 6 of 6, but a VP1-only sapovirus screen would be a different rule from
+the dual one the paper defines, so none is offered. See docs/SAPOVIRUS_STATUS.md.
 """
 from __future__ import annotations
 
@@ -73,8 +80,12 @@ RDRP_OCCUPANCY = 0.90     # a column belongs to the typing region if >= 90% of r
 KNOWN, NOVEL_TYPE, NOVEL_GROUP, NA = ("known", "putative_novel_type",
                                   "putative_novel_group", "not_assessable")
 FLAGGED = (NOVEL_TYPE, NOVEL_GROUP)
-NOT_NOROVIRUS = ("not a norovirus: sapovirus cut-offs are published (Zhao et al. 2024) "
-                 "but no sapovirus VP1/RdRp reference sets are bundled yet")
+NOT_NOROVIRUS = ("not a norovirus: this screen is norovirus only. Sapovirus VP1 and "
+                 "RdRp reference sets are bundled and used for typing, but the "
+                 "published RdRp cut-off overlaps the between-type distance "
+                 "distribution and cannot establish that a query belongs to none of "
+                 "the known P-types, so no sapovirus novelty screen is offered. See "
+                 "docs/SAPOVIRUS_STATUS.md")
 
 
 # ------------------------------------------------------------------ distances

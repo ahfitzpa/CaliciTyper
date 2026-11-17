@@ -1,0 +1,8 @@
+MZ488271	weak	0.696	17 event(s)
+
+--- stderr ---
+[recomb] aligning input FASTA with MAFFT: results/recomb_table3/MZ488271/panel.fasta -> results/recomb_table3/MZ488271/recomb/aligned.fasta
+[recomb] skipped maxchi: exit 1: IndexError: index 7872 is out of bounds for axis 0 with size 7872
+[recomb] skipped siscan: timed out after 600s
+[recomb] skipped chimaera: ran but reported nothing significant
+[recomb] wrote results/recomb_table3/MZ488271/recomb/recombination.json and results/recomb_table3/MZ488271/recomb/recombination.tsv

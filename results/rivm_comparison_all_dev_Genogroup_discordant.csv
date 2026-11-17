@@ -1,0 +1,171 @@
+query,nt,rivm
+EU424333.1,GIX,GII
+GQ856474.1,GIX,GII
+JF939046.1,GVI,GII
+JN387134.2,Sapovirus GXIII,Sapovirus GII
+JN420370.2,Sapovirus GXXX,Sapovirus GI
+JX846926.1,GIX,GII
+KJ641702.1,GX,GII
+KJ790198.1,GX,GII
+KM092511.1,Sapovirus GXXIX,Sapovirus GII
+KT207827.1,Sapovirus GXIII,Sapovirus GII
+KT207828.1,Sapovirus GXIII,Sapovirus GII
+KT207829.1,Sapovirus GXIII,Sapovirus GII
+KU954108.1,GIX,GII
+KX759618.1,Sapovirus GXXVIII,Sapovirus GII
+KX759619.1,Sapovirus GXVIII,Sapovirus GII
+KX759621.1,Sapovirus GXXVIII,Sapovirus GII
+KX894315.1,Sapovirus GXXIX,Sapovirus GII
+KY486328.1,GVI,GII
+LC567100.1,GIX,GII
+MF462287.1,Sapovirus GXXIX,Sapovirus GII
+MF462288.1,Sapovirus GXXIX,Sapovirus GII
+MG012452.1,Sapovirus GXXIX,Sapovirus GII
+MG012453.1,Sapovirus GXXIX,Sapovirus GII
+MG674583.1,Sapovirus GXXIX,Sapovirus GII
+MG674584.1,Sapovirus GXXIX,Sapovirus GII
+MK599471.1,Sapovirus GXXIX,Sapovirus GII
+MK762723.1,GIX,GII
+MN102407.1,Sapovirus GXXIX,Sapovirus GII
+MN102408.1,Sapovirus GXXIX,Sapovirus GII
+MN227770.1,GIX,GII
+MN227771.1,GIX,GII
+MN227772.1,GIX,GII
+MN227773.1,GIX,GII
+MN227774.1,GIX,GII
+MN227775.1,GIX,GII
+MN227776.1,GIX,GII
+MN227777.1,GIX,GII
+MN462922.1,GIX,GII
+MN473468.1,GIX,GII
+MT010298.1,GIX,GII
+MT010299.1,GIX,GII
+MT561022.1,Sapovirus GXXIX,Sapovirus GII
+MT703831.1,GIX,GII
+MT707683.1,GIX,GII
+MZ218056.1,Sapovirus GXVII,Sapovirus GI
+MZ292794.1,GIX,GII
+AB496913.1,unassigned,other + strand ssRNA virus
+AJ844470.1,GII,GIV
+EF450827.1,GVI,GIV
+EU224456.1,GVI,GIV
+FJ498788.1,Sapovirus GIX,Sapovirus GX
+FJ875027.1,GVI,GIV
+GQ443611.1,GVI,GIV
+GU230161.1,Sapovirus GXXV,Sapovirus GVII
+GU230162.1,Sapovirus GXXVII,Sapovirus GVII
+HM346630.1,Sapovirus GXXIV,Sapovirus GVII
+HQ010042.1,Chicken calicivirus unclassified,unclassified Chicken calicivirus
+HQ616593.2,Chicken calicivirus unclassified,unclassified Chicken calicivirus
+HQ616594.2,Chicken calicivirus unclassified,unclassified Chicken calicivirus
+JF491403.3,unassigned,other + strand ssRNA virus
+JF930689.1,GVI,GIV
+JN387135.1,Sapovirus GXIII,Sapovirus GIV
+JN899072.1,Sapovirus GXIV,Sapovirus Bat sapovirus
+JN899074.1,Sapovirus GXIV,Sapovirus Bat sapovirus
+JN899075.1,Sapovirus GXIV,Sapovirus Bat sapovirus
+JQ347523.1,Nacovirus Goose calicivirus,Nacovirus Turkey calicivirus
+KC285113.3,unassigned,other + strand ssRNA virus
+KC285152.2,unassigned,other + strand ssRNA virus
+KC309418.3,Sapovirus GIX,Sapovirus GX
+KC309420.1,Sapovirus GXXVII,Sapovirus GVII
+KC309421.2,Sapovirus GXXVII,Sapovirus GX
+KJ641700.1,unassigned,Valovirus unclassified
+KJ641701.1,Sapovirus GXVI,Sapovirus Bat sapovirus
+KJ641703.1,Sapovirus GXVII,Sapovirus Bat sapovirus
+KM254170.1,Chicken calicivirus unclassified,unclassified Chicken calicivirus
+KM254171.1,Chicken calicivirus unclassified,unclassified Chicken calicivirus
+KR072992.2,Sapovirus GXXX,Sapovirus GII
+KR072995.1,Sapovirus GXXX,Sapovirus GIV
+KT245136.1,GVI,GIV
+KU311159.1,unassigned,other + strand ssRNA virus
+KU712496.1,unassigned,Valovirus unclassified
+KU712497.1,Sapovirus GXVII,Sapovirus Bat sapovirus
+KX000383.1,Sapovirus GXXXI,Sapovirus GV
+KX759620.1,Sapovirus GXIX,Sapovirus GIV
+KX759622.1,Sapovirus GXIX,Sapovirus GIV
+KX759623.1,Sapovirus GXVIII,Sapovirus GIV
+KY370105.1,GX,GVII
+KY486329.1,GVI,GIV
+LC011951.1,GVI,GIV
+LC215885.1,Sapovirus GXXXI,Sapovirus GV
+LC215888.1,Sapovirus GXXIII,Sapovirus GVI
+LC215890.1,Sapovirus GXXVII,Sapovirus GX
+LC215892.1,Sapovirus GXXV,Sapovirus GVII
+LC215894.1,Sapovirus GXXV,Sapovirus GVII
+LC215901.1,Sapovirus GXXV,Sapovirus GXI
+LC389583.1,GVI,GIV
+LC483440.1,Sapovirus GXXXI,Sapovirus GV
+LC483441.1,Sapovirus GXXII,Sapovirus GVI
+LN854562.1,unassigned,other + strand ssRNA virus
+MF175077.1,Sapovirus GXV,Sapovirus GVII
+MF373609.1,GX,GVII
+MF766258.1,Sapovirus GXXIV,Sapovirus GVII
+MG572715.1,GVI,GIV
+MG572716.1,GVI,GIV
+MG599958.1,unassigned,Salmonid calicivirus unclassified
+MG599960.1,unassigned,GIII
+MG599969.1,unassigned,Salmonid calicivirus unclassified
+MG599970.1,unassigned,Salmonid calicivirus unclassified
+MG599973.1,unassigned,Valovirus unclassified
+MG599976.1,unassigned,GVII
+MG599977.1,unassigned,Salmonid calicivirus unclassified
+MG599979.1,unassigned,Salmonid calicivirus unclassified
+MG846427.1,Chicken calicivirus unclassified,unclassified Chicken calicivirus
+MG846428.1,Chicken calicivirus unclassified,unclassified Chicken calicivirus
+MG846429.1,Chicken calicivirus unclassified,unclassified Chicken calicivirus
+MG846430.1,Chicken calicivirus unclassified,unclassified Chicken calicivirus
+MG846431.1,Chicken calicivirus unclassified,unclassified Chicken calicivirus
+MG846432.1,Chicken calicivirus unclassified,unclassified Chicken calicivirus
+MH003837.1,Sapovirus GNA4,Sapovirus GVI
+MH332781.3,unassigned,other + strand ssRNA virus
+MK067288.1,GVI,GIV
+MK067289.1,GVI,GIV
+MK067291.1,GVI,GIV
+MK067292.1,GVI,GIV
+MK067294.1,GVI,GIV
+MK067295.1,GVI,GIV
+MK067296.1,GVI,GIV
+MK067297.1,GVI,GIV
+MN510439.1,unassigned,other + strand ssRNA virus
+MN510440.1,unassigned,other + strand ssRNA virus
+MN510441.1,unassigned,other + strand ssRNA virus
+MN510442.1,unassigned,other + strand ssRNA virus
+MN897757.1,GVI,GIV
+MN897758.1,GVI,GIV
+MN897759.1,GVI,GIV
+MN897760.1,GVI,GIV
+MN908340.1,GVI,GIV
+MN912824.1,GVI,GIV
+MP883923.1,unassigned,other + strand ssRNA virus
+MT138019.1,unassigned,Sapovirus GXI
+MT138022.1,unassigned,Sapovirus Bat sapovirus
+MT138023.1,unassigned,Sapovirus GIV
+MT138024.1,unassigned,Sapovirus GVII
+MT138025.1,unassigned,Sapovirus GVIII
+MT239355.1,Chicken calicivirus unclassified,unclassified Chicken calicivirus
+MW149253.1,unassigned,other + strand ssRNA virus
+MW149254.1,unassigned,other + strand ssRNA virus
+MW504477.1,Sapovirus GXXVII,Sapovirus GX
+MW662289.1,GVI,GIV
+MW684834.1,Nacovirus Goose calicivirus,Nacovirus Turkey calicivirus
+MW684836.1,Chicken calicivirus unclassified,unclassified Chicken calicivirus
+MW684837.1,Chicken calicivirus unclassified,unclassified Chicken calicivirus
+MW684844.1,Nacovirus Goose calicivirus,Nacovirus Turkey calicivirus
+MW684846.1,Nacovirus Goose calicivirus,Nacovirus Turkey calicivirus
+MW939576.1,GVI,GIV
+MW945229.1,GVI,GIV
+MZ325533.1,GVI,GIV
+MZ325534.1,GVI,GIV
+MZ325535.1,GVI,GIV
+MZ325536.1,GVI,GIV
+MZ325537.1,GVI,GIV
+MZ325538.1,GVI,GIV
+MZ325539.1,GVI,GIV
+MZ325540.1,GVI,GIV
+MZ325541.1,GVI,GIV
+MZ325542.1,GVI,GIV
+MZ325543.1,GVI,GIV
+MZ325544.1,GVI,GIV
+MZ325545.1,GVI,GIV
+NC_045762.1,GVI,GIV

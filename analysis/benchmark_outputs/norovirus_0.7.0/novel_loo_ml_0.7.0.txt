@@ -1,0 +1,7 @@
+distance measure: ml
+region	scenario	n	known	putative_novel_type	putative_novel_group
+orf2	own genotype present	159	148 (93%)	11 (7%)	0 (0%)
+orf2	own genotype removed	166	10 (6%)	149 (90%)	7 (4%)
+orf2	own genogroup removed	166	0 (0%)	79 (48%)	87 (52%)
+orf1	own genotype present	161	157 (98%)	4 (2%)	0 (0%)
+orf1	own genotype removed	175	64 (37%)	111 (63%)	0 (0%)

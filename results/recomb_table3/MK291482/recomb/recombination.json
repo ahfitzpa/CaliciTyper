@@ -1,0 +1,900 @@
+{
+  "schema": {
+    "name": "calicityper.recomb",
+    "version": "1.0"
+  },
+  "tool": "calicityper",
+  "tool_version": "0.7.0",
+  "command": "recomb",
+  "generated": "2026-11-17T11:53:04+00:00",
+  "provenance": {
+    "tool": "calicityper",
+    "tool_version": "0.7.0",
+    "command": "recomb",
+    "generated": "2026-11-17T11:53:04+00:00",
+    "alignment_file": "results/recomb_table3/MK291482/recomb/aligned.fasta",
+    "alignment_sequences": 11,
+    "alignment_length": 7865,
+    "ambiguity_chars_masked": 1,
+    "reference_metadata": "",
+    "tools_used": [
+      "OpenRDP (bootscan,geneconv,maxchi,rdp,threeseq)"
+    ],
+    "tools_skipped": [
+      {
+        "tool": "chimaera",
+        "reason": "ran but reported nothing significant"
+      },
+      {
+        "tool": "siscan",
+        "reason": "ran but reported nothing significant"
+      }
+    ],
+    "parameters": {
+      "virus": "sapovirus",
+      "regions": {
+        "RdRp-VP1 junction": [
+          4800,
+          5500
+        ],
+        "ORF1 nonstructural (NS1-NS7)": [
+          10,
+          5100
+        ],
+        "ORF1 VP1 capsid": [
+          5100,
+          6800
+        ],
+        "ORF2 (VP2)": [
+          6700,
+          7200
+        ]
+      },
+      "pvalue_threshold": 0.05,
+      "multiple_testing_correction": "bonferroni",
+      "n_tests_for_correction": 55,
+      "max_breakpoint_distance": 250,
+      "minimum_sequence_length": 5000,
+      "min_informative_sites": 500,
+      "segment_window": 1000,
+      "segment_bootstraps": 100,
+      "seed": 3,
+      "methods_requested": [
+        "rdp",
+        "geneconv",
+        "bootscan",
+        "maxchi",
+        "chimaera",
+        "siscan",
+        "threeseq"
+      ],
+      "scoring_weights": {
+        "method_support": 0.35,
+        "phylogenetic_support": 0.2,
+        "breakpoint_consistency": 0.2,
+        "parental_distinctness": 0.15,
+        "biological_plausibility": 0.1
+      },
+      "queries_requested": [
+        "MK291482"
+      ],
+      "openrdp_timeout": 7200
+    },
+    "reference_set": {
+      "manifest_path": "/scratch/fitzpatria/calicityper/calicityper/data/reference_manifest.json",
+      "available": true,
+      "doi": "10.5281/zenodo.24161236",
+      "reference_set_version": "0.7.0",
+      "download_url": "https://zenodo.org/records/24161236/files/calicityper-reference-0.6.1.tar.gz?download=1",
+      "n_accessions": 309,
+      "n_records": 455,
+      "n_artefacts": 84,
+      "manifest_sha256": "c1d542e935a6c1730e797be18b914135fe4cdbf4c33cd2939b40038344944fee"
+    }
+  },
+  "results": [
+    {
+      "sequence_id": "MK291482",
+      "recombination": {
+        "status": "strong",
+        "score": 0.761,
+        "confidence": "high",
+        "alignment_length": 7865,
+        "informative_sites": 4488,
+        "events": [
+          {
+            "event_id": "event_2",
+            "breakpoints": [
+              {
+                "alignment_start": 5200,
+                "alignment_end": 5700,
+                "query_start": 5083,
+                "query_end": 5564
+              }
+            ],
+            "supporting_methods": [
+              "bootscan",
+              "rdp",
+              "threeseq"
+            ],
+            "method_pvalues": {
+              "bootscan": 1.5709266547570876e-07,
+              "rdp": 6.03111113459837e-206,
+              "threeseq": 5.8724325e-13
+            },
+            "candidate_major_parent": "Caliciviridae_Sapovirus_GVIII|LC215895.1",
+            "candidate_minor_parent": "Caliciviridae_Sapovirus_GIV|OP654149.1",
+            "candidate_major_parent_id": "Caliciviridae_Sapovirus_GVIII|LC215895.1",
+            "candidate_minor_parent_id": "Caliciviridae_Sapovirus_GIV|OP654149.1",
+            "parental_distinctness": 1.0,
+            "phylogenetic_support": "high",
+            "phylogenetic_detail": {
+              "left_neighbour": "Caliciviridae_Sapovirus_GII|LC715150.1",
+              "right_neighbour": "Caliciviridae_Sapovirus_GII|NC_006554.1",
+              "left_stability": 0.8,
+              "right_stability": 0.76,
+              "score": 0.76,
+              "label": "high",
+              "note": ""
+            },
+            "breakpoint_consistency": 0.433,
+            "biological_region": "RdRp-VP1 junction",
+            "biological_plausibility": 1.0,
+            "score": 0.761,
+            "status": "strong",
+            "score_components": {
+              "method_support": 0.778,
+              "phylogenetic_support": 0.76,
+              "breakpoint_consistency": 0.433,
+              "parental_distinctness": 1.0,
+              "biological_plausibility": 1.0
+            },
+            "notes": ""
+          },
+          {
+            "event_id": "event_1",
+            "breakpoints": [
+              {
+                "alignment_start": 0,
+                "alignment_end": 330,
+                "query_start": 1,
+                "query_end": 276
+              }
+            ],
+            "supporting_methods": [
+              "bootscan",
+              "maxchi",
+              "rdp",
+              "threeseq"
+            ],
+            "method_pvalues": {
+              "rdp": 9.59644677269976e-114,
+              "bootscan": 9.413755502813729e-12,
+              "threeseq": 5.0341049e-10,
+              "maxchi": 3.643865536964365e-05
+            },
+            "candidate_major_parent": "Caliciviridae_Sapovirus_GVIII|LC215895.1",
+            "candidate_minor_parent": "Caliciviridae_Sapovirus_GI|MG515479.1",
+            "candidate_major_parent_id": "Caliciviridae_Sapovirus_GVIII|LC215895.1",
+            "candidate_minor_parent_id": "Caliciviridae_Sapovirus_GI|MG515479.1",
+            "parental_distinctness": 1.0,
+            "phylogenetic_support": "moderate",
+            "phylogenetic_detail": {
+              "left_neighbour": "Caliciviridae_Sapovirus_GXXIX|MN102408.1",
+              "right_neighbour": "Caliciviridae_Sapovirus_GIV|OP654149.1",
+              "left_stability": 0.68,
+              "right_stability": 0.51,
+              "score": 0.51,
+              "label": "moderate",
+              "note": ""
+            },
+            "breakpoint_consistency": 0.626,
+            "biological_region": "at alignment terminus: likely an edge artefact, not a breakpoint",
+            "biological_plausibility": 0.05,
+            "score": 0.718,
+            "status": "strong",
+            "score_components": {
+              "method_support": 0.96,
+              "phylogenetic_support": 0.51,
+              "breakpoint_consistency": 0.626,
+              "parental_distinctness": 1.0,
+              "biological_plausibility": 0.05
+            },
+            "notes": ""
+          },
+          {
+            "event_id": "event_4",
+            "breakpoints": [
+              {
+                "alignment_start": 490,
+                "alignment_end": 778,
+                "query_start": 436,
+                "query_end": 724
+              }
+            ],
+            "supporting_methods": [
+              "bootscan",
+              "rdp"
+            ],
+            "method_pvalues": {
+              "bootscan": 5.419733316423912e-10,
+              "rdp": 6.935718673293405e-24
+            },
+            "candidate_major_parent": "Caliciviridae_Sapovirus_GXXIX|MN102408.1",
+            "candidate_minor_parent": "Caliciviridae_Sapovirus_GVIII|LC215895.1",
+            "candidate_major_parent_id": "Caliciviridae_Sapovirus_GXXIX|MN102408.1",
+            "candidate_minor_parent_id": "Caliciviridae_Sapovirus_GVIII|LC215895.1",
+            "parental_distinctness": 1.0,
+            "phylogenetic_support": "moderate",
+            "phylogenetic_detail": {
+              "left_neighbour": "Caliciviridae_Sapovirus_GIV|OP654149.1",
+              "right_neighbour": "Caliciviridae_Sapovirus_GIV|DQ366346.1",
+              "left_stability": 0.93,
+              "right_stability": 0.56,
+              "score": 0.56,
+              "label": "moderate",
+              "note": ""
+            },
+            "breakpoint_consistency": 0.647,
+            "biological_region": "ORF1 nonstructural (NS1-NS7)",
+            "biological_plausibility": 0.6,
+            "score": 0.663,
+            "status": "possible",
+            "score_components": {
+              "method_support": 0.605,
+              "phylogenetic_support": 0.56,
+              "breakpoint_consistency": 0.647,
+              "parental_distinctness": 1.0,
+              "biological_plausibility": 0.6
+            },
+            "notes": ""
+          },
+          {
+            "event_id": "event_5",
+            "breakpoints": [
+              {
+                "alignment_start": 1340,
+                "alignment_end": 1660,
+                "query_start": 1286,
+                "query_end": 1606
+              }
+            ],
+            "supporting_methods": [
+              "bootscan",
+              "rdp"
+            ],
+            "method_pvalues": {
+              "bootscan": 2.5525646484416178e-33,
+              "rdp": 9.022134048750537e-71
+            },
+            "candidate_major_parent": "Caliciviridae_Sapovirus_GIV|OP654149.1",
+            "candidate_minor_parent": "Caliciviridae_Sapovirus_GXXIX|MN102408.1",
+            "candidate_major_parent_id": "Caliciviridae_Sapovirus_GIV|OP654149.1",
+            "candidate_minor_parent_id": "Caliciviridae_Sapovirus_GXXIX|MN102408.1",
+            "parental_distinctness": 1.0,
+            "phylogenetic_support": "moderate",
+            "phylogenetic_detail": {
+              "left_neighbour": "Caliciviridae_Sapovirus_GIV|DQ366346.1",
+              "right_neighbour": "Caliciviridae_Sapovirus_GII|NC_006554.1",
+              "left_stability": 0.53,
+              "right_stability": 0.91,
+              "score": 0.53,
+              "label": "moderate",
+              "note": ""
+            },
+            "breakpoint_consistency": 0.595,
+            "biological_region": "ORF1 nonstructural (NS1-NS7)",
+            "biological_plausibility": 0.6,
+            "score": 0.637,
+            "status": "possible",
+            "score_components": {
+              "method_support": 0.578,
+              "phylogenetic_support": 0.53,
+              "breakpoint_consistency": 0.595,
+              "parental_distinctness": 1.0,
+              "biological_plausibility": 0.6
+            },
+            "notes": "ambiguous minor parent: Caliciviridae_Sapovirus_GXXIX|MN102408.1 and Caliciviridae_Sapovirus_GXXX|JN420370.2 are implicated equally often"
+          },
+          {
+            "event_id": "event_11",
+            "breakpoints": [
+              {
+                "alignment_start": 2800,
+                "alignment_end": 2900,
+                "query_start": 2728,
+                "query_end": 2828
+              }
+            ],
+            "supporting_methods": [
+              "bootscan"
+            ],
+            "method_pvalues": {
+              "bootscan": 3.3755854432987314e-13
+            },
+            "candidate_major_parent": "Caliciviridae_Sapovirus_GII|NC_006554.1",
+            "candidate_minor_parent": "Caliciviridae_Sapovirus_GI|NC_006269.1",
+            "candidate_major_parent_id": "Caliciviridae_Sapovirus_GII|NC_006554.1",
+            "candidate_minor_parent_id": "Caliciviridae_Sapovirus_GI|NC_006269.1",
+            "parental_distinctness": 1.0,
+            "phylogenetic_support": "low",
+            "phylogenetic_detail": {
+              "left_neighbour": "Caliciviridae_Sapovirus_GII|NC_006554.1",
+              "right_neighbour": "Caliciviridae_Sapovirus_GII|LC715150.1",
+              "left_stability": 0.49,
+              "right_stability": 0.77,
+              "score": 0.49,
+              "label": "low",
+              "note": ""
+            },
+            "breakpoint_consistency": 0.827,
+            "biological_region": "ORF1 nonstructural (NS1-NS7)",
+            "biological_plausibility": 0.6,
+            "score": 0.632,
+            "status": "weak",
+            "score_components": {
+              "method_support": 0.452,
+              "phylogenetic_support": 0.49,
+              "breakpoint_consistency": 0.827,
+              "parental_distinctness": 1.0,
+              "biological_plausibility": 0.6
+            },
+            "notes": ""
+          },
+          {
+            "event_id": "event_10",
+            "breakpoints": [
+              {
+                "alignment_start": 1030,
+                "alignment_end": 1180,
+                "query_start": 976,
+                "query_end": 1126
+              }
+            ],
+            "supporting_methods": [
+              "bootscan"
+            ],
+            "method_pvalues": {
+              "bootscan": 5.419733316423912e-10
+            },
+            "candidate_major_parent": "Caliciviridae_Sapovirus_GII|LC715150.1",
+            "candidate_minor_parent": "Caliciviridae_Sapovirus_GII|NC_006554.1",
+            "candidate_major_parent_id": "Caliciviridae_Sapovirus_GII|LC715150.1",
+            "candidate_minor_parent_id": "Caliciviridae_Sapovirus_GII|NC_006554.1",
+            "parental_distinctness": 1.0,
+            "phylogenetic_support": "moderate",
+            "phylogenetic_detail": {
+              "left_neighbour": "Caliciviridae_Sapovirus_GIV|OP654149.1",
+              "right_neighbour": "Caliciviridae_Sapovirus_GII|NC_006554.1",
+              "left_stability": 0.55,
+              "right_stability": 0.93,
+              "score": 0.55,
+              "label": "moderate",
+              "note": ""
+            },
+            "breakpoint_consistency": 0.754,
+            "biological_region": "ORF1 nonstructural (NS1-NS7)",
+            "biological_plausibility": 0.6,
+            "score": 0.617,
+            "status": "weak",
+            "score_components": {
+              "method_support": 0.417,
+              "phylogenetic_support": 0.55,
+              "breakpoint_consistency": 0.754,
+              "parental_distinctness": 1.0,
+              "biological_plausibility": 0.6
+            },
+            "notes": "ambiguous minor parent: Caliciviridae_Sapovirus_GII|NC_006554.1 and Caliciviridae_Sapovirus_GIV|DQ366346.1 are implicated equally often"
+          },
+          {
+            "event_id": "event_16",
+            "breakpoints": [
+              {
+                "alignment_start": 2430,
+                "alignment_end": 2580,
+                "query_start": 2358,
+                "query_end": 2508
+              }
+            ],
+            "supporting_methods": [
+              "bootscan"
+            ],
+            "method_pvalues": {
+              "bootscan": 0.00038486493693077803
+            },
+            "candidate_major_parent": "Caliciviridae_Sapovirus_GI|NC_006269.1",
+            "candidate_minor_parent": "Caliciviridae_Sapovirus_GVIII|LC215895.1",
+            "candidate_major_parent_id": "Caliciviridae_Sapovirus_GI|NC_006269.1",
+            "candidate_minor_parent_id": "Caliciviridae_Sapovirus_GVIII|LC215895.1",
+            "parental_distinctness": 1.0,
+            "phylogenetic_support": "moderate",
+            "phylogenetic_detail": {
+              "left_neighbour": "Caliciviridae_Sapovirus_GII|NC_006554.1",
+              "right_neighbour": "Caliciviridae_Sapovirus_GII|LC715150.1",
+              "left_stability": 0.87,
+              "right_stability": 0.55,
+              "score": 0.55,
+              "label": "moderate",
+              "note": ""
+            },
+            "breakpoint_consistency": 0.7,
+            "biological_region": "ORF1 nonstructural (NS1-NS7)",
+            "biological_plausibility": 0.6,
+            "score": 0.596,
+            "status": "weak",
+            "score_components": {
+              "method_support": 0.388,
+              "phylogenetic_support": 0.55,
+              "breakpoint_consistency": 0.7,
+              "parental_distinctness": 1.0,
+              "biological_plausibility": 0.6
+            },
+            "notes": "ambiguous minor parent: Caliciviridae_Sapovirus_GVIII|LC215895.1 and Caliciviridae_Sapovirus_GXXXI|LC483440.1 are implicated equally often"
+          },
+          {
+            "event_id": "event_13",
+            "breakpoints": [
+              {
+                "alignment_start": 6850,
+                "alignment_end": 7140,
+                "query_start": 6588,
+                "query_end": 6878
+              }
+            ],
+            "supporting_methods": [
+              "bootscan"
+            ],
+            "method_pvalues": {
+              "bootscan": 1.6951100409958786e-12
+            },
+            "candidate_major_parent": "Caliciviridae_Sapovirus_GVIII|LC215895.1",
+            "candidate_minor_parent": "Caliciviridae_Sapovirus_GIV|DQ366346.1",
+            "candidate_major_parent_id": "Caliciviridae_Sapovirus_GVIII|LC215895.1",
+            "candidate_minor_parent_id": "Caliciviridae_Sapovirus_GIV|DQ366346.1",
+            "parental_distinctness": 1.0,
+            "phylogenetic_support": "moderate",
+            "phylogenetic_detail": {
+              "left_neighbour": "Caliciviridae_Sapovirus_GII|NC_006554.1",
+              "right_neighbour": "Caliciviridae_Sapovirus_GII|LC715150.1",
+              "left_stability": 0.79,
+              "right_stability": 0.6,
+              "score": 0.6,
+              "label": "moderate",
+              "note": ""
+            },
+            "breakpoint_consistency": 0.534,
+            "biological_region": "ORF1 VP1 capsid",
+            "biological_plausibility": 0.6,
+            "score": 0.58,
+            "status": "weak",
+            "score_components": {
+              "method_support": 0.408,
+              "phylogenetic_support": 0.6,
+              "breakpoint_consistency": 0.534,
+              "parental_distinctness": 1.0,
+              "biological_plausibility": 0.6
+            },
+            "notes": "ambiguous minor parent: Caliciviridae_Sapovirus_GIV|DQ366346.1 and Caliciviridae_Sapovirus_GIV|OP654149.1 are implicated equally often"
+          },
+          {
+            "event_id": "event_17",
+            "breakpoints": [
+              {
+                "alignment_start": 3130,
+                "alignment_end": 3290,
+                "query_start": 3058,
+                "query_end": 3176
+              }
+            ],
+            "supporting_methods": [
+              "bootscan"
+            ],
+            "method_pvalues": {
+              "bootscan": 4.5140157513316446e-07
+            },
+            "candidate_major_parent": "Caliciviridae_Sapovirus_GI|MG515479.1",
+            "candidate_minor_parent": "Caliciviridae_Sapovirus_GI|NC_006269.1",
+            "candidate_major_parent_id": "Caliciviridae_Sapovirus_GI|MG515479.1",
+            "candidate_minor_parent_id": "Caliciviridae_Sapovirus_GI|NC_006269.1",
+            "parental_distinctness": 1.0,
+            "phylogenetic_support": "moderate",
+            "phylogenetic_detail": {
+              "left_neighbour": "Caliciviridae_Sapovirus_GII|LC715150.1",
+              "right_neighbour": "Caliciviridae_Sapovirus_GII|NC_006554.1",
+              "left_stability": 0.5,
+              "right_stability": 0.69,
+              "score": 0.5,
+              "label": "moderate",
+              "note": ""
+            },
+            "breakpoint_consistency": 0.68,
+            "biological_region": "ORF1 nonstructural (NS1-NS7)",
+            "biological_plausibility": 0.6,
+            "score": 0.569,
+            "status": "weak",
+            "score_components": {
+              "method_support": 0.352,
+              "phylogenetic_support": 0.5,
+              "breakpoint_consistency": 0.68,
+              "parental_distinctness": 1.0,
+              "biological_plausibility": 0.6
+            },
+            "notes": "ambiguous minor parent: Caliciviridae_Sapovirus_GI|NC_006269.1 and Caliciviridae_Sapovirus_GXXIX|MN102408.1 are implicated equally often"
+          },
+          {
+            "event_id": "event_9",
+            "breakpoints": [
+              {
+                "alignment_start": 3880,
+                "alignment_end": 4210,
+                "query_start": 3763,
+                "query_end": 4093
+              }
+            ],
+            "supporting_methods": [
+              "bootscan"
+            ],
+            "method_pvalues": {
+              "bootscan": 4.245880838242501e-06
+            },
+            "candidate_major_parent": "Caliciviridae_Sapovirus_GXXXI|LC483440.1",
+            "candidate_minor_parent": "Caliciviridae_Sapovirus_GVIII|LC215895.1",
+            "candidate_major_parent_id": "Caliciviridae_Sapovirus_GXXXI|LC483440.1",
+            "candidate_minor_parent_id": "Caliciviridae_Sapovirus_GVIII|LC215895.1",
+            "parental_distinctness": 1.0,
+            "phylogenetic_support": "low",
+            "phylogenetic_detail": {
+              "left_neighbour": "Caliciviridae_Sapovirus_GII|NC_006554.1",
+              "right_neighbour": "Caliciviridae_Sapovirus_GIV|DQ366346.1",
+              "left_stability": 0.57,
+              "right_stability": 0.49,
+              "score": 0.49,
+              "label": "low",
+              "note": ""
+            },
+            "breakpoint_consistency": 0.451,
+            "biological_region": "ORF1 nonstructural (NS1-NS7)",
+            "biological_plausibility": 0.6,
+            "score": 0.55,
+            "status": "weak",
+            "score_components": {
+              "method_support": 0.434,
+              "phylogenetic_support": 0.49,
+              "breakpoint_consistency": 0.451,
+              "parental_distinctness": 1.0,
+              "biological_plausibility": 0.6
+            },
+            "notes": "ambiguous minor parent: Caliciviridae_Sapovirus_GVIII|LC215895.1 and Caliciviridae_Sapovirus_GXXX|JN420370.2 are implicated equally often"
+          },
+          {
+            "event_id": "event_6",
+            "breakpoints": [
+              {
+                "alignment_start": 5980,
+                "alignment_end": 6180,
+                "query_start": 5841,
+                "query_end": 6029
+              }
+            ],
+            "supporting_methods": [
+              "bootscan",
+              "maxchi"
+            ],
+            "method_pvalues": {
+              "bootscan": 2.059141816331149e-05,
+              "maxchi": 0.0020910399008700013
+            },
+            "candidate_major_parent": "Caliciviridae_Sapovirus_GXXXI|LC483440.1",
+            "candidate_minor_parent": "Caliciviridae_Sapovirus_GVIII|LC215895.1",
+            "candidate_major_parent_id": "Caliciviridae_Sapovirus_GXXXI|LC483440.1",
+            "candidate_minor_parent_id": "Caliciviridae_Sapovirus_GVIII|LC215895.1",
+            "parental_distinctness": 1.0,
+            "phylogenetic_support": "none",
+            "phylogenetic_detail": {
+              "left_neighbour": "Caliciviridae_Sapovirus_GII|NC_006554.1",
+              "right_neighbour": "Caliciviridae_Sapovirus_GII|NC_006554.1",
+              "left_stability": 0.57,
+              "right_stability": 0.75,
+              "score": 0.0,
+              "label": "none",
+              "note": "same nearest neighbour on both sides: no topological change"
+            },
+            "breakpoint_consistency": 0.688,
+            "biological_region": "ORF1 VP1 capsid",
+            "biological_plausibility": 0.6,
+            "score": 0.522,
+            "status": "possible",
+            "score_components": {
+              "method_support": 0.497,
+              "phylogenetic_support": 0.0,
+              "breakpoint_consistency": 0.688,
+              "parental_distinctness": 1.0,
+              "biological_plausibility": 0.6
+            },
+            "notes": "same nearest neighbour on both sides: no topological change"
+          },
+          {
+            "event_id": "event_7",
+            "breakpoints": [
+              {
+                "alignment_start": 7789,
+                "alignment_end": 7940,
+                "query_start": 7433,
+                "query_end": 7457
+              }
+            ],
+            "supporting_methods": [
+              "bootscan",
+              "threeseq"
+            ],
+            "method_pvalues": {
+              "threeseq": 3.2185796500000003e-23,
+              "bootscan": 9.605872518636696e-38
+            },
+            "candidate_major_parent": "Caliciviridae_Sapovirus_GII|LC715150.1",
+            "candidate_minor_parent": "Caliciviridae_Sapovirus_GII|NC_006554.1",
+            "candidate_major_parent_id": "Caliciviridae_Sapovirus_GII|LC715150.1",
+            "candidate_minor_parent_id": "Caliciviridae_Sapovirus_GII|NC_006554.1",
+            "parental_distinctness": 1.0,
+            "phylogenetic_support": "none",
+            "phylogenetic_detail": {
+              "left_neighbour": "",
+              "right_neighbour": "",
+              "left_stability": 0.0,
+              "right_stability": 0.0,
+              "score": 0.0,
+              "label": "none",
+              "note": "segment shorter than min_segment_sites (1000 / 1 columns)"
+            },
+            "breakpoint_consistency": 0.698,
+            "biological_region": "at alignment terminus: likely an edge artefact, not a breakpoint",
+            "biological_plausibility": 0.05,
+            "score": 0.522,
+            "status": "possible",
+            "score_components": {
+              "method_support": 0.65,
+              "phylogenetic_support": 0.0,
+              "breakpoint_consistency": 0.698,
+              "parental_distinctness": 1.0,
+              "biological_plausibility": 0.05
+            },
+            "notes": "segment shorter than min_segment_sites (1000 / 1 columns); ambiguous minor parent: Caliciviridae_Sapovirus_GII|NC_006554.1 and Caliciviridae_Sapovirus_GVIII|LC215895.1 are implicated equally often"
+          },
+          {
+            "event_id": "event_15",
+            "breakpoints": [
+              {
+                "alignment_start": 6380,
+                "alignment_end": 6680,
+                "query_start": 6188,
+                "query_end": 6422
+              }
+            ],
+            "supporting_methods": [
+              "bootscan"
+            ],
+            "method_pvalues": {
+              "bootscan": 0.017644397048120056
+            },
+            "candidate_major_parent": "Caliciviridae_Sapovirus_GI|NC_006269.1",
+            "candidate_minor_parent": "Caliciviridae_Sapovirus_GIV|DQ366346.1",
+            "candidate_major_parent_id": "Caliciviridae_Sapovirus_GI|NC_006269.1",
+            "candidate_minor_parent_id": "Caliciviridae_Sapovirus_GIV|DQ366346.1",
+            "parental_distinctness": 1.0,
+            "phylogenetic_support": "moderate",
+            "phylogenetic_detail": {
+              "left_neighbour": "Caliciviridae_Sapovirus_GII|NC_006554.1",
+              "right_neighbour": "Caliciviridae_Sapovirus_GII|LC715150.1",
+              "left_stability": 0.84,
+              "right_stability": 0.5,
+              "score": 0.5,
+              "label": "moderate",
+              "note": ""
+            },
+            "breakpoint_consistency": 0.463,
+            "biological_region": "ORF1 VP1 capsid",
+            "biological_plausibility": 0.6,
+            "score": 0.509,
+            "status": "weak",
+            "score_components": {
+              "method_support": 0.303,
+              "phylogenetic_support": 0.5,
+              "breakpoint_consistency": 0.463,
+              "parental_distinctness": 1.0,
+              "biological_plausibility": 0.6
+            },
+            "notes": "ambiguous minor parent: Caliciviridae_Sapovirus_GIV|DQ366346.1 and Caliciviridae_Sapovirus_GVIII|LC215895.1 are implicated equally often"
+          },
+          {
+            "event_id": "event_14",
+            "breakpoints": [
+              {
+                "alignment_start": 7290,
+                "alignment_end": 7500,
+                "query_start": 7028,
+                "query_end": 7238
+              }
+            ],
+            "supporting_methods": [
+              "bootscan"
+            ],
+            "method_pvalues": {
+              "bootscan": 5.366075372320914e-22
+            },
+            "candidate_major_parent": "Caliciviridae_Sapovirus_GXXX|JN420370.2",
+            "candidate_minor_parent": "Caliciviridae_Sapovirus_GI|NC_006269.1",
+            "candidate_major_parent_id": "Caliciviridae_Sapovirus_GXXX|JN420370.2",
+            "candidate_minor_parent_id": "Caliciviridae_Sapovirus_GI|NC_006269.1",
+            "parental_distinctness": 1.0,
+            "phylogenetic_support": "none",
+            "phylogenetic_detail": {
+              "left_neighbour": "Caliciviridae_Sapovirus_GII|NC_006554.1",
+              "right_neighbour": "Caliciviridae_Sapovirus_GII|NC_006554.1",
+              "left_stability": 0.61,
+              "right_stability": 0.5,
+              "score": 0.0,
+              "label": "none",
+              "note": "same nearest neighbour on both sides: no topological change"
+            },
+            "breakpoint_consistency": 0.651,
+            "biological_region": "ORF2 (VP2)",
+            "biological_plausibility": 0.6,
+            "score": 0.506,
+            "status": "weak",
+            "score_components": {
+              "method_support": 0.475,
+              "phylogenetic_support": 0.0,
+              "breakpoint_consistency": 0.651,
+              "parental_distinctness": 1.0,
+              "biological_plausibility": 0.6
+            },
+            "notes": "same nearest neighbour on both sides: no topological change; ambiguous minor parent: Caliciviridae_Sapovirus_GI|NC_006269.1 and Caliciviridae_Sapovirus_GVIII|LC215895.1 are implicated equally often"
+          },
+          {
+            "event_id": "event_3",
+            "breakpoints": [
+              {
+                "alignment_start": 1750,
+                "alignment_end": 2300,
+                "query_start": 1696,
+                "query_end": 2237
+              }
+            ],
+            "supporting_methods": [
+              "bootscan",
+              "rdp"
+            ],
+            "method_pvalues": {
+              "bootscan": 0.02791752645954633,
+              "rdp": 6.935718673293405e-24
+            },
+            "candidate_major_parent": "Caliciviridae_Sapovirus_GI|NC_006269.1",
+            "candidate_minor_parent": "Caliciviridae_Sapovirus_GVIII|LC215895.1",
+            "candidate_major_parent_id": "Caliciviridae_Sapovirus_GI|NC_006269.1",
+            "candidate_minor_parent_id": "Caliciviridae_Sapovirus_GVIII|LC215895.1",
+            "parental_distinctness": 1.0,
+            "phylogenetic_support": "none",
+            "phylogenetic_detail": {
+              "left_neighbour": "Caliciviridae_Sapovirus_GII|NC_006554.1",
+              "right_neighbour": "Caliciviridae_Sapovirus_GII|NC_006554.1",
+              "left_stability": 0.9,
+              "right_stability": 0.49,
+              "score": 0.0,
+              "label": "none",
+              "note": "same nearest neighbour on both sides: no topological change"
+            },
+            "breakpoint_consistency": 0.349,
+            "biological_region": "ORF1 nonstructural (NS1-NS7)",
+            "biological_plausibility": 0.6,
+            "score": 0.48,
+            "status": "possible",
+            "score_components": {
+              "method_support": 0.572,
+              "phylogenetic_support": 0.0,
+              "breakpoint_consistency": 0.349,
+              "parental_distinctness": 1.0,
+              "biological_plausibility": 0.6
+            },
+            "notes": "same nearest neighbour on both sides: no topological change"
+          },
+          {
+            "event_id": "event_12",
+            "breakpoints": [
+              {
+                "alignment_start": 3480,
+                "alignment_end": 3750,
+                "query_start": 3366,
+                "query_end": 3636
+              }
+            ],
+            "supporting_methods": [
+              "bootscan"
+            ],
+            "method_pvalues": {
+              "bootscan": 0.04304039334851899
+            },
+            "candidate_major_parent": "Caliciviridae_Sapovirus_GII|NC_006554.1",
+            "candidate_minor_parent": "Caliciviridae_Sapovirus_GI|NC_006269.1",
+            "candidate_major_parent_id": "Caliciviridae_Sapovirus_GII|NC_006554.1",
+            "candidate_minor_parent_id": "Caliciviridae_Sapovirus_GI|NC_006269.1",
+            "parental_distinctness": 1.0,
+            "phylogenetic_support": "none",
+            "phylogenetic_detail": {
+              "left_neighbour": "Caliciviridae_Sapovirus_GII|LC715150.1",
+              "right_neighbour": "Caliciviridae_Sapovirus_GII|LC715150.1",
+              "left_stability": 0.54,
+              "right_stability": 0.47,
+              "score": 0.0,
+              "label": "none",
+              "note": "same nearest neighbour on both sides: no topological change"
+            },
+            "breakpoint_consistency": 0.552,
+            "biological_region": "ORF1 nonstructural (NS1-NS7)",
+            "biological_plausibility": 0.6,
+            "score": 0.431,
+            "status": "weak",
+            "score_components": {
+              "method_support": 0.316,
+              "phylogenetic_support": 0.0,
+              "breakpoint_consistency": 0.552,
+              "parental_distinctness": 1.0,
+              "biological_plausibility": 0.6
+            },
+            "notes": "same nearest neighbour on both sides: no topological change"
+          },
+          {
+            "event_id": "event_8",
+            "breakpoints": [
+              {
+                "alignment_start": 4740,
+                "alignment_end": 5050,
+                "query_start": 4623,
+                "query_end": 4933
+              }
+            ],
+            "supporting_methods": [
+              "bootscan"
+            ],
+            "method_pvalues": {
+              "bootscan": 4.6087935827707104e-10
+            },
+            "candidate_major_parent": "Caliciviridae_Sapovirus_GXXXI|LC483440.1",
+            "candidate_minor_parent": "Caliciviridae_Sapovirus_GII|LC715150.1",
+            "candidate_major_parent_id": "Caliciviridae_Sapovirus_GXXXI|LC483440.1",
+            "candidate_minor_parent_id": "Caliciviridae_Sapovirus_GII|LC715150.1",
+            "parental_distinctness": 1.0,
+            "phylogenetic_support": "none",
+            "phylogenetic_detail": {
+              "left_neighbour": "Caliciviridae_Sapovirus_GII|LC715150.1",
+              "right_neighbour": "Caliciviridae_Sapovirus_GII|LC715150.1",
+              "left_stability": 0.44,
+              "right_stability": 0.51,
+              "score": 0.0,
+              "label": "none",
+              "note": "same nearest neighbour on both sides: no topological change"
+            },
+            "breakpoint_consistency": 0.467,
+            "biological_region": "ORF1 nonstructural (NS1-NS7)",
+            "biological_plausibility": 0.6,
+            "score": 0.429,
+            "status": "weak",
+            "score_components": {
+              "method_support": 0.359,
+              "phylogenetic_support": 0.0,
+              "breakpoint_consistency": 0.467,
+              "parental_distinctness": 1.0,
+              "biological_plausibility": 0.6
+            },
+            "notes": "same nearest neighbour on both sides: no topological change; ambiguous minor parent: Caliciviridae_Sapovirus_GII|LC715150.1 and Caliciviridae_Sapovirus_GIV|DQ366346.1 are implicated equally often"
+          }
+        ]
+      },
+      "qc": {
+        "ungapped_length": 7457,
+        "ambiguous_bases": 0,
+        "ambiguous_fraction": 0.0,
+        "alignment_coverage": 0.9481
+      }
+    }
+  ]
+}

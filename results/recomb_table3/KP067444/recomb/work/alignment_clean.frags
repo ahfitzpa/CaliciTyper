@@ -1,0 +1,148 @@
+# Output of GENECONV for sequence file results/recomb_table3/KP067444/recomb/work/alignment_clean.fasta
+# GENECONV version 1.81a
+# Command line:  GENECONV 
+#   -Seqfile=results/recomb_table3/KP067444/recomb/work/alignment_clean.fasta
+#   -Config=/scratch/fitzpatria/calicityper/geneconv.cfg -nolog
+# Contents of parameter configuration file:
+# /scratch/fitzpatria/calicityper/geneconv.cfg: 
+#   -inputpath=/scratch/fitzpatria/calicityper/results/recomb_table3/KP067444/recomb/work/alignment_clean.fasta
+#   -Indel_blocs  -Gscale=1  -Minlength=1  -Minnpoly=2  -Minscore=2
+#   -Maxoverlap=1
+#
+# results/recomb_table3/KP067444/recomb/work/alignment_clean.fasta: 11 sequences.
+#
+# Options and features: 11 DNA sequences, 7864 aligned bases,
+#   5183 polymorphisms, FASTA format, gscale=1 for mismatches,
+#   no groups defined, maxSimPairPval=0.05, maxSimGlobPval=0.05,
+#   no maxKAPairPval limits, no maxKAGlobPval limits,
+#   simPvals based on 10,000 permutations,
+#   global P-values based on BLAST-like global scores,
+#   fragment limits: minlength=1, minnpolys=2, minscore=2,
+#   no pairwise fragment lists, at most one overlapping fragment,
+#   starting seed=1895191016,
+#   contiguous sites with indels are one polymorphism,
+#   36 indel blocks with up to 79 sites each,
+#   no match (replacement) char in source file.
+# Sequence names:  Caliciviridae_Sapovirus_GII|NC_006554.1
+#   Caliciviridae_Sapovirus_GII|LC715150.1
+#   Caliciviridae_Sapovirus_GIV|DQ366346.1
+#   Caliciviridae_Sapovirus_GIV|OP654149.1
+#   Caliciviridae_Sapovirus_GXXIX|MN102408.1
+#   Caliciviridae_Sapovirus_GI|NC_006269.1
+#   Caliciviridae_Sapovirus_GI|MG515479.1
+#   Caliciviridae_Sapovirus_GXXX|JN420370.2
+#   Caliciviridae_Sapovirus_GVIII|LC215895.1
+#   Caliciviridae_Sapovirus_GXXXI|LC483440.1  KP067444
+# Paths for reading files: (Default directory)
+#   /scratch/fitzpatria/calicityper/results/recomb_table3/KP067444/recomb/work/alignment_clean.fasta
+#
+# Mismatch penalty: 1 * npolys / num_ppen
+#   where `num_ppen' is the number of ``potential penalties'':
+#     sequence differences for inner fragments,
+#     local monomorphisms for outer fragments.
+# Nucleotide codes in data:  T(19,704)  C(22,142)  A(19,904)  G(20,507)
+#   Other(4247)  CG/TCAG ratio: 51.85%
+# Non-nucleotide characters in data:  -(2DH)(n=4246)  N(4EH)(n=1)
+# 762 sites with missing data or unrecognized characters.
+# (These characters are treated as indels for the
+#    purpose of creating indel blocks.)
+# No sites with all gap or unrecognized characters.
+# 5142 polymorphic and 1960 monomorphic sites with no indels.
+# 5 single polymorphic sites with indels.
+# 36 indel blocks with more than one site
+#   (each block is treated as a single polymorphism).
+# 5183 polymorphisms to be permuted.
+# 
+# The starting random number seed is  1895191016.
+# Simulated P-values are based on 10,000 permutations.
+# Maximum BLAST-like scores:
+# Inner      Max         Sim     S.D.s above     S.D. of
+#  frags    Score      P-value    sim. mean        sims
+# SCORE    18.438      0.0000        11.25       1.2770
+# OuterSeq
+#  frags    4.492      0.0453         2.04       1.3174
+#
+# Global lists: 13 I and 1 O significant fragments
+# Pairwise lists: No fragments listed
+#  where I means inner pair, O is outer seq, A is outer pair, and
+#  G means outer group (fragments).
+# Global P-values are based on BLAST-like global scores.
+#
+# Fragment offsets and lengths are in nucleotides.
+# Note: A polymorphism can be at a run of sites with indels,
+#   which here have up to 79 sites.
+# Bases other than `TCAGU' are treated as indels
+#   for the purpose of generating polymorphisms.
+#
+#
+# Global inner fragments (5183 polymorphisms, 7864 aligned bases):
+# (Inner fragments are runs of matching sites with penalties.)
+# (Sim and BC KA P-values are corrected for multiple comparisons.)
+# (Fragments are listed only if Sim P-value <= 0.05.)
+# See earlier in the file for the full restrictions on fragments.
+#
+# BC KA means Bonferroni-corrected KA (BLAST-like) Pvalues.
+# KA Pvalues are NOT corrected for multiple pairwise comparisons.
+# In the following table, BC Pvalues are KA Pvalues multiplied by 55.
+# Num Poly  is the number of polymorphic sites in the fragment.
+# Num Dif   is the number of mismatches within the fragment.
+# Tot Difs  is the total number of mismatches between two sequences.
+# MisM Pen  is the penalty per mismatch for these two sequences.
+#
+#   Seq                                                                                 Sim    BC KA    Aligned Offsets   Num  Num  Tot  MisM
+#   Names                                                                              Pvalue  Pvalue   Begin  End   Len  Poly Dif  Difs Pen.
+GI  Caliciviridae_Sapovirus_GII|NC_006554.1;Caliciviridae_Sapovirus_GIV|OP654149.1     0.0000  0.00000   282    537  256   217  38 2112    3
+GI  Caliciviridae_Sapovirus_GI|NC_006269.1;Caliciviridae_Sapovirus_GI|MG515479.1       0.0000  0.00000  5391   5602  212   153  22 2056    3
+GI  Caliciviridae_Sapovirus_GII|NC_006554.1;Caliciviridae_Sapovirus_GIV|DQ366346.1     0.0001  0.00023   282    537  256   217  42 2118    3
+GI  Caliciviridae_Sapovirus_GIV|OP654149.1;KP067444                                    0.0002  0.00066   293    475  183   155  29 2294    3
+GI  Caliciviridae_Sapovirus_GII|LC715150.1;Caliciviridae_Sapovirus_GIV|OP654149.1      0.0003  0.00079  5183   5301  119    70   6 2115    3
+GI  Caliciviridae_Sapovirus_GII|LC715150.1;Caliciviridae_Sapovirus_GI|MG515479.1       0.0006  0.00183  7717   7785   69    48   7 2886    2
+GI  Caliciviridae_Sapovirus_GII|NC_006554.1;Caliciviridae_Sapovirus_GI|MG515479.1      0.0007  0.00185  7717   7785   69    48   7 2885    2
+GI  Caliciviridae_Sapovirus_GII|LC715150.1;Caliciviridae_Sapovirus_GIV|DQ366346.1      0.0016  0.00381  5183   5301  119    70   7 2114    3
+GI  Caliciviridae_Sapovirus_GII|NC_006554.1;Caliciviridae_Sapovirus_GII|LC715150.1     0.0025  0.00538  6144   7785 1642  1037  90  721    8
+GI  Caliciviridae_Sapovirus_GXXIX|MN102408.1;Caliciviridae_Sapovirus_GVIII|LC215895.1  0.0119  0.02094  7739   7768   30    22   1 3155    2
+GI  Caliciviridae_Sapovirus_GII|NC_006554.1;KP067444                                   0.0140  0.02475  6740   7130  391   283  57 1810    3
+GI  Caliciviridae_Sapovirus_GIV|DQ366346.1;KP067444                                    0.0309  0.05013   390    475   86    74  11 2286    3
+GI  Caliciviridae_Sapovirus_GII|NC_006554.1;Caliciviridae_Sapovirus_GIV|DQ366346.1     0.0331  0.05431  2102   2310  209   175  35 2118    3
+#
+# 13 inner fragments listed.
+# 99,781 overlapping fragments discarded.
+#
+# ADDITIONAL PAIRWISE FRAGMENTS with BC Pairwise SimPval < 0.05
+#   OR LISTED GLOBAL FRAGMENTS with significantly better BC SimPval
+# Here BC SimPval is the Pairwise Sim Pvalue multiplied by 55.
+# (Up to three pairwise fragments considered per pair.)
+#
+#   Seq                                                                                BC Sim  BC KA    Aligned Offsets   Num  Num  Tot  MisM
+#   Names                                                                              Pvalue  Pvalue   Begin  End   Len  Poly Dif  Difs Pen.
+AI  Caliciviridae_Sapovirus_GII|NC_006554.1;Caliciviridae_Sapovirus_GII|LC715150.1     0.0495  0.13845    59    864  806   568  44  721    8
+AI  Caliciviridae_Sapovirus_GII|NC_006554.1;KP067444                                   0.0055  0.02475  6740   7130  391   283  57 1810    3
+#
+# 2 inner fragments listed.
+#
+#
+# Global outer-sequence fragments (5183 polymorphisms, 7864 aligned bases):
+# (Outer-sequence fragments are runs of unique sites with penalties.)
+# (Sim and BC KA P-values are corrected for multiple comparisons.)
+# (Fragments are listed only if Sim P-value <= 0.05.)
+# See earlier in the file for the full restrictions on fragments.
+#
+# BC KA means Bonferroni-corrected KA (BLAST-like) Pvalues.
+# KA Pvalues are NOT corrected for multiple pairwise comparisons.
+# In the following table, BC Pvalues are KA Pvalues multiplied by 11.
+# Num Poly  is the number of polymorphic sites in the fragment.
+# Num Mat   is the number of nonunique sites within the fragment.
+# Tot Mats  is the total number of nonunique sites for that sequence.
+# MisM Pen  is the penalty per nonunique site for this sequence.
+#
+#   Seq                                       Sim    BC KA    Aligned Offsets   Num  Num  Tot  MisM
+#   Name                                     Pvalue  Pvalue   Begin  End   Len  Poly Mat  Mats Pen.
+GO  Caliciviridae_Sapovirus_GXXX|JN420370.2  0.0453  0.12245  1244   1250    7     6   0 4585    2
+#
+# One outer-sequence fragment listed.
+# 78 overlapping fragments discarded.
+#
+#
+# No pairwise fragment lists.
+# (See earlier in the file for the restrictions on fragments.)
+#
