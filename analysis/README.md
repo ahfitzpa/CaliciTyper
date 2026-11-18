@@ -15,8 +15,18 @@ analysis/
   calicityper.bib            the manuscript bibliography
 ```
 
-The tool's own `results/` directory is working output and is not tracked; the
-curated tables the manuscript depends on are copied here instead.
+The tool's own `results/` directory is **not in the repository**. It is
+deposited on Zenodo as `benchmarking-datasets-<version>.tar.gz`, built by
+`scripts/build_benchmark_archive.py` and kept separate from the reference-data
+archive: the reference set decides what a call is, the benchmark outputs
+record how well those calls did, and the two are cited for different reasons.
+The curated tables the manuscript depends on are copied into
+`benchmark_outputs/` here, and `make_figures.py` reads from that copy rather
+than from a local run.
+
+`validation/results_rivm.csv`, the Norovirus Typing Tool's own export, is in
+neither: this project does not redistribute it (see `validation/README.md`).
+The comparison tables derived from it are ours and are included.
 
 ## Manuscript claim to output file
 
@@ -56,9 +66,13 @@ Paths in the batch scripts are absolute and site-specific
 (`/home/people/fitzpatria/scratch/...`). They are deposited unedited, as run,
 rather than generalised after the fact; adapt the paths for another system.
 
-`make_figures.py` reads from `~/scratch/calicityper` and
-`~/scratch/calicityper_runs` for the same reason. Point `REPO` and `BENCH070`
-at `analysis/benchmark_outputs/` to regenerate the figures from this deposit.
+`make_figures.py` reads its sapovirus, amplicon and truncation tables from
+`analysis/benchmark_outputs/`, so those figures regenerate from this deposit
+as it stands. Two sources are still outside it and site-specific:
+`BENCH070` (the 0.7.0 norovirus benchmark) and `DEV` (the rebuilt-environment
+comparison), both under `~/scratch/calicityper_runs`. Point them at the
+corresponding `benchmark_outputs/` subdirectories to regenerate Figures 1–3
+elsewhere.
 
 ## Known reproducibility caveats
 

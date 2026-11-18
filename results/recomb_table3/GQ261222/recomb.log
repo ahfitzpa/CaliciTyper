@@ -1,8 +1,0 @@
-GQ261222	strong	0.793	19 event(s)
-
---- stderr ---
-[recomb] aligning input FASTA with MAFFT: results/recomb_table3/GQ261222/panel.fasta -> results/recomb_table3/GQ261222/recomb/aligned.fasta
-[recomb] skipped maxchi: timed out after 600s
-[recomb] skipped siscan: timed out after 600s
-[recomb] skipped chimaera: ran but reported nothing significant
-[recomb] wrote results/recomb_table3/GQ261222/recomb/recombination.json and results/recomb_table3/GQ261222/recomb/recombination.tsv

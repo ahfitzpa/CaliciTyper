@@ -1,7 +1,0 @@
-KP067444	possible	0.712	16 event(s)
-
---- stderr ---
-[recomb] aligning input FASTA with MAFFT: results/recomb_table3/KP067444/panel.fasta -> results/recomb_table3/KP067444/recomb/aligned.fasta
-[recomb] skipped chimaera: ran but reported nothing significant
-[recomb] skipped siscan: ran but reported nothing significant
-[recomb] wrote results/recomb_table3/KP067444/recomb/recombination.json and results/recomb_table3/KP067444/recomb/recombination.tsv

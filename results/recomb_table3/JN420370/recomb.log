@@ -1,7 +1,0 @@
-JN420370	possible	0.732	17 event(s)
-
---- stderr ---
-[recomb] aligning input FASTA with MAFFT: results/recomb_table3/JN420370/panel.fasta -> results/recomb_table3/JN420370/recomb/aligned.fasta
-[recomb] skipped chimaera: ran but reported nothing significant
-[recomb] skipped siscan: ran but reported nothing significant
-[recomb] wrote results/recomb_table3/JN420370/recomb/recombination.json and results/recomb_table3/JN420370/recomb/recombination.tsv
