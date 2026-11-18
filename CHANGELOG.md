@@ -8,6 +8,19 @@ for released versions.
 
 ## [Unreleased]
 
+### Fixed
+- **A sequence is now summarised by its strongest recombination event, not its best-scoring one.** `recomb.py` sorted a sequence's events by score alone and reported the first. The score is a weighted blend of five components and is not a measure of status, so a single-method event with a clean breakpoint and distinct parents could outscore a four-method event and hide it: MZ488271 in the Zhao et al. Table 3 panel was reported `weak` while containing a `strong` event. Events are now ordered by (status rank, score), and the dead `best_status` accumulator that computed the right answer and discarded it has been removed. On that panel three strains rise — MZ488271 `weak` → `strong`, KP067444 and MZ488272 `possible` → `likely` — recall at `strong` goes from 7/12 to 8/12, and the negative control JN420370 stays `possible`, so precision is unchanged at 1.000. Regression tests in `tests/test_recomb_ordering.py`.
+- **Sapovirus reference sets rebuild reproducibly.** `mafft --auto` is not deterministic above roughly a hundred sequences when given more than one thread: aligning the 144-sequence pooled `all.orf` twice at 16 threads produced two different alignments, so that file's manifest checksum changed on every rebuild from byte-identical input. The pooled alignment is now built at `--thread 1`, which is deterministic; per-genogroup alignments are deterministic at any thread count and are unchanged. The norovirus pooled alignment has the same issue and is not yet fixed.
+- **The reference archive no longer carries unchecksummed files.** It was built by adding whole directories, so `refseq_2.fasta.bak`, `refseq_annotation.csv.bak` and six `.dnd` guide trees rode along without being verified by `setup`. It now adds exactly the manifest's files and reports what it leaves out.
+- **Stale per-genogroup reference files are pruned.** A genogroup that loses its last member — because a strain was relabelled or dropped — left its files on disk, inside the manifest and inside the published archive. After MH003837 was relabelled GNA4 → GXV, a stale `GNA4.{orf,fasta,aln}` kept it under the retracted genotype while the pooled `all.orf` did not.
+- `reference_accessions.tsv` is generated rather than maintained, and the manifest recomputes `n_records` and `n_accessions` from the same walk. Both had drifted to a pre-sapovirus set (455 records and 309 accessions against 662 and 509), and those two numbers are copied into every run's `provenance.json`.
+
+### Added
+- `tests/test_reference_integrity.py`, `tests/test_zhao_tables.py`, `tests/test_zhao_independent_parse.py` and `tests/test_recomb_ordering.py`.
+- `scripts/build_reference_accessions.py`, `scripts/sweep_recomb_rules.py`, `scripts/reaggregate_recomb_table3.py`, `scripts/logo_novelty.py`.
+- `scripts/third_party/convert_sapovirus_table.py`, an independently written parse of Zhao et al. Supplemental Table 1, and the CSV it produces, as a cross-check on our own parse.
+
+
 ## [0.8.0] - 2026-11-17
 
 ### Added

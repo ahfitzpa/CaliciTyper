@@ -43,6 +43,30 @@ def artefacts(data_dir):
         yield rel, p
 
 
+def recount(m):
+    """{n_records, n_accessions} from the installed sets, or {} if uncountable.
+
+    These go into every run's provenance.json, so a stale value misreports what
+    a result was produced against. They used to be carried forward untouched
+    and had drifted to a pre-sapovirus set: 455 records where the installed
+    sets hold 662.
+    """
+    try:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "build_reference_accessions",
+            ROOT / "scripts" / "build_reference_accessions.py")
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        rows = mod.from_refsets() + mod.from_blastdb()
+    except Exception as exc:                      # Biopython absent, say
+        print(f"  could not recount records ({exc}); "
+              f"leaving n_records/n_accessions as they are")
+        return {}
+    return {"n_records": len(rows),
+            "n_accessions": len({r["accession"] for r in rows})}
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--version", help="new reference_set_version (e.g. 0.7.0)")
@@ -67,9 +91,13 @@ def main():
     for label, keys in (("added", added), ("removed", removed), ("checksum changed", changed)):
         for k in keys:
             print(f"  {label:17} {k}")
-    if not (added or removed or changed) and not a.version and not a.download_url:
+    counts = recount(m)
+    stale = {k: v for k, v in counts.items() if m.get(k) != v}
+    if not (added or removed or changed or stale) and not a.version and not a.download_url:
         print("nothing to do")
         return 0
+    for k, v in stale.items():
+        print(f"  {k} {m.get(k)} -> {v}")
 
     m["sha256_16"] = dict(sorted(sums.items()))
     # n_artefacts is quoted in the docs and the setup output, so keep it in step
@@ -77,6 +105,7 @@ def main():
     if m.get("n_artefacts") != len(sums):
         print(f"  n_artefacts {m.get('n_artefacts')} -> {len(sums)}")
     m["n_artefacts"] = len(sums)
+    m.update(counts)
     if a.version:
         print(f"version {m.get('reference_set_version')} -> {a.version}")
         m["reference_set_version"] = a.version

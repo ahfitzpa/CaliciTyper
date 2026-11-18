@@ -1,18 +1,18 @@
 {
   "doi": "10.5281/zenodo.24161236",
   "download_url": "https://github.com/ahfitzpa/CaliciTyper/releases/download/reference-0.8.0/calicityper-reference-0.8.0.tar.gz",
-  "n_accessions": 309,
-  "n_artefacts": 232,
-  "n_records": 455,
+  "n_accessions": 509,
+  "n_artefacts": 229,
+  "n_records": 662,
   "note": "Reference set distributed as a release asset (download_url). `calicityper setup` downloads it and verifies every artefact against sha256_16, refusing to install a set that does not match. Build it with scripts/build_reference_archive.py.",
-  "reference_set_version": "0.8.0",
+  "reference_set_version": "0.8.1",
   "sha256_16": {
     "calicityper/data/database/refseq_2.fasta": "e33bddc89268deb5",
     "calicityper/data/database/refseq_annotation.csv": "2d922e70c2d74884",
     "calicityper/data/database/refseqdb_2.ndb": "c6dcf43585e64bb0",
     "calicityper/data/database/refseqdb_2.nhr": "6d135a949d938dce",
-    "calicityper/data/database/refseqdb_2.nin": "7cdac8f6f83f8366",
-    "calicityper/data/database/refseqdb_2.njs": "025f7fc4f3fe4ae1",
+    "calicityper/data/database/refseqdb_2.nin": "ee5ea700cae8e2ee",
+    "calicityper/data/database/refseqdb_2.njs": "6bd3b0713409ee00",
     "calicityper/data/database/refseqdb_2.not": "a136fb7f1e72b1f8",
     "calicityper/data/database/refseqdb_2.nsq": "26353c45b5c2756c",
     "calicityper/data/database/refseqdb_2.ntf": "67982e4d7b1490b0",
@@ -156,9 +156,6 @@
     "calicityper/data/reference_sequences_sapovirus_VP1/GNA3.aln": "bec622ee65b56853",
     "calicityper/data/reference_sequences_sapovirus_VP1/GNA3.fasta": "bb11b3b3cccc8a9f",
     "calicityper/data/reference_sequences_sapovirus_VP1/GNA3.orf": "7541c93bef89e32b",
-    "calicityper/data/reference_sequences_sapovirus_VP1/GNA4.aln": "d1a890a9de2bf9cd",
-    "calicityper/data/reference_sequences_sapovirus_VP1/GNA4.fasta": "f651c4dde03cb8fc",
-    "calicityper/data/reference_sequences_sapovirus_VP1/GNA4.orf": "931d0fa291952e5b",
     "calicityper/data/reference_sequences_sapovirus_VP1/GNA5.aln": "4baac0e5c8e7d905",
     "calicityper/data/reference_sequences_sapovirus_VP1/GNA5.fasta": "8224e950ceeae600",
     "calicityper/data/reference_sequences_sapovirus_VP1/GNA5.orf": "7715b4c6da781dcf",
@@ -237,7 +234,7 @@
     "calicityper/data/reference_sequences_sapovirus_VP1/GXXXI.aln": "3d22719e5e155441",
     "calicityper/data/reference_sequences_sapovirus_VP1/GXXXI.fasta": "f94f25c7537265ea",
     "calicityper/data/reference_sequences_sapovirus_VP1/GXXXI.orf": "7835a84e861584b7",
-    "calicityper/data/reference_sequences_sapovirus_VP1/all.aln": "11f6c603ac826b29",
+    "calicityper/data/reference_sequences_sapovirus_VP1/all.aln": "657a20cecfbb1004",
     "calicityper/data/reference_sequences_sapovirus_VP1/all.orf": "b55cb271f6523218"
   }
 }

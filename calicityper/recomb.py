@@ -586,6 +586,11 @@ def assign_status(n_methods, phylo_score, distinctness, cfg):
     return "none"
 
 
+def _status_rank(status):
+    """Position in STATUSES, so events can be ordered by strength of evidence."""
+    return STATUSES.index(status) if status in STATUSES else 0
+
+
 def confidence_label(score):
     return "high" if score >= 0.75 else "medium" if score >= 0.5 else "low"
 
@@ -626,7 +631,7 @@ def analyse_query(aln, query, hits, cfg, metadata, cmap=None):
     hr = hits_for_query(hits, query)
     clusters = cluster_hits(hr, cfg)
 
-    events, best_status, best_score = [], "none", 0.0
+    events = []
     for n, c in enumerate(clusters, start=1):
         methods = c["methods"]
         pvals = [h.pvalue for h, _ in c["hits"]]
@@ -674,13 +679,19 @@ def analyse_query(aln, query, hits, cfg, metadata, cmap=None):
             "score_components": comps,
             "notes": notes,
         })
-        rank = STATUSES.index(status) if status in STATUSES else 0
-        if rank > (STATUSES.index(best_status) if best_status in STATUSES else 0) or \
-           (status == best_status and score > best_score):
-            best_status, best_score = status, score
-        best_score = max(best_score, score) if status == best_status else best_score
-
-    events.sort(key=lambda e: -e["score"])
+    # Rank by status first, score second. The score is a weighted blend of
+    # five components and is not a measure of status: a single-method event
+    # with a clean breakpoint and distinct parents can outscore a four-method
+    # event, so sorting on score alone let the strongest evidence in a
+    # sequence be hidden behind a better-scoring weaker event. MZ488271 was
+    # reported `weak` while containing a `strong` event. Sorting by
+    # (status_rank, score) makes the reported status the strongest evidence
+    # found, and the reported score that of the best event at that status.
+    #
+    # Event statuses are always one of the first five entries of STATUSES, so
+    # indexing into it is a total order here; the trailing three mean "not
+    # answered" and are set on the result, never on an event.
+    events.sort(key=lambda e: (-_status_rank(e["status"]), -e["score"]))
     rec = result["recombination"]
     rec["events"] = events
     if events:

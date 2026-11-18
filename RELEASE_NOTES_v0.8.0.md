@@ -70,7 +70,7 @@ GNA3.P are crossed between OP963623 and OQ818319; MH003837 is GXV/GXV.P.
   tables behind every reported number, the figure generator, and a README
   mapping each claim to the script and file that produced it.
 - The sapovirus reference sets are in the manifest and checksummed; the set is
-  232 artefacts, up from 84.
+  229 artefacts, up from 84.
 - `scripts/build_reference_archive.py` builds the reference archive from the
   manifest and re-verifies it afterwards, replacing a hand-made tarball.
 - Genogroup BLAST uses a fixed search-space size, so growing the database no
@@ -82,15 +82,26 @@ GNA3.P are crossed between OP963623 and OQ818319; MH003837 is GXV/GXV.P.
 
 ```bash
 pip install calicityper-0.8.0-py3-none-any.whl
-calicityper setup --source calicityper-reference-0.8.0.tar.gz
+calicityper setup --source calicityper-reference-0.8.1.tar.gz
 ```
 
 The wheel deliberately contains no reference data. `setup` verifies every
 artefact against the manifest's SHA-256 list and refuses a set that does not
 match, because a different reference set changes calls silently.
 
-`calicityper-reference-0.8.0.tar.gz`
-sha256 `d9964a720e728dbb1bad1d29f48c780ec4b7b94f87c0ac5db241b643633ddfb8`
+`calicityper-reference-0.8.1.tar.gz`
+sha256 `47a79b5e24622cdd311b701d33553145f1528a54ed37178f2804520926e517f6`
+
+**Use 0.8.1, not 0.8.0.** The 0.8.0 archive shipped three stale files,
+`reference_sequences_sapovirus_VP1/GNA4.{orf,fasta,aln}`, left behind when
+MH003837 was relabelled GNA4 to GXV: the builder wrote a file per genogroup
+but never removed one whose genogroup had lost its last member. They put
+MH003837 under a genotype this release retracts, while the pooled `all.orf`
+did not, so the set disagreed with itself. Nothing could reach them, because
+the genogroup BLAST database has no GNA4 entry and the reference set is
+selected by genogroup name, so no call made with 0.8.0 is affected. The
+builder now prunes such files and three tests assert the set is internally
+consistent.
 
 Requires BLAST+ and MAFFT on `PATH`. OpenRDP, needed only for `recomb`, cannot
 share an environment with CaliciTyper: it requires numpy<2 while CaliciTyper

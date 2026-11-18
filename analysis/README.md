@@ -36,6 +36,8 @@ curated tables the manuscript depends on are copied here instead.
 | GI.P5 is two P-types; GI.P6 restored | `scripts/analyse_gi5_ptype.py` via `slurm/analyse_gi5.sh` | `benchmark_outputs/gi5_ptype/gi5_clusters.json`, `gi5_sequences.csv` |
 | Cross-check against both published Zhao tables | `scripts/check_against_zhao_tables.py` via `slurm/check_zhao_tables.sh` | printed report; see `docs/SAPOVIRUS_STATUS.md` for the adjudicated deviations |
 | Temporal hold-out of the novelty screen | `scripts/temporal_holdout_novelty.py` via `slurm/temporal_holdout.sh` | `benchmark_outputs/temporal_holdout*/temporal_holdout.csv` (four cut-offs) |
+| Leave-one-genotype-out novelty screen: ORF2 sensitivity 0.950, ORF1 0.639 | `scripts/logo_novelty.py` via `slurm/logo_novelty.sh` | `benchmark_outputs/logo_novelty.csv` (17,238 rows); run record `benchmark_outputs/logo_novelty.log` |
+| Our parse of Zhao Supplemental Table 1 against an independent one | `scripts/third_party/convert_sapovirus_table.py` | `validation/zhao_supplement_independent_parse.csv`; asserted by `tests/test_zhao_independent_parse.py` |
 | Synthetic recombination datasets, 9/9 expected status | `tests/test_recomb.py` (`needs_openrdp`, `slow`) | test assertions; worked examples in `examples/recombination/` |
 
 ## Reproducing

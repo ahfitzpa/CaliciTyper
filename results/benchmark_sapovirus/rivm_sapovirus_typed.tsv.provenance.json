@@ -4,20 +4,20 @@
     "version": "1.0"
   },
   "tool": "calicityper",
-  "tool_version": "0.7.0",
+  "tool_version": "0.8.0",
   "command": "type",
-  "generated": "2026-11-17T15:29:26+00:00",
+  "generated": "2026-11-18T12:01:43+00:00",
   "n_queries": 515,
   "reference_set": {
     "manifest_path": "/scratch/fitzpatria/calicityper/calicityper/data/reference_manifest.json",
     "available": true,
     "doi": "10.5281/zenodo.24161236",
-    "reference_set_version": "0.7.0",
-    "download_url": "https://zenodo.org/records/24161236/files/calicityper-reference-0.6.1.tar.gz?download=1",
-    "n_accessions": 309,
-    "n_records": 455,
-    "n_artefacts": 84,
-    "manifest_sha256": "c1d542e935a6c1730e797be18b914135fe4cdbf4c33cd2939b40038344944fee"
+    "reference_set_version": "0.8.1",
+    "download_url": "https://github.com/ahfitzpa/CaliciTyper/releases/download/reference-0.8.0/calicityper-reference-0.8.0.tar.gz",
+    "n_accessions": 509,
+    "n_records": 662,
+    "n_artefacts": 229,
+    "manifest_sha256": "80b95f614f3877d843498cdf4ae10c9d3e3bdcea2c7f7d4a5c08beed5a6ca410"
   },
   "parameters": {
     "bootstraps": 100,

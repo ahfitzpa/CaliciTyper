@@ -91,17 +91,25 @@ def ours():
     return vp1, rdrp, retired
 
 
-def main():
+def compare():
+    """Compare our tables against the two other published tables.
+
+    Returns (problems, confirmed, missing, accepted) and prints nothing, so
+    that both the command line report and tests/test_zhao_tables.py work from
+    the same comparison rather than from two drifting copies of it.
+
+      problems   our table disagrees with a published table and the deviation
+                 has NOT been adjudicated -- a release blocker
+      confirmed  a strain the supplement lists twice, resolved here on distance
+                 evidence alone, where a second published table agrees
+      missing    published in another table, absent from our reference sets
+      accepted   an adjudicated deviation, listed in ACCEPTED with its reason
+    """
     vp1, rdrp, retired = ours()
-    print(f"our tables: {len(vp1)} VP1 and {len(rdrp)} RdRp assignments; "
-          f"{len(retired)} strains also carry a retired VP1 label\n")
     problems, confirmed, missing, accepted = [], [], [], []
 
     t2 = V / "zhao_table2_dual_types.csv"
     if t2.exists():
-        print("=" * 78)
-        print("Table 2 -- representatives: VP1 genotype and P-type")
-        print("=" * 78)
         for r in read(t2):
             a = r["accession"].split(".")[0]
             for field, mine, label in (("genotype", vp1.get(a), "VP1 genotype"),
@@ -114,17 +122,13 @@ def main():
                 elif canon(mine) != canon(want):
                     if (a, label) in ACCEPTED:
                         accepted.append((a, label, want, mine))
-                        continue
-                    print(f"  {a:11s} {label:13s} published {want:12s} ours {mine:12s}  MISMATCH")
-                    problems.append((a, label, want, mine))
+                    else:
+                        problems.append((a, label, want, mine))
                 elif a in retired:
                     confirmed.append((a, label, want, retired[a]))
 
     gg = V / "zhao_genogroup_reassignment.csv"
     if gg.exists():
-        print("\n" + "=" * 78)
-        print("Pig/bat table -- VP1 genogroup and RdRp P-group")
-        print("=" * 78)
         for r in read(gg):
             a = r["accession"].split(".")[0]
             want_g, want_pg = r["vp1_genogroup"].strip(), r["rdrp_group"].strip()
@@ -136,28 +140,31 @@ def main():
             if mine_g is None:
                 missing.append((a, "VP1 genogroup", want_g))
             elif mine_g != want_g:
-                if (a, "VP1 genogroup") in ACCEPTED:
-                    accepted.append((a, "VP1 genogroup", want_g, mine_g))
-                else:
-                    print(f"  {a:11s} VP1 genogroup published {want_g:9s} ours {mine_g:9s}  MISMATCH")
-                    problems.append((a, "VP1 genogroup", want_g, mine_g))
+                (accepted if (a, "VP1 genogroup") in ACCEPTED else problems).append(
+                    (a, "VP1 genogroup", want_g, mine_g))
             elif a in retired:
                 confirmed.append((a, "VP1 genogroup", want_g, retired[a]))
             if mine_pg is None:
                 missing.append((a, "RdRp P-group", want_pg))
             elif mine_pg != want_pg:
-                if (a, "RdRp P-group") in ACCEPTED:
-                    accepted.append((a, "RdRp P-group", want_pg, mine_pg))
-                else:
-                    print(f"  {a:11s} RdRp P-group  published {want_pg:9s} ours {mine_pg:9s}  MISMATCH")
-                    problems.append((a, "RdRp P-group", want_pg, mine_pg))
+                (accepted if (a, "RdRp P-group") in ACCEPTED else problems).append(
+                    (a, "RdRp P-group", want_pg, mine_pg))
 
-    print("\n" + "=" * 78)
+    return problems, confirmed, missing, accepted
+
+
+def main():
+    vp1, rdrp, retired = ours()
+    print(f"our tables: {len(vp1)} VP1 and {len(rdrp)} RdRp assignments; "
+          f"{len(retired)} strains also carry a retired VP1 label\n")
+    problems, confirmed, missing, accepted = compare()
+
+    print("=" * 78)
     print("SUMMARY")
     print("=" * 78)
     if confirmed:
         seen = set()
-        print(f"\nINDEPENDENTLY CONFIRMED -- strains the supplement lists twice, which we")
+        print("\nINDEPENDENTLY CONFIRMED -- strains the supplement lists twice, which we")
         print("resolved on distance evidence alone, and a second published table agrees:")
         for a, label, want, old in confirmed:
             if (a, label) in seen:

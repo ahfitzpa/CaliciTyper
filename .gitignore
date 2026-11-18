@@ -6,7 +6,11 @@ build/
 dist/
 *.whl
 results/*.log
-results/          # working output; the curated set is in analysis/benchmark_outputs/
+# working output; the curated set is copied to analysis/benchmark_outputs/.
+# The comment must be on its own line: git has no trailing comments, so
+# "results/  # ..." was one literal pattern that matched nothing and left
+# every run's output showing as untracked.
+results/
 docs/figures/
 rivm_test_set.fasta
 validation/results_rivm.csv

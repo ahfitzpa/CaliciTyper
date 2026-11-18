@@ -133,13 +133,37 @@ def build(region, fasta, taxonomy, out_dir, recovered=None, threads=4):
               f"{len({m[0] for m in members})} types"
               + ("" if len(members) > 1 else "  (single record: no alignment)"))
 
+    # A group that loses its last member -- because a strain was relabelled, or
+    # dropped for ambiguity -- is simply not written this run, and its files
+    # from the previous run survive. They then ship in the reference archive,
+    # are checksummed by the manifest, and contradict the taxonomy: after
+    # MH003837 was relabelled GNA4 -> GXV, a stale GNA4.{orf,fasta,aln} kept
+    # MH003837 under GNA4 while GXV.orf also held it, and all.orf (rewritten in
+    # full each run) disagreed with the per-genogroup files. Prune them.
+    stale = sorted(f for f in out_dir.iterdir()
+                   if f.suffix in (".orf", ".fasta", ".aln")
+                   and f.stem != "all" and f.stem not in written)
+    for f in stale:
+        print(f"  {region} removing stale {f.name} (group no longer has members)")
+        f.unlink()
+
     allp = out_dir / "all.orf"
     with open(allp, "w") as fh:
         for group, members in sorted(written.items()):
             for label, acc, seq in sorted(members):
                 fh.write(f">{group}|{label}|{acc}\n{seq}\n")
     if sum(len(m) for m in written.values()) > 1:
-        mafft_clustal(allp, out_dir / "all.aln", threads)
+        # --thread 1, deliberately. MAFFT's --auto is not deterministic on an
+        # input this size when it is given more than one thread: aligning
+        # all.orf twice at 16 threads produces two different alignments, and
+        # the manifest checksum for all.aln therefore changed on every rebuild
+        # even though all.orf was byte-identical. That defeats the point of
+        # checksumming the reference set. At one thread --auto is stable
+        # (verified over repeated runs, and across 1, 4 and 16 threads only
+        # the single-threaded result repeats). The per-genogroup alignments
+        # are deterministic at any thread count and keep using `threads`;
+        # this is the one pooled alignment, built once, so the cost is small.
+        mafft_clustal(allp, out_dir / "all.aln", 1)
     return written, excluded
 
 

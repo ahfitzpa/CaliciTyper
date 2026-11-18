@@ -87,9 +87,27 @@ def main():
         return 0
 
     out_dir.mkdir(parents=True, exist_ok=True)
+    # Add the manifest's files one by one, not the directories they live in.
+    # Adding a directory swept in whatever else happened to be there, so the
+    # published archive carried two unchecksummed files (refseq_2.fasta.bak
+    # and refseq_annotation.csv.bak, written by the genogroup-database
+    # builder). `setup` verifies what the manifest lists, so anything riding
+    # along is distributed unverified -- the opposite of what this archive is
+    # for.
+    members = sorted(k.split("calicityper/data/", 1)[1] for k in manifest["sha256_16"])
     with tarfile.open(archive, "w:gz") as tar:
-        for t in tops:
-            tar.add(cg.DATA / t, arcname=t)
+        for rel in members:
+            tar.add(cg.DATA / rel, arcname=rel)
+    on_disk = {str(f.relative_to(cg.DATA)) for t in tops
+               for f in (cg.DATA / t).rglob("*") if f.is_file()}
+    skipped = sorted(on_disk - set(members))
+    if skipped:
+        print(f"\nleft out of the archive ({len(skipped)} file(s) on disk that the "
+              f"manifest does not checksum):")
+        for f in skipped[:10]:
+            print(f"  {f}")
+        if len(skipped) > 10:
+            print(f"  ... and {len(skipped) - 10} more")
     digest = hashlib.sha256(archive.read_bytes()).hexdigest()
     (archive.parent / (archive.name + ".sha256")).write_text(
         f"{digest}  {archive.name}\n")
