@@ -22,7 +22,11 @@ aligned.fasta
 
 # brand asset bundle as delivered; its contents live in assets/
 *.zip
-zenodo/
+# Deposit staging: the archives are built, not stored, but the prose that
+# describes the deposit is written once and belongs in git.
+zenodo/*
+!zenodo/DESCRIPTION.txt
+!zenodo/UPLOAD_NOTES.md
 
 # --- 8. Reference set and datasets: distributed via Zenodo, not git ---
 # doi:10.5281/zenodo.24161236 -- fetched by `calicityper setup`, verified against
@@ -35,3 +39,8 @@ calicityper/data/reference_sequences_sapovirus_RdRp/
 calicityper/data/reference_sequences_sapovirus_VP1/
 
 calicityper/data/.cache/
+
+# Host cache for the Apptainer build: ~335 MB of upstream tarballs, so a build
+# does not depend on those hosts being up. Repopulate with
+# containers/fetch_cache.sh; the definition downloads anything absent.
+containers/cache/

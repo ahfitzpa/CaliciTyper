@@ -1,0 +1,41 @@
+CaliciTyper reference set 0.8.1
+
+Curated reference sequence set used by CaliciTyper
+(https://github.com/ahfitzpa/calicityper) to assign genogroup, ORF1
+polymerase (P-) type and ORF2 capsid type for norovirus and sapovirus.
+
+The set holds 509 GenBank accessions as 662 region entries, distributed as
+pre-computed alignments for the ORF2 (VP1) and ORF1 (RdRp) typing regions of
+each genus, plus the BLAST database used for genogroup assignment:
+
+  norovirus  VP1   166 sequences across 12 genogroups
+  norovirus  RdRp  184 sequences across 10 genogroups
+  sapovirus  VP1   144 sequences across 33 genogroups
+  sapovirus  RdRp   82 sequences across 14 genogroups
+  genogroup database  86 sequences spanning the Caliciviridae genera
+
+Norovirus genotype labels follow Chhabra et al. 2019 (J Gen Virol 100:1393,
+doi:10.1099/jgv.0.001318). Sapovirus VP1 genotypes and RdRp P-types follow the
+dual-typing proposal of Zhao et al. 2024 (BMC Genomics 25:1131,
+doi:10.1186/s12864-024-11048-w), with four strain-level deviations where that
+paper's own tables disagree with each other; each is recorded with its
+evidence in the generator and cross-checked against both published tables.
+
+The built alignments are distributed rather than the accessions alone because
+CaliciTyper compares a query against reference alignment columns, and its
+typing windows are defined as column ranges: an alignment rebuilt with a
+different aligner version can shift those windows and change calls. For the
+same reason the pooled alignments are built single-threaded, because MAFFT's
+--auto is not deterministic above roughly a hundred sequences when given more
+than one thread.
+
+Every file is checksummed in reference_manifest.json, and `calicityper setup`
+refuses to install a set whose checksums do not match, because a different
+reference set changes calls silently. 229 artefacts in total.
+
+Accompanying accession list: reference_accessions.tsv.
+
+Also included: recombination-datasets-0.8.0.tar.gz, the nine synthetic
+alignments with planted breakpoints used to test the recombination module.
+These are generated deterministically from fixed seeds and are versioned
+separately, so their version moves only when their content does.
