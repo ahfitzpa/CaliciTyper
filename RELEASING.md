@@ -54,6 +54,82 @@ Run from a clean checkout of the release commit/tag candidate (no uncommitted ch
 - [ ] Publish to PyPI and/or bioconda if/when approved (credentials/access required); verify install from the published channel.
 - [ ] Post-release: bump to next development version if desired and reopen `Unreleased` in `CHANGELOG.md`.
 
+## Releasing a reference set
+
+The reference set versions independently of the tool: it has its own tag,
+`reference-X.Y.Z`, and its own release. A reference-set release does not
+require a tool release, and a tool release does not require a new reference
+set. What ties them together is `download_url` in
+`calicityper/data/reference_manifest.json`, which is the URL `calicityper
+setup` fetches.
+
+Do these in order. Between steps 1 and 5 the manifest describes data that is
+not yet downloadable, so CI will fail; that is expected and is why the two
+steps belong in one sitting.
+
+**1. Build and verify the archive, on the cluster.**
+
+```bash
+python scripts/build_reference_manifest.py --version X.Y.Z --apply
+python scripts/build_reference_archive.py --out-dir zenodo --apply
+```
+
+The archive builder re-opens the finished tarball and checks every artefact
+against the manifest, so if it prints `archive re-verified after writing`
+the contents are right. Note the sha256 it prints.
+
+**2. Copy the tarball to wherever you browse from.** GitHub's upload is a
+browser file picker, so the file has to be local:
+
+```bash
+scp <user>@<cluster>:~/scratch/calicityper/zenodo/calicityper-reference-X.Y.Z.tar.gz .
+shasum -a 256 calicityper-reference-X.Y.Z.tar.gz   # must match step 1
+```
+
+**3. Create the release.** github.com/ahfitzpa/CaliciTyper/releases/new
+
+- *Choose a tag* -> type `reference-X.Y.Z` -> **Create new tag on publish**
+- Target: `main`
+- Title: `Reference set X.Y.Z`
+- Body: what changed in the data and the sha256. Not a tool changelog.
+- Attach `calicityper-reference-X.Y.Z.tar.gz`
+- Publish
+
+**4. Check the published asset.** The URL is predictable:
+
+```bash
+URL=https://github.com/ahfitzpa/CaliciTyper/releases/download/reference-X.Y.Z/calicityper-reference-X.Y.Z.tar.gz
+curl -sL "$URL" | sha256sum        # must match step 1
+```
+
+**5. Point the manifest at it and push.** Back on the cluster:
+
+```bash
+python scripts/build_reference_manifest.py --download-url "$URL" --apply
+git commit -am "Point the reference set at the X.Y.Z release"
+git push
+```
+
+`--download-url` sends a HEAD request first and refuses to write if the URL
+does not resolve, so a typo or an unpublished draft fails here rather than in
+someone's install. `--no-check-url` overrides that; do not use it.
+
+This step does not invalidate the tarball you just uploaded: the manifest is
+not inside the archive.
+
+**6. Confirm.** CI's first step is `calicityper setup --in-package` followed
+by `--verify-only`, which downloads from `download_url` and checks every
+artefact. A green run means the published asset and the committed manifest
+agree. A clean install is the real test:
+
+```bash
+pip install -e . && calicityper setup --verify-only
+```
+
+**7. Deposit and record the DOI.** Upload the same tarball to Zenodo as a
+Dataset, then put the *version* DOI into the manifest's `doi` field. A run's
+provenance should name the exact dataset, not a moving pointer.
+
 ## Notes
 
 - Do not commit generated artifacts (`build/`, `dist/`, `.pytest_cache/`, `__pycache__/`, local data caches, benchmark/run outputs) except intentionally curated, documented assets.
