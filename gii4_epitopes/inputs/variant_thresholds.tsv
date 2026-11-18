@@ -1,0 +1,9 @@
+param	value	basis	status	notes
+variant_within_pct	0.05	Parra 2017 Table 1 footnote	PROPOSED	<5pct intra-variant nt OR aa; not AA-only
+variant_between_pct	0.05	Parra 2017 Table 1 footnote	PROPOSED	>=5pct between-cluster difference
+genotype_cutoff_pct	0.15	Chhabra 2019 / Kroneman 2013	REFERENCE	>=15pct to next-nearest genotype; 14.1pct within
+immunotype_cutoff_pct	0.20	Parra 2017 Fig 5B	REFERENCE	>=20pct VP1 aa between immunotype groups
+p2_start_aa	279	manuscript S1 / Parra 2017	REFERENCE	GII.4 variant window starts at VP1 aa 279
+p2_strict_end_aa	405	manuscript S1	REFERENCE	Strict P2 aa 279-405 (41pct of diagnostic columns)
+gii17_cD_pct	0.054	Parra 2017 RESULTS	REFERENCE	Kawasaki C vs D differ 5.4+/-1.1pct aa
+min_cluster_members	2	Parra 2017 Table 1	REFERENCE	Variant requires >=2 clustered strains

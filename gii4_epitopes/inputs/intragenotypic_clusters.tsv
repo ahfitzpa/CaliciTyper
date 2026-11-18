@@ -1,0 +1,9 @@
+genotype	cluster	accession	source_label	evidence
+GII.4	Sydney	JX459908.1	GII.4_Sydney	bundled v0.8.1
+GII.4	Hunter	AY883096.1	GII.4_Hunter	bundled v0.8.1
+GII.4	Bristol	X76716.1	GII.4_Bristol	bundled v0.8.1
+GII.17	C	FILL_FROM_PARRA	Kawasaki_2014	Parra 2017 candidate
+GII.17	D	FILL_FROM_PARRA	Kawasaki_2014	Parra 2017 candidate
+GII.6	A	FILL_FROM_PARRA	GII.6A	Parra 2017 Fig 2A
+GII.6	B	FILL_FROM_PARRA	GII.6B	Parra 2017 Fig 2A
+GII.6	C	FILL_FROM_PARRA	GII.6C	Parra 2017 Fig 2A

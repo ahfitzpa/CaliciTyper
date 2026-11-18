@@ -64,12 +64,32 @@ class Scoring:
 
 @dataclass
 class StatusRules:
+    """When a clustered event counts as weak, possible, likely or strong.
+
+    `strong_require_phylo` is False, and that is a considered choice rather
+    than an oversight. On the thirteen strains of Zhao et al. Table 3 --
+    twelve they report as recombinant and one, the sea lion strain JN420370,
+    they report as not -- the phylogenetic requirement carries none of the
+    precision. The negative control's phylogenetic support is 0.83, higher
+    than three of the true recombinants, so requiring it excludes real events
+    without excluding the control. What carries the precision is
+    `strong_min_methods`: the control is supported by two independent
+    scanners and every recoverable true recombinant by three or more.
+    Dropping the requirement took recall at `strong` from 8/12 to 12/12 with
+    no false positive; lowering the method floor to two is what loses it.
+
+    The evidence is one negative control, which cannot measure a
+    false-positive rate. Treat the precision figure as a tripwire, not an
+    estimate, and do not tune these on thirteen strains
+    (scripts/sweep_recomb_rules.py in the benchmarking repository shows what
+    a change would do; it is not a fitting procedure).
+    """
     weak_min_methods: int = 1
     possible_min_methods: int = 2
     likely_min_methods: int = 3
     likely_require_phylo: bool = True
     strong_min_methods: int = 3
-    strong_require_phylo: bool = True
+    strong_require_phylo: bool = False
     strong_require_distinct: bool = True
 
 

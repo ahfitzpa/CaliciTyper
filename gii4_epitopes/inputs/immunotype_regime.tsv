@@ -1,0 +1,21 @@
+genotype	immunotype	regime	evidence	status
+GI.1	A	static	Parra 2017 Fig 5C	TO_VERIFY_FROM_FIG5C
+GI.2	A	static	Parra 2017 Fig 5C	TO_VERIFY_FROM_FIG5C
+GI.3	C	static	Parra 2017 (GI.3/GI.7/GI.8/GI.9 cluster)	SUPPORTED
+GI.4	A	static	Parra 2017 Fig 5C	TO_VERIFY_FROM_FIG5C
+GI.5	B	static	Parra 2017 Fig 5C	TO_VERIFY_FROM_FIG5C
+GI.6	A	static	Parra 2017 Fig 5C	TO_VERIFY_FROM_FIG5C
+GI.7	C	static	Parra 2017	SUPPORTED
+GI.8	C	static	Parra 2017	SUPPORTED
+GI.9	C	static	Parra 2017	SUPPORTED
+GII.1	B	static	Parra 2017 Fig 5C	TO_VERIFY_FROM_FIG5C
+GII.2	B	static	Parra 2017 Fig 5C	TO_VERIFY_FROM_FIG5C
+GII.3	B	static	Parra 2017 Fig 5C	TO_VERIFY_FROM_FIG5C
+GII.4	G	evolving	Parra 2017 Fig 5C	SUPPORTED
+GII.5	B	static	Parra 2017 Fig 5C	TO_VERIFY_FROM_FIG5C
+GII.6	H	static	Parra 2017 Fig 5C	SUPPORTED
+GII.7	B	static	Parra 2017 Fig 5C	TO_VERIFY_FROM_FIG5C
+GII.12	B	static	Parra 2017 Fig 5C	TO_VERIFY_FROM_FIG5C
+GII.13	F	static	Parra 2017 Fig 5C	TO_VERIFY_FROM_FIG5C
+GII.17	J	static_emerging_candidate	Parra 2017 Table 1 + Kawasaki C/D	SUPPORTED_WITH_CAVEAT
+GII.20	G	static	Parra 2017 (immunotype G with GII.4)	SUPPORTED
