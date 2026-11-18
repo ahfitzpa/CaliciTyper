@@ -7,7 +7,7 @@ Two layers:
   tool, and always run.
 * End-to-end tests over the six seeded synthetic datasets in tests/synthetic.py,
   which need OpenRDP and are skipped without it (`CALICITYPER_OPENRDP`). These
-  are the datasets BENCHMARKING.md section 4 quotes, so they are what keeps
+  are the datasets the benchmarking repo's README section 4 quotes, so they keep
   those numbers honest.
 
 Real reference genomes cannot serve as negative controls here -- a published
@@ -256,7 +256,7 @@ def test_same_seed_gives_the_same_result(tmp_path, cfg):
     the docs can be re-derived.
 
     If this fails, OpenRDP is not deterministic between runs (3Seq and BootScan
-    may seed internally), and BENCHMARKING.md section 4's claim that the
+    may seed internally), and the benchmarking README section 4's claim that the
     synthetic results are reproducible is wrong for the OpenRDP path. The
     message therefore reports exactly what differed.
     """

@@ -82,7 +82,7 @@ That is an open question for the authors.
 
 ## How well it works
 
-Full detail in `BENCHMARKING.md`.
+Full detail in the benchmarking repository's `benchmarking/README.md`.
 
 **Against the published distance ranges.** VP1 reproduces the published range
 for 31 of 32 genotypes, and all 22 testable genotypes are separated from every

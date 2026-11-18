@@ -5,7 +5,8 @@ Follows the RIVM typing tool: profile alignment -> neighbour-joining tree from H
 sequences in at least `min_support` % of the replicates.
 
 NOTE: RIVM uses PAUP*; here the distance is the Tamura-Nei (1993) analytic distance, which contains HKY85
-as a special case. Agreement with the RIVM output is measured by scripts/validate_vs_rivm.py.
+as a special case. Agreement with the RIVM output is measured by validate_vs_rivm.py
+in the benchmarking repository.
 """
 import numpy as np
 

@@ -15,7 +15,18 @@ import pytest
 from calicityper.recomb import STATUSES, _status_rank
 
 ROOT = Path(__file__).resolve().parent.parent
-PANEL = ROOT / "analysis" / "benchmark_outputs" / "recomb_table3"
+# Per-event statuses and scores from a real run of two Zhao et al. Table 3
+# strains. The full panel is 16 MB and lives in the benchmarking deposit, not
+# here; the behaviour it pins belongs to the tool, so the handful of numbers
+# needed to pin it are committed. Regenerate with the snippet in the file's
+# own _comment if the panel is ever rescanned.
+FIXTURE = ROOT / "tests" / "data" / "recomb_event_statuses.json"
+
+
+def strain(acc):
+    if not FIXTURE.exists():
+        pytest.skip(f"missing {FIXTURE.name}")
+    return json.loads(FIXTURE.read_text())["strains"][acc]
 
 
 def order(events):
@@ -41,31 +52,27 @@ def test_score_still_breaks_ties_within_a_status():
     assert top["status"] == "strong" and top["score"] == 0.80
 
 
-@pytest.mark.skipif(not (PANEL / "MZ488271" / "recomb" / "recombination.json").exists(),
-                    reason="requires the deposited Table 3 panel")
-def test_mz488271_is_strong_on_the_deposited_evidence():
-    """The case that exposed the bug, checked against the real stored events.
+def test_mz488271_is_strong_on_the_recorded_evidence():
+    """The case that exposed the bug, on events from a real run.
 
-    The evidence is unchanged -- only the ranking of it is -- so this reads
-    the deposited per-event output rather than re-running the scanners.
+    It is the whole point of the fixture that these two disagree: the
+    best-scoring event is weak and a lower-scoring one is strong.
     """
-    f = PANEL / "MZ488271" / "recomb" / "recombination.json"
-    events = json.loads(f.read_text())["results"][0]["recombination"]["events"]
+    d = strain("MZ488271")
+    events = d["events"]
     assert any(e["status"] == "strong" for e in events), \
         "fixture no longer contains a strong event; the test has lost its point"
+    assert max(events, key=lambda e: e["score"])["status"] == "weak", \
+        "fixture no longer has a weak event scoring highest; the test is moot"
+    assert d["reported_status"] == "weak", "fixture predates the fix, as it should"
     assert order(events)[0]["status"] == "strong"
 
 
-@pytest.mark.skipif(not PANEL.exists(), reason="requires the deposited Table 3 panel")
 def test_the_negative_control_is_not_promoted():
     """JN420370 is the one strain Zhao et al. report as not recombinant.
 
-    Re-ranking may only raise a status, so the thing to check is that it does
-    not raise this one to or past `strong`, which is where the positive call
-    is made.
+    Re-ranking may only raise a status, so what matters is that it does not
+    raise this one to or past `strong`, where the positive call is made.
     """
-    f = PANEL / "JN420370" / "recomb" / "recombination.json"
-    if not f.exists():
-        pytest.skip("negative control not deposited")
-    events = json.loads(f.read_text())["results"][0]["recombination"]["events"]
+    events = strain("JN420370")["events"]
     assert _status_rank(order(events)[0]["status"]) < _status_rank("strong")

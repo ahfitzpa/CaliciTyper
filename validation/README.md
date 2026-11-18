@@ -13,7 +13,7 @@ Calls produced by the [RIVM Norovirus Typing
 Tool](https://www.rivm.nl/mpf/typingtool/norovirus/) for 4,392 GenBank
 accessions (1,868 of them GII.4), used as the reference answer set.
 
-Columns used by `scripts/validate_vs_rivm.py`: `name`, `polymerase type`,
+Columns used by `validate_vs_rivm.py` (benchmarking repo): `name`, `polymerase type`,
 `capsid type`, and the two matching `* support` columns.
 
 It is **not redistributed here.** Obtain it either from the upstream project
@@ -26,7 +26,7 @@ Once it is in place:
 ```bash
 python scripts/fetch_rivm_test_set.py rivm_test_set.fasta   # ~4,392 seqs from GenBank
 calicityper rivm_test_set.fasta -o rivm_typed.tsv --threads 16
-python scripts/validate_vs_rivm.py rivm_typed.tsv           # -> results/rivm_comparison.csv
+python ../calicityper_runs/benchmarking/scripts/validate_vs_rivm.py rivm_typed.tsv
 ```
 
 Only the small summary written to `results/` is committed, not the inputs.

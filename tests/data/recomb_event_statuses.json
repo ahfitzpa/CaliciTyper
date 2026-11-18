@@ -1,0 +1,222 @@
+{
+ "_comment": "Per-event statuses and scores for two strains of the Zhao et al. Table 3 panel, extracted from a real run. Committed because the full panel is 16 MB and lives in the benchmarking deposit, while the behaviour it pins -- a sequence is reported at its strongest event, not its best-scoring one -- belongs to the tool. MZ488271 contains a strong event behind a better-scoring weak one; JN420370 is the negative control and must not be promoted to strong.",
+ "source": "benchmarking-datasets-0.8.1.tar.gz, benchmarking/recomb_table3/",
+ "strains": {
+  "MZ488271": {
+   "reported_status": "weak",
+   "reported_score": 0.696,
+   "events": [
+    {
+     "event_id": "event_15",
+     "status": "weak",
+     "score": 0.696,
+     "n_supporting_methods": 1
+    },
+    {
+     "event_id": "event_4",
+     "status": "possible",
+     "score": 0.65,
+     "n_supporting_methods": 2
+    },
+    {
+     "event_id": "event_1",
+     "status": "strong",
+     "score": 0.638,
+     "n_supporting_methods": 3
+    },
+    {
+     "event_id": "event_6",
+     "status": "weak",
+     "score": 0.578,
+     "n_supporting_methods": 1
+    },
+    {
+     "event_id": "event_9",
+     "status": "weak",
+     "score": 0.57,
+     "n_supporting_methods": 1
+    },
+    {
+     "event_id": "event_2",
+     "status": "possible",
+     "score": 0.544,
+     "n_supporting_methods": 2
+    },
+    {
+     "event_id": "event_13",
+     "status": "weak",
+     "score": 0.536,
+     "n_supporting_methods": 1
+    },
+    {
+     "event_id": "event_5",
+     "status": "possible",
+     "score": 0.53,
+     "n_supporting_methods": 2
+    },
+    {
+     "event_id": "event_17",
+     "status": "weak",
+     "score": 0.521,
+     "n_supporting_methods": 1
+    },
+    {
+     "event_id": "event_3",
+     "status": "possible",
+     "score": 0.512,
+     "n_supporting_methods": 2
+    },
+    {
+     "event_id": "event_16",
+     "status": "weak",
+     "score": 0.493,
+     "n_supporting_methods": 1
+    },
+    {
+     "event_id": "event_12",
+     "status": "weak",
+     "score": 0.473,
+     "n_supporting_methods": 1
+    },
+    {
+     "event_id": "event_10",
+     "status": "weak",
+     "score": 0.469,
+     "n_supporting_methods": 1
+    },
+    {
+     "event_id": "event_11",
+     "status": "weak",
+     "score": 0.457,
+     "n_supporting_methods": 1
+    },
+    {
+     "event_id": "event_14",
+     "status": "weak",
+     "score": 0.454,
+     "n_supporting_methods": 1
+    },
+    {
+     "event_id": "event_7",
+     "status": "weak",
+     "score": 0.435,
+     "n_supporting_methods": 1
+    },
+    {
+     "event_id": "event_8",
+     "status": "weak",
+     "score": 0.414,
+     "n_supporting_methods": 1
+    }
+   ]
+  },
+  "JN420370": {
+   "reported_status": "possible",
+   "reported_score": 0.732,
+   "events": [
+    {
+     "event_id": "event_6",
+     "status": "possible",
+     "score": 0.732,
+     "n_supporting_methods": 2
+    },
+    {
+     "event_id": "event_16",
+     "status": "weak",
+     "score": 0.7,
+     "n_supporting_methods": 1
+    },
+    {
+     "event_id": "event_2",
+     "status": "possible",
+     "score": 0.633,
+     "n_supporting_methods": 2
+    },
+    {
+     "event_id": "event_5",
+     "status": "possible",
+     "score": 0.627,
+     "n_supporting_methods": 2
+    },
+    {
+     "event_id": "event_14",
+     "status": "weak",
+     "score": 0.604,
+     "n_supporting_methods": 1
+    },
+    {
+     "event_id": "event_15",
+     "status": "weak",
+     "score": 0.6,
+     "n_supporting_methods": 1
+    },
+    {
+     "event_id": "event_4",
+     "status": "possible",
+     "score": 0.544,
+     "n_supporting_methods": 2
+    },
+    {
+     "event_id": "event_9",
+     "status": "weak",
+     "score": 0.542,
+     "n_supporting_methods": 1
+    },
+    {
+     "event_id": "event_10",
+     "status": "weak",
+     "score": 0.539,
+     "n_supporting_methods": 1
+    },
+    {
+     "event_id": "event_17",
+     "status": "weak",
+     "score": 0.521,
+     "n_supporting_methods": 1
+    },
+    {
+     "event_id": "event_7",
+     "status": "weak",
+     "score": 0.505,
+     "n_supporting_methods": 1
+    },
+    {
+     "event_id": "event_3",
+     "status": "possible",
+     "score": 0.502,
+     "n_supporting_methods": 2
+    },
+    {
+     "event_id": "event_13",
+     "status": "weak",
+     "score": 0.498,
+     "n_supporting_methods": 1
+    },
+    {
+     "event_id": "event_1",
+     "status": "possible",
+     "score": 0.492,
+     "n_supporting_methods": 2
+    },
+    {
+     "event_id": "event_8",
+     "status": "weak",
+     "score": 0.489,
+     "n_supporting_methods": 1
+    },
+    {
+     "event_id": "event_11",
+     "status": "weak",
+     "score": 0.479,
+     "n_supporting_methods": 1
+    },
+    {
+     "event_id": "event_12",
+     "status": "weak",
+     "score": 0.422,
+     "n_supporting_methods": 1
+    }
+   ]
+  }
+ }
+}

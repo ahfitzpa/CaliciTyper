@@ -108,7 +108,7 @@ RIVM_WINDOW_NT = {
 GII4_VARIANT_WINDOW_AA = (279, None)      # None = to the 3' end of VP1
 
 # Fraction of a window a query covers. REPORTED, no longer a gate: the
-# truncation leave-one-out harness (scripts/truncation_loo.py) showed the gate
+# truncation leave-one-out harness (truncation_loo.py, benchmarking repo) showed the gate
 # withheld correct calls without improving precision, because this tool types
 # on every aligned column rather than on the window the way RIVM does. Kept as
 # a threshold only for the RIVM-replication mode, where declining exactly where
