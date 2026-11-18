@@ -10,23 +10,6 @@ on:
   pull_request:
   workflow_dispatch:
 
-# Reference set for CI. The manifest describes reference set 0.8.0 (232
-# artefacts, 148 of them sapovirus). The old reference-0.7.0 pre-release
-# predates the sapovirus sets being included at all, so it cannot satisfy this
-# manifest and `setup --verify-only` fails against it.
-#
-# This URL therefore points at the v0.8.0 release asset. It 404s until that
-# release is published, and the reference-set step is red until then; it needs
-# no further commit once the asset is uploaded. `setup` verifies every file
-# against the manifest's checksums either way, so this changes where the
-# archive comes from, not what is accepted.
-#
-# Once the manifest's own download_url points at the same asset, delete
-# REFSET_URL and drop `--source "$REFSET_URL"` so CI exercises the path real
-# users take.
-env:
-  REFSET_URL: https://github.com/ahfitzpa/CaliciTyper/releases/download/v0.8.0/calicityper-reference-0.8.0.tar.gz
-
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -59,7 +42,7 @@ jobs:
         shell: bash -el {0}
         run: |
           pip install -e .
-          calicityper setup --in-package --source "$REFSET_URL"
+          calicityper setup --in-package
           calicityper setup --verify-only --in-package
 
       - name: Install calicityper

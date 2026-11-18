@@ -1,0 +1,43 @@
+accession,vp1_truth,rdrp_truth,dual_truth,vp1_call,rdrp_call,dual_call,vp1_ok,rdrp_ok,vp1_declined,rdrp_declined,singleton_vp1,singleton_rdrp,outcome
+AB522390,GI.7,GI.P7,GI.7[P7],GI.7,GI.P7,GI.7[P7],True,True,False,False,False,False,correct
+AB522397,GII.4,GII.P4,GII.4[P4],GII.4,GII.P4,GII.4[P4],True,True,False,False,False,False,correct
+AB623037,GI.3,GI.P3,GI.3[P3],GI.3,GI.P3,GI.3[P3],True,True,False,False,False,False,correct
+AB630067,GXXIX.1,GII.P7,GXXIX.1[GII.P7],untypeable,GII.PNA1,,False,False,True,False,True,True,singleton (declining is correct)
+AB630068,GII.3,GII.P3,GII.3[P3],GII.3,GII.P3,GII.3[P3],True,True,False,False,False,False,correct
+AJ606693,GI.4,GI.P1,GI.4[P1],untypeable,GI.P1,,False,True,True,False,True,False,singleton (declining is correct)
+AJ786349,GIV,GII.P10,GIV[GII.P10],GIV,GII.P10,GIV[GII.P10],True,True,False,False,False,False,correct
+DQ125333,GIV,GII.P10,GIV[GII.P10],GIV,GII.P10,GIV[GII.P10],True,True,False,False,False,False,correct
+DQ366345,GI.5,GI.P5,GI.5[P5],GI.5,GI.P5,GI.5[P5],True,True,False,False,False,False,correct
+FJ844411,GI.2,GI.P2,GI.2[P2],GI.2,GI.P2,GI.2[P2],True,True,False,False,False,False,correct
+JN899072,GXIV,GXIV.P,GXIV[GXIV.P],GXIV,GXIV.P,GXIV[GXIV.P],True,True,False,False,False,False,correct
+KJ641703,GXVII,GXVII.P,GXVII[GXVII.P],untypeable,untypeable,,False,False,True,True,False,False,no dual type (a region declined)
+KX274477,GII.4,GII.P4,GII.4[P4],GII.4,GII.P4,GII.4[P4],True,True,False,False,False,False,correct
+KX431437,GV.NA1,GV.PNA1,GV.NA1[PNA1],untypeable,GV.P1,,False,False,True,False,True,True,singleton (declining is correct)
+KX759618,GXXVIII,GXXVIII.P,GXXVIII[GXXVIII.P],GXXVIII,GXXVIII.P,GXXVIII[GXXVIII.P],True,True,False,False,False,False,correct
+KX759621,GXXVIII,GXXVIII.P,GXXVIII[GXXVIII.P],GXXVIII,GXXVIII.P,GXXVIII[GXXVIII.P],True,True,False,False,False,False,correct
+LC380411,GI.6,GI.P6,GI.6[P6],GI.6,GI.P6,GI.6[P6],True,True,False,False,False,False,correct
+LC504396,GI.5,GI.P5,GI.5[P5],GI.5,GI.P5,GI.5[P5],True,True,False,False,False,False,correct
+LC504422,GIV,GII.P10,GIV[GII.P10],GIV,GII.P10,GIV[GII.P10],True,True,False,False,False,False,correct
+LC715150,GII.3,GII.P3,GII.3[P3],GII.3,GII.P3,GII.3[P3],True,True,False,False,False,False,correct
+MF944258,GII.3,GII.P3,GII.3[P3],GII.3,GII.P3,GII.3[P3],True,True,False,False,False,False,correct
+MG012401,GI.3,GI.P3,GI.3[P3],GI.3,GI.P3,GI.3[P3],True,True,False,False,False,False,correct
+MG012413,GII.2,GII.P2,GII.2[P2],GII.2,GII.P2,GII.2[P2],True,True,False,False,False,False,correct
+MG012421,GIV,GII.P10,GIV[GII.P10],GIV,GII.P10,GIV[GII.P10],True,True,False,False,False,False,correct
+MG012443,GI.6,GI.P6,GI.6[P6],GI.6,GI.P6,GI.6[P6],True,True,False,False,False,False,correct
+MG012447,GII.5,GII.P5,GII.5[P5],GII.5,GII.P5,GII.5[P5],True,True,False,False,False,False,correct
+MG012451,GII.5,GII.P5,GII.5[P5],GII.5,GII.P5,GII.5[P5],True,True,False,False,False,False,correct
+MH922771,GII.NA.1,GII.PNA1,GII.NA.1[PNA1],GII.NA.1,GII.PNA1,GII.NA.1[PNA1],True,True,False,False,False,False,correct
+MH922773,GII.6,GII.P6,GII.6[P6],untypeable,GII.P3,,False,False,True,False,True,True,singleton (declining is correct)
+MH922774,GII.2,GII.P2,GII.2[P2],GII.2,GII.P2,GII.2[P2],True,True,False,False,False,False,correct
+MK250989,GI.3,GI.P3,GI.3[P3],GI.3,GI.P3,GI.3[P3],True,True,False,False,False,False,correct
+MK296752,GII.1,GII.P1,GII.1[P1],GII.1,GII.P1,GII.1[P1],True,True,False,False,False,False,correct
+MN102395,GIV,GII.P10,GIV[GII.P10],GIV,GII.P10,GIV[GII.P10],True,True,False,False,False,False,correct
+MN102403,GII.5,GII.P5,GII.5[P5],GII.5,GII.P5,GII.5[P5],True,True,False,False,False,False,correct
+MN161591,GII.3,GII.P3,GII.3[P3],GII.3,GII.P3,GII.3[P3],True,True,False,False,False,False,correct
+MN509083,GI.6,GI.P6,GI.6[P6],GI.6,GI.P6,GI.6[P6],True,True,False,False,False,False,correct
+MN509084,GII.2,GII.P2,GII.2[P2],GII.2,GII.P2,GII.2[P2],True,True,False,False,False,False,correct
+MN794218,GII.4,GII.PNA1,GII.4[PNA1],GII.4,GII.PNA1,GII.4[PNA1],True,True,False,False,False,False,correct
+NC_017936,GXIV,GXIV.P,GXIV[GXIV.P],GXIV,GXIV.P,GXIV[GXIV.P],True,True,False,False,False,False,correct
+OP255973,GI.7,GI.P7,GI.7[P7],GI.7,GI.P7,GI.7[P7],True,True,False,False,False,False,correct
+OP654149,GIV,GII.P10,GIV[GII.P10],GIV,GII.P10,GIV[GII.P10],True,True,False,False,False,False,correct
+OP930874,GXVII,GXVII.P,GXVII[GXVII.P],untypeable,untypeable,,False,False,True,True,False,False,no dual type (a region declined)

@@ -35,9 +35,21 @@ From: python:3.11
     python3 - <<'PY'
 import tarfile, urllib.request, pathlib, shutil, os
 
-def fetch(url, dest):
-    print(f"fetching {url}", flush=True)
-    urllib.request.urlretrieve(url, dest)
+def fetch(url, dest, tries=5):
+    """Download with backoff. NCBI returns 503 often enough that a single
+    transient failure should not discard a twenty-minute build."""
+    import time, urllib.error
+    for n in range(1, tries + 1):
+        try:
+            print(f"fetching {url} (attempt {n}/{tries})", flush=True)
+            urllib.request.urlretrieve(url, dest)
+            return
+        except Exception as e:
+            if n == tries:
+                raise
+            wait = 20 * n
+            print(f"  {type(e).__name__}: {e}; retrying in {wait}s", flush=True)
+            time.sleep(wait)
 
 # --- BLAST+ 2.17.0, prebuilt x64 linux ------------------------------------
 fetch("https://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/2.17.0/"
