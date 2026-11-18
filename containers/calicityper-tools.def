@@ -1,5 +1,5 @@
 Bootstrap: docker
-From: python:3.11-slim
+From: python:3.11
 
 # External tools for CaliciTyper, pinned, in one image.
 #
@@ -14,6 +14,11 @@ From: python:3.11-slim
 # image that already carries Python and installs the other two tools from
 # prebuilt binaries fetched and unpacked with Python's own stdlib. No
 # compilation, no package manager, no privilege.
+#
+# The base is python:3.11 rather than -slim: BLAST+ links against libgomp
+# (OpenMP) and the slim image omits it, so blastn died with
+#   error while loading shared libraries: libgomp.so.1
+# The full image carries it, and installing it with apt is not an option here.
 #
 # OpenRDP needs numpy<2 while CaliciTyper runs numpy>=2, so OpenRDP gets its
 # own interpreter inside the image. See docs/INSTALL_TOOLS.md.

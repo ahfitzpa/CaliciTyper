@@ -1,0 +1,2 @@
+# host=sonic90.compute cpus=16 source=refseq_2.fasta
+sequences	threads	wall_seconds	seconds_per_sequence	peak_rss_mb	genogroups

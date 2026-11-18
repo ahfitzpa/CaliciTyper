@@ -24,7 +24,7 @@ for released versions.
 - `--openrdp-timeout` for the `recomb` command. A failed combined OpenRDP run is retried method by method, so one crashing scanner no longer discards the evidence from the others.
 - `scripts/check_against_zhao_tables.py`, cross-checking the generated sapovirus tables against Table 2 and the pig/bat table of Zhao et al. 2024, with an explicit list of adjudicated deviations.
 ### Changed
-- Public `main` no longer tracks detailed benchmarking artifacts/docs in-repo (moved out of HEAD; historical blobs remain in git history until a future history-rewrite, if performed).
+- Benchmarking artefacts are tracked again, under `analysis/`: the 32 SLURM batch scripts as submitted, the scored output tables behind every figure and reported number, the figure generator, and a README mapping each claim in the paper to the script and file that produced it. `BENCHMARKING.md` is no longer gitignored.
 - README restructured into a quickstart-focused entry point with links to detailed reference and schema docs.
 - CLI/UX polish: consistent subcommand help/descriptions and examples, clearer input/output behavior (stdin not supported; stdout TSV and stderr status/progress), predictable `--report` naming (`PREFIX.md/.json/.html`), improved progress messages, and clearer actionable errors/hints for missing reference data or external tools.
 

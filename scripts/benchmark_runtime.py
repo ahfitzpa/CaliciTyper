@@ -90,9 +90,10 @@ def main():
                 continue
             mix = genogroup_mix(out)
             rows.append(dict(sequences=n, threads=t, wall_seconds=round(wall, 1),
-                             seconds_per_sequence=round(wall / n, 2), genogroups=mix))
+                             seconds_per_sequence=round(wall / n, 2),
+                             peak_rss_mb=round(peak_mb, 1), genogroups=mix))
             print(f"  n={n:4d} threads={t:2d}  {wall:8.1f}s  "
-                  f"{wall / n:6.2f} s/seq  ({mix})")
+                  f"{wall / n:6.2f} s/seq  {peak_mb:7.0f} MB peak  ({mix})")
 
     outp = Path(a.out)
     outp.parent.mkdir(parents=True, exist_ok=True)
