@@ -5,10 +5,12 @@ from pathlib import Path
 
 import numpy as np
 
-ROOT = Path(__file__).resolve().parents[3]          # .../calicityper (scripts -> gii4_epitopes -> dev -> calicityper)
+# Resolve from this file, not from an assumed checkout layout: the draft
+# assumed .../calicityper/dev/gii4_epitopes and broke as soon as it was moved.
+HERE = Path(__file__).resolve().parent.parent       # .../gii4_epitopes
+ROOT = HERE.parent                                  # the tool checkout
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
-HERE = ROOT / "dev" / "gii4_epitopes"
 INPUTS = HERE / "inputs"
 RESULTS = HERE / "results"
 BASES = {"A": "A", "C": "C", "G": "G", "T": "T", "U": "T"}
@@ -87,7 +89,18 @@ def translate_nt(seq):
 
 
 def p_distance(a, b):
-    """Uncorrected p-distance over columns where both sequences carry a base."""
+    """Uncorrected p-distance over columns where both sequences carry a base.
+
+    Both arguments must come from the same alignment. zip() would otherwise
+    truncate to the shorter sequence and compare residue 1 of one gene against
+    residue 1 of another, which is not a distance; the mismatch surfaced here
+    only because the resulting mask was then applied to the longer sequence
+    and raised. Refusing is the point: a silent wrong number is worse.
+    """
+    if len(a) != len(b):
+        raise ValueError(
+            f"p_distance needs aligned sequences; got lengths {len(a)} and "
+            f"{len(b)}. Read the genogroup .aln, not the .fasta.")
     ok = np.array([(x in BASES and y in BASES) for x, y in zip(a.upper(), b.upper())])
     if not ok.any():
         return float("nan"), 0
