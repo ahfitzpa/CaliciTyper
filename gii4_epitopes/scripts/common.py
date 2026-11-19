@@ -1,14 +1,42 @@
 #!/usr/bin/env python3
 """Shared helpers for the F1-F4 development scripts. No tool behaviour changes."""
+import os
 import sys
 from pathlib import Path
 
 import numpy as np
 
-# Resolve from this file rather than from an assumed checkout layout. The
-# draft assumed .../calicityper/dev/gii4_epitopes and broke on any other.
+# Resolve from this file rather than an assumed checkout layout: the earlier
+# version assumed .../calicityper/dev/gii4_epitopes and broke in the HPC
+# checkout, which sits at a different depth.
 HERE = Path(__file__).resolve().parent.parent       # .../gii4_epitopes
-ROOT = HERE.parent                                  # the tool checkout
+ROOT = HERE.parent.parent                           # tool checkout (gii4_epitopes -> dev -> calicityper)
+
+
+def _find_tool_checkout():
+    """Locate a calicityper checkout so scripts run from a flat HPC folder.
+
+    Order: already importable -> CALICITYPER_REPO env var -> parents of HERE
+    containing calicityper/__init__.py. Returns None if not found; callers
+    then get a clear error instead of ModuleNotFoundError.
+    """
+    try:
+        import calicityper  # noqa: F401
+        return Path(calicityper.__file__).resolve().parent.parent
+    except ImportError:
+        pass
+    env = os.environ.get("CALICITYPER_REPO")
+    if env and (Path(env) / "calicityper" / "__init__.py").exists():
+        return Path(env).resolve()
+    for parent in HERE.parents:
+        if (parent / "calicityper" / "__init__.py").exists():
+            return parent
+    return None
+
+
+_TOOL = _find_tool_checkout()
+if _TOOL and str(_TOOL) not in sys.path:
+    sys.path.insert(0, str(_TOOL))
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 INPUTS = HERE / "inputs"
@@ -17,18 +45,38 @@ BASES = {"A": "A", "C": "C", "G": "G", "T": "T", "U": "T"}
 BASES.update({k + "-": k for k in ("A", "C", "G", "T")})
 
 
-def check_data_dir():
-    """Return the verified reference-set directory, or raise with setup hint."""
+def find_data_dir():
+    """Find an installed reference set without importing calicityper.
+
+    Order: CALICITYPER_DATA -> calicityper.config.DATA (if importable) -> common
+    HPC cache locations. Returns None if nothing looks like a reference set.
+    """
     import os
-    from calicityper import config as cg
-    p = cg.DATA
-    missing = [str(x) for x in (cg.BLAST_FASTA, cg.ANNOTATION,
-                                cg.REF_DIR["orf1"], cg.REF_DIR["orf2"]) if not x.exists()]
-    if missing:
+    env = os.environ.get("CALICITYPER_DATA")
+    candidates = [Path(env)] if env else []
+    if _TOOL:
+        candidates.append(_TOOL / "calicityper" / "data")
+    home = Path.home()
+    cache = Path(os.environ.get("XDG_CACHE_HOME", home / ".cache")) / "calicityper"
+    if cache.exists():
+        candidates += sorted(cache.glob("reference-*"), reverse=True)
+    for c in candidates:
+        if c and (c / "database" / "refseq_2.fasta").exists():
+            return c
+    return None
+
+
+def check_data_dir():
+    """Return the verified reference-set directory, or raise with a setup hint.
+
+    Deliberately does NOT import calicityper: the dev scripts must run from a
+    flat HPC folder where the tool may not be on PYTHONPATH.
+    """
+    p = find_data_dir()
+    if p is None:
         raise SystemExit(
-            "Reference data not found in " + str(p) + "\n"
-            "Missing: " + ", ".join(missing) + "\n"
-            "Run `calicityper setup` or set CALICITYPER_DATA to a verified set.\n"
+            "Reference data not found. Run `calicityper setup`, set CALICITYPER_DATA "
+            "to a verified set, or set CALICITYPER_REPO to the tool checkout. "
             "The repository does not ship the alignment files."
         )
     return p
@@ -89,16 +137,43 @@ def translate_nt(seq):
 
 
 def p_distance(a, b):
-    """Uncorrected p-distance over columns where both sequences carry a base."""
-    ok = np.array([(x in BASES and y in BASES) for x, y in zip(a.upper(), b.upper())])
+    """Uncorrected p-distance over columns where both sequences carry a base.
+
+    Truncates to the shared prefix length first: the mask is built over the
+    zipped pairs, so indexing the original (possibly longer) strings would
+    raise an IndexError.
+    """
+    n = min(len(a), len(b))
+    x, y = a.upper()[:n], b.upper()[:n]
+    ok = np.array([(p in BASES and q in BASES) for p, q in zip(x, y)])
     if not ok.any():
         return float("nan"), 0
-    aa = np.array(list(a.upper()))[ok]
-    bb = np.array(list(b.upper()))[ok]
-    return float((aa != bb).mean()), int(ok.sum())
+    return float((np.array(list(x))[ok] != np.array(list(y))[ok]).mean()), int(ok.sum())
 
 
 def provenance():
-    """Manifest identity for generated tables, so outputs can be audited."""
-    from calicityper import provenance as prov
-    return prov.reference_set_info()
+    """Manifest identity for generated tables, computed without the tool.
+
+    Reads the small reference_manifest.json (from CALICITYPER_DATA or the tool
+    checkout) and hashes its canonical JSON, matching calicityper.provenance.
+    """
+    import hashlib
+    import json
+    candidates = []
+    d = find_data_dir()
+    if d:
+        candidates.append(d / "reference_manifest.json")
+    if _TOOL:
+        candidates.append(_TOOL / "calicityper" / "data" / "reference_manifest.json")
+    for m in candidates:
+        if m.exists():
+            manifest = json.loads(m.read_text(encoding="utf-8"))
+            canonical = json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode()
+            return {
+                "available": True,
+                "manifest_path": str(m),
+                "doi": manifest.get("doi", ""),
+                "reference_set_version": manifest.get("reference_set_version", ""),
+                "manifest_sha256": hashlib.sha256(canonical).hexdigest(),
+            }
+    return {"available": False, "manifest_path": "", "note": "no manifest found; set CALICITYPER_DATA or CALICITYPER_REPO"}

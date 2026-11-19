@@ -38,6 +38,8 @@ sequence, and this module does not claim to.
 from __future__ import annotations
 
 import csv
+import math
+from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -61,6 +63,11 @@ COEVOLVING = ((297, 372), (309, 459), (357, 372), (357, 397),
               (395, 504), (397, 448), (465, 483), (119, 145))
 
 MIN_AA_CHANGES = 18
+#: Kendra et al. 2021 treated a VP1 residue with Shannon entropy at or below
+#: this as conserved, over 1,572 GII.4 VP1 sequences. Entropy here is measured
+#: over whatever alignment is supplied, which is usually far smaller, so the
+#: cut-off is a published reference point and not a claim about this input.
+CONSERVED_ENTROPY = 0.3
 #: the lowest residue the annotation needs to be able to locate
 MAX_RESIDUE = max(max(r) for r in list(SITES.values()) + list(CONSERVED.values()))
 
@@ -88,12 +95,41 @@ class Annotation:
     coevolving_pairs_changed: list = field(default_factory=list)
     candidate_antigenic_shift: bool = False
     reason: str = ""
+    site_entropy: dict = field(default_factory=dict)
     caveat: str = CAVEAT
 
     def haplotype(self):
         """A:TTH...|C:...|D:...|E:...|G:... from the per-site residues."""
         return "|".join(f"{s}:{self.site_changes.get(s, {}).get('query_residues', '')}"
                         for s in sorted(SITES))
+
+
+def shannon_entropy(column):
+    """Shannon entropy in bits over the amino acids present in one column.
+
+    Gaps and X are dropped rather than treated as a state: a gap is missing
+    data, and counting it as a 21st residue makes a ragged column look
+    variable when it is only incomplete. A column with nothing left to score
+    returns None, which is not the same as 0.0 (perfectly conserved).
+    """
+    aa = [c for c in column if c not in "-.X"]
+    if not aa:
+        return None
+    n = len(aa)
+    h = -sum((k / n) * math.log2(k / n) for k in Counter(aa).values())
+    return round(h, 4) + 0.0
+
+
+def site_entropy(rows, columns):
+    """{residue: entropy} over every sequence in the alignment.
+
+    This is a property of the alignment supplied, not of the query, so it is
+    computed once across all rows including the reference.
+    """
+    out = {}
+    for res, col in columns.items():
+        out[res] = shannon_entropy([r[col] for r in rows if col < len(r)])
+    return out
 
 
 def residue_columns(reference_row, residues, min_length=None):
@@ -152,8 +188,13 @@ def total_aa_differences(query_row, reference_row):
 
 
 def annotate(query_name, query_row, reference_name, reference_row,
-             genotype="GII.4"):
-    """Annotate one aligned query against one aligned reference."""
+             genotype="GII.4", entropy=None):
+    """Annotate one aligned query against one aligned reference.
+
+    `entropy` is {residue: entropy} measured over the whole alignment, from
+    site_entropy(); it is passed in rather than computed here because it
+    describes the alignment and not the pair.
+    """
     if len(query_row) != len(reference_row):
         raise AntigenicError(
             f"query and reference are not from one alignment: "
@@ -196,6 +237,12 @@ def annotate(query_name, query_row, reference_name, reference_row,
     ann.coevolving_pairs_changed = [f"{a}-{b}" for a, b in COEVOLVING
                                     if a in changed and b in changed]
 
+    if entropy:
+        ann.site_entropy = {s: round(
+            sum(entropy[r] for r in SITES[s] if entropy.get(r) is not None)
+            / max(1, sum(1 for r in SITES[s] if entropy.get(r) is not None)), 4)
+            for s in SITES}
+
     enough_changes = ann.aa_differences >= MIN_AA_CHANGES
     enough_sites = len(changed_shift_sites) >= 2
     ann.candidate_antigenic_shift = enough_changes and enough_sites
@@ -222,7 +269,7 @@ def sites_table():
 
 
 TSV_COLUMNS = ["query", "reference", "genotype", "aa_differences",
-               "residues_compared", "epitope_haplotype",
+               "residues_compared", "epitope_haplotype", "mean_site_entropy",
                "site_A_changes", "site_C_changes", "site_D_changes",
                "site_E_changes", "site_G_changes",
                "conserved_F_changes", "conserved_I_changes",
@@ -235,6 +282,8 @@ def to_row(ann):
          "aa_differences": ann.aa_differences,
          "residues_compared": ann.compared_sites,
          "epitope_haplotype": ann.haplotype(),
+         "mean_site_entropy": ";".join(
+             f"{s}={ann.site_entropy[s]}" for s in sorted(ann.site_entropy)),
          "coevolving_pairs_changed": " ".join(ann.coevolving_pairs_changed),
          "candidate_antigenic_shift": str(ann.candidate_antigenic_shift).lower(),
          "reason": ann.reason, "caveat": ann.caveat}

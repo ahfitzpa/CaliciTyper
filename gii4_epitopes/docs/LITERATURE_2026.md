@@ -16,6 +16,11 @@ These papers were read on 2026-11-19. They are the evidence behind the additive
   coevolving pairs, verified immunotype lookup, and a `candidate_antigenic_shift`
   screen (≥18 aa differences **and** ≥2 of A/D/E/G changed). The ~22% false
   positive rate is printed in every output's `caveat` field.
+- **Residue correction (2026-11-19):** site residues are the FULL sets from the
+  J Virol 2026 paper, not the sparse examples in Kendra 2021 Table 1: A
+  294–298/368/372/373, C 339–341/375–378, D 393–398, E 407–414 (variable 407
+  and 412–414), G 352/355–357/359/364; conserved A1431 footprint 402/403/504/506
+  plus site F 254–257/327/404. The earlier version ended site C at 377 — fixed.
 - `calicityper antigenic` CLI subcommand: annotates an aligned GII.4 VP1 AA
   alignment; writes TSV + provenance sidecar. Does not touch `type`, `novel`,
   `recomb`, their thresholds or schemas.

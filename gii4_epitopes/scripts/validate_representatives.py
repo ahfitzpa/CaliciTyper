@@ -24,7 +24,8 @@ def main():
         from common import check_data_dir
         data_dir = check_data_dir()
     except SystemExit as e:
-        print(str(e), file="__import__('sys').stderr")
+        import sys
+        print(str(e), file=sys.stderr)
 
     vp1 = None
     if data_dir:

@@ -200,3 +200,40 @@ Contains `schema`, `tool`, `tool_version`, `command` (`recomb`), `generated`, `n
 - **MINOR**: backward-compatible additions (new optional fields/columns, added detail).
 - `tool_version` records the CaliciTyper software version; schema versions may evolve independently but changes must be documented in `CHANGELOG.md` and reflected here.
 - Consumers should treat unknown/additional fields as forward-compatible extensions and rely on documented required/core semantics for interpretation.
+
+## `antigenic` TSV
+
+Written by `calicityper antigenic`. Annotation only: it reports how a GII.4
+VP1 amino-acid sequence differs from a reference at published antigenic-site
+residues. It does not type, and nothing in it feeds a typing call.
+
+| column | meaning |
+|---|---|
+| `query`, `reference` | sequence ids from the alignment |
+| `genotype` | the genotype the site coordinates belong to; only `GII.4` is accepted |
+| `aa_differences` | amino-acid differences over columns both sequences resolve |
+| `residues_compared` | site residues actually scorable in this pair |
+| `epitope_haplotype` | `A:...|C:...|D:...|E:...|G:...`, the query residues at each site |
+| `mean_site_entropy` | per-site Shannon entropy over the whole alignment, in bits |
+| `site_<X>_changes` | e.g. `294E>W,297Q>W` for sites A, C, D, E, G |
+| `conserved_<X>_changes` | changes at conserved sites F and I; reported, never used to call |
+| `coevolving_pairs_changed` | Kendra et al. 2021 Table 1 pairs where both residues changed |
+| `candidate_antigenic_shift` | `true` only if >=18 aa differences AND >=2 of A/D/E/G changed |
+| `reason` | the arithmetic behind that flag |
+| `caveat` | the false-positive rate, on every row |
+
+Residue numbers are GII.4 VP1 numbering resolved to **alignment columns**
+through the reference row. VP1 runs 530-550 residues across human genotypes,
+so the numbers cannot be carried to another genotype, and a reference shorter
+than 506 residues is refused: a trimmed or P2-only alignment renumbers every
+site silently.
+
+`candidate_antigenic_shift` is a screen, not a call. Kendra et al. found ~22%
+of pairs with >=18 changes were not antigenically different, and ten pairs
+were different with fewer. Antigenic distance needs blockade or
+neutralisation titres and is not inferable from sequence.
+
+A `<out>.provenance.json` sidecar records the tool version, the reference,
+the site definitions and their source, the shift rule, and the entropy
+cut-off with a note that it came from a 1,572-sequence corpus rather than
+from the alignment supplied.

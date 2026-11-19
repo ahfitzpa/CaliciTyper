@@ -207,6 +207,34 @@ def _add_setup_args(p):
     return p
 
 
+def _antigenic_provenance(a, reference, n_seqs, entropy, path):
+    """Record what was run, against what, and under which published rules."""
+    import json as _json
+    from . import antigenic as ag
+    conserved = sorted(r for r, h in entropy.items()
+                       if h is not None and h <= ag.CONSERVED_ENTROPY)
+    rec = {
+        "tool": "calicityper", "tool_version": __version__,
+        "subcommand": "antigenic", "alignment": a.alignment,
+        "reference": reference, "genotype": a.genotype,
+        "n_sequences": n_seqs,
+        "site_definitions": "Parra et al. 2026 J Virol doi:10.1128/jvi.01804-25 (CC BY 4.0)",
+        "shift_rule": {
+            "min_aa_differences": ag.MIN_AA_CHANGES,
+            "min_sites_changed": 2, "sites": list(ag.SHIFT_SITES),
+            "site_C_excluded": True,
+            "source": "Kendra et al. 2021 PNAS doi:10.1073/pnas.2015874118"},
+        "entropy": {"conserved_at_or_below": ag.CONSERVED_ENTROPY,
+                    "source": "Kendra et al. 2021 (1,572 GII.4 VP1 sequences)",
+                    "measured_over": "the supplied alignment, not that corpus",
+                    "n_site_residues_conserved": len(conserved),
+                    "conserved_residues": conserved},
+        "caveat": ag.CAVEAT,
+    }
+    with open(path, "w") as fh:
+        _json.dump(rec, fh, indent=1)
+
+
 def _add_antigenic_args(p):
     p.add_argument("alignment", nargs="?",
                    help="aligned VP1 amino acids (FASTA), full-length")
@@ -253,12 +281,17 @@ def _run_antigenic(a):
     else:
         ref = recs[0]
 
+    all_res = sorted({r for rs in ag.SITES.values() for r in rs}
+                     | {r for rs in ag.CONSERVED.values() for r in rs})
     rows = []
     try:
+        cols = ag.residue_columns(ref[1], all_res)
+        ent = ag.site_entropy([s for _, s in recs], cols)
         for name, seq in recs:
             if name == ref[0]:
                 continue
-            rows.append(ag.to_row(ag.annotate(name, seq, ref[0], ref[1], a.genotype)))
+            rows.append(ag.to_row(ag.annotate(name, seq, ref[0], ref[1],
+                                              a.genotype, entropy=ent)))
     except ag.AntigenicError as e:
         print(f"Error: {e}", file=sys.stderr)
         return 2
@@ -267,6 +300,7 @@ def _run_antigenic(a):
         w = _csv.DictWriter(fh, fieldnames=ag.TSV_COLUMNS, delimiter="\t")
         w.writeheader()
         w.writerows(rows)
+    _antigenic_provenance(a, ref[0], len(recs), ent, a.out + ".provenance.json")
     flagged = sum(r["candidate_antigenic_shift"] == "true" for r in rows)
     print(f"annotated {len(rows)} sequence(s) against {ref[0]} -> {a.out}")
     print(f"  {flagged} flagged candidate_antigenic_shift")

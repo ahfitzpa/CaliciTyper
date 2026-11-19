@@ -32,9 +32,12 @@ import sys
 
 import numpy as np
 
-from common import HERE, ROOT, INPUTS, read_tsv     # noqa: F401
-sys.path.insert(0, str(ROOT))
-from calicityper import putative_novel as nv         # noqa: E402
+from common import HERE, ROOT, INPUTS, read_tsv, _TOOL  # noqa: F401
+
+try:
+    from calicityper import putative_novel as nv      # noqa: E402
+except ImportError:
+    nv = None   # HPC-only check: needs the installed tool + MAFFT + reference set
 
 CUTOFF = 0.20
 ANCHORS = [("GII.4", "GII.20", "G"), ("GI.3", "GI.7", "C"),
@@ -42,6 +45,13 @@ ANCHORS = [("GII.4", "GII.20", "G"), ("GI.3", "GI.7", "C"),
 
 
 def genotype_sequences():
+    if nv is None:
+        raise SystemExit(
+            "check_immunotype_consistency needs the installed calicityper tool "
+            "(putative_novel.vp1_aa_alignment) plus MAFFT and a verified reference "
+            "set. Activate the calicityper conda env on the HPC and set "
+            "CALICITYPER_REPO / CALICITYPER_DATA, or skip this optional check."
+        )
     recs, _ = nv.vp1_aa_alignment()
     seqs = dict(recs)
     out = {}

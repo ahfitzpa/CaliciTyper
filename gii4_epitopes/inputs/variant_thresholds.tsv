@@ -7,3 +7,5 @@ p2_start_aa	279	manuscript S1 / Parra 2017	REFERENCE	GII.4 variant window starts
 p2_strict_end_aa	405	manuscript S1	REFERENCE	Strict P2 aa 279-405 (41pct of diagnostic columns)
 gii17_cD_pct	0.054	Parra 2017 RESULTS	REFERENCE	Kawasaki C vs D differ 5.4+/-1.1pct aa
 min_cluster_members	2	Parra 2017 Table 1	REFERENCE	Variant requires >=2 clustered strains
+gii17_variant_cutoff_pct	0.27	Parra 2017 Fig S2b (dashed line, ~27% aa difference)	REFERENCE_FROM_FIGURE	Separates intra- from inter-cluster comparisons in GII.17; NOT the 5% within-variant definition; do not hard-code as a caller threshold without validation
+variant_definition_pct	0.05	Parra 2017 Table 1 footnote 1	REFERENCE	Variant = >=2 strains clustering with <5% difference in nt OR aa; >=5% to other strains. Confirms ambiguity: aa or nt, mean or max, remains unresolved

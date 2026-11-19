@@ -146,3 +146,60 @@ def test_cli_writes_a_tsv(tmp_path):
     text = out.read_text()
     assert text.split("\n")[0].split("\t") == ag.TSV_COLUMNS
     assert "query" in text and "true" in text
+
+
+# ------------------------------------------------------------------ entropy
+
+def test_entropy_is_zero_for_an_invariant_column_and_two_bits_for_four():
+    assert ag.shannon_entropy("AAAA") == 0.0
+    assert repr(ag.shannon_entropy("AAAA")) == "0.0", "negative zero reads wrong"
+    assert ag.shannon_entropy("ACDE") == 2.0
+
+
+def test_entropy_ignores_gaps_rather_than_counting_them_as_a_state():
+    """A gap is missing data. Counting it as a 21st residue makes a ragged
+    column look variable when it is only incomplete."""
+    assert ag.shannon_entropy("AAAA----") == 0.0
+    assert ag.shannon_entropy("AAAAXXXX") == 0.0
+    assert ag.shannon_entropy("----") is None, "nothing to score is not 'conserved'"
+
+
+def test_entropy_is_a_property_of_the_alignment_not_of_a_pair():
+    ref = seq()
+    a = list(ref); a[293] = "W"
+    b = list(ref); b[293] = "Y"
+    rows = [ref, "".join(a), "".join(b)]
+    cols = ag.residue_columns(ref, [294, 295])
+    ent = ag.site_entropy(rows, cols)
+    assert ent[294] > 0, "three different residues at 294"
+    assert ent[295] == 0.0, "invariant"
+    # the same entropy dict annotates every query, so the column cannot differ
+    one = ag.annotate("a", rows[1], "ref", ref, entropy=ent)
+    two = ag.annotate("b", rows[2], "ref", ref, entropy=ent)
+    assert one.site_entropy == two.site_entropy
+
+
+def test_conserved_cutoff_is_the_published_one():
+    assert ag.CONSERVED_ENTROPY == 0.3
+
+
+def test_cli_writes_a_provenance_sidecar(tmp_path):
+    ref = seq()
+    q = list(ref)
+    for r in (ag.VARIABLE["A"][0], ag.VARIABLE["G"][0]):
+        q[r - 1] = "W"
+    fa = tmp_path / "a.faa"
+    fa.write_text(f">ref\n{ref}\n>q\n{''.join(q)}\n")
+    out = tmp_path / "ag.tsv"
+    r = subprocess.run([sys.executable, "-m", "calicityper.cli", "antigenic",
+                        str(fa), "-o", str(out)], capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr
+    import json
+    rec = json.loads((tmp_path / "ag.tsv.provenance.json").read_text())
+    assert rec["subcommand"] == "antigenic"
+    assert rec["shift_rule"]["min_aa_differences"] == 18
+    assert rec["shift_rule"]["site_C_excluded"] is True
+    assert rec["entropy"]["conserved_at_or_below"] == 0.3
+    # the entropy cut-off came from a 1,572-sequence corpus, not from this run
+    assert "not that corpus" in rec["entropy"]["measured_over"]
+    assert "Parra" in rec["site_definitions"] and "Kendra" in rec["shift_rule"]["source"]
