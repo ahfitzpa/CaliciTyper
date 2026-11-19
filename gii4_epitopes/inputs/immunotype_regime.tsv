@@ -1,32 +1,21 @@
 genotype	immunotype	regime	evidence	status
-GI.1	clade8	static	NJ clade from Parra S3 Table seqs; with GI.1	RECONSTRUCTED_UNLETTERED
-GI.2	clade4	static	NJ clade from Parra S3 Table seqs; with GI.2 GI.4 GI.5	RECONSTRUCTED_UNLETTERED
+GI.1	A	static	Parra 2017 Fig 5C	TO_VERIFY_FROM_FIG5C
+GI.2	A	static	Parra 2017 Fig 5C	TO_VERIFY_FROM_FIG5C
 GI.3	C	static	Parra 2017 (GI.3/GI.7/GI.8/GI.9 cluster)	SUPPORTED
-GI.4	clade4	static	NJ clade from Parra S3 Table seqs; with GI.2 GI.4 GI.5	RECONSTRUCTED_UNLETTERED
-GI.5	clade4	static	NJ clade from Parra S3 Table seqs; with GI.2 GI.4 GI.5	RECONSTRUCTED_UNLETTERED
-GI.6	clade9	static	NJ clade from Parra S3 Table seqs; with GI.6	RECONSTRUCTED_UNLETTERED
+GI.4	A	static	Parra 2017 Fig 5C	TO_VERIFY_FROM_FIG5C
+GI.5	B	static	Parra 2017 Fig 5C	TO_VERIFY_FROM_FIG5C
+GI.6	A	static	Parra 2017 Fig 5C	TO_VERIFY_FROM_FIG5C
 GI.7	C	static	Parra 2017	SUPPORTED
 GI.8	C	static	Parra 2017	SUPPORTED
 GI.9	C	static	Parra 2017	SUPPORTED
-GII.1	clade1	static	NJ clade from Parra S3 Table seqs; with GII.1 GII.10 GII.12 GII.16 GII.2 GII.22 GII.5	RECONSTRUCTED_UNLETTERED
-GII.2	clade1	static	NJ clade from Parra S3 Table seqs; with GII.1 GII.10 GII.12 GII.16 GII.2 GII.22 GII.5	RECONSTRUCTED_UNLETTERED
-GII.3	clade11	static	NJ clade from Parra S3 Table seqs; with GII.3	RECONSTRUCTED_UNLETTERED
+GII.1	B	static	Parra 2017 Fig 5C	TO_VERIFY_FROM_FIG5C
+GII.2	B	static	Parra 2017 Fig 5C	TO_VERIFY_FROM_FIG5C
+GII.3	B	static	Parra 2017 Fig 5C	TO_VERIFY_FROM_FIG5C
 GII.4	G	evolving	Parra 2017 Fig 5C	SUPPORTED
-GII.5	clade1	static	NJ clade from Parra S3 Table seqs; with GII.1 GII.10 GII.12 GII.16 GII.2 GII.22 GII.5	RECONSTRUCTED_UNLETTERED
+GII.5	B	static	Parra 2017 Fig 5C	TO_VERIFY_FROM_FIG5C
 GII.6	H	static	Parra 2017 Fig 5C	SUPPORTED
-GII.7	clade3	static	NJ clade from Parra S3 Table seqs; with GII.14 GII.7 GII.8 GII.9	RECONSTRUCTED_UNLETTERED
-GII.8	clade3	static	NJ clade from Parra S3 Table seqs; with GII.14 GII.7 GII.8 GII.9	RECONSTRUCTED_UNLETTERED
-GII.9	clade3	static	NJ clade from Parra S3 Table seqs; with GII.14 GII.7 GII.8 GII.9	RECONSTRUCTED_UNLETTERED
-GII.10	clade1	static	NJ clade from Parra S3 Table seqs; with GII.1 GII.10 GII.12 GII.16 GII.2 GII.22 GII.5	RECONSTRUCTED_UNLETTERED
-GII.11	clade5	static	NJ clade from Parra S3 Table seqs; with GII.11 GII.18 GII.19	RECONSTRUCTED_UNLETTERED
-GII.12	clade1	static	NJ clade from Parra S3 Table seqs; with GII.1 GII.10 GII.12 GII.16 GII.2 GII.22 GII.5	RECONSTRUCTED_UNLETTERED
-GII.13	clade6	static	NJ clade from Parra S3 Table seqs; with GII.13 GII.17 GII.21	RECONSTRUCTED_UNLETTERED
-GII.14	clade3	static	NJ clade from Parra S3 Table seqs; with GII.14 GII.7 GII.8 GII.9	RECONSTRUCTED_UNLETTERED
-GII.15	clade10	static	NJ clade from Parra S3 Table seqs; with GII.15	RECONSTRUCTED_UNLETTERED
-GII.16	clade1	static	NJ clade from Parra S3 Table seqs; with GII.1 GII.10 GII.12 GII.16 GII.2 GII.22 GII.5	RECONSTRUCTED_UNLETTERED
+GII.7	B	static	Parra 2017 Fig 5C	TO_VERIFY_FROM_FIG5C
+GII.12	B	static	Parra 2017 Fig 5C	TO_VERIFY_FROM_FIG5C
+GII.13	F	static	Parra 2017 Fig 5C	TO_VERIFY_FROM_FIG5C
 GII.17	J	static_emerging_candidate	Parra 2017 Table 1 + Kawasaki C/D	SUPPORTED_WITH_CAVEAT
-GII.18	clade5	static	NJ clade from Parra S3 Table seqs; with GII.11 GII.18 GII.19	RECONSTRUCTED_UNLETTERED
-GII.19	clade5	static	NJ clade from Parra S3 Table seqs; with GII.11 GII.18 GII.19	RECONSTRUCTED_UNLETTERED
 GII.20	G	static	Parra 2017 (immunotype G with GII.4)	SUPPORTED
-GII.21	clade6	static	NJ clade from Parra S3 Table seqs; with GII.13 GII.17 GII.21	RECONSTRUCTED_UNLETTERED
-GII.22	clade1	static	NJ clade from Parra S3 Table seqs; with GII.1 GII.10 GII.12 GII.16 GII.2 GII.22 GII.5	RECONSTRUCTED_UNLETTERED

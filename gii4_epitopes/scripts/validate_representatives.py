@@ -28,12 +28,9 @@ def main():
 
     vp1 = None
     if data_dir:
-        # the alignment, not the .fasta: p_distance compares columns
-        cand = Path(data_dir) / "reference_sequences_VP1" / "GII.aln"
+        cand = Path(data_dir) / "reference_sequences_VP1" / "GII.fasta"
         if cand.exists():
-            from Bio import AlignIO
-            vp1 = {r.id.split("|")[-1]: str(r.seq)
-                   for r in AlignIO.read(cand, "clustal")}
+            vp1 = read_fasta(cand)
     if vp1 is None:
         raise SystemExit("Need verified reference set with GII VP1 FASTA for LOO distances")
 
