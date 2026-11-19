@@ -207,6 +207,73 @@ def _add_setup_args(p):
     return p
 
 
+def _add_antigenic_args(p):
+    p.add_argument("alignment", nargs="?",
+                   help="aligned VP1 amino acids (FASTA), full-length")
+    p.add_argument("-o", "--out", default="antigenic.tsv", help="output TSV")
+    p.add_argument("--genotype", default="GII.4",
+                   help="genotype the site coordinates belong to (default GII.4)")
+    p.add_argument("--reference", metavar="NAME",
+                   help="sequence id to compare against; default is the first record")
+    p.add_argument("--show-sites", action="store_true",
+                   help="print the residue definitions and exit")
+
+
+def _run_antigenic(a):
+    import csv as _csv
+    from . import antigenic as ag
+
+    if not a.show_sites and not a.alignment:
+        print("Error: an alignment is required unless --show-sites is given.",
+              file=sys.stderr)
+        return 2
+    if a.show_sites:
+        for r in ag.sites_table():
+            print(f"{r['site']:2s} {r['kind']:9s} {r['residues']}")
+        return 0
+    if a.genotype.split("_")[0] != "GII.4":
+        print(f"Error: the site coordinates are GII.4 VP1 numbering. VP1 length varies "
+              f"between 530 and 550 residues across human genotypes, so they cannot be "
+              f"applied to {a.genotype} without structural mapping.", file=sys.stderr)
+        return 2
+
+    from Bio import SeqIO
+    recs = [(r.id, str(r.seq)) for r in SeqIO.parse(a.alignment, "fasta")]
+    if len(recs) < 2:
+        print(f"Error: need at least two aligned sequences, found {len(recs)}.",
+              file=sys.stderr)
+        return 2
+    if a.reference:
+        hit = [r for r in recs if r[0] == a.reference]
+        if not hit:
+            print(f"Error: reference {a.reference!r} is not in the alignment.",
+                  file=sys.stderr)
+            return 2
+        ref = hit[0]
+    else:
+        ref = recs[0]
+
+    rows = []
+    try:
+        for name, seq in recs:
+            if name == ref[0]:
+                continue
+            rows.append(ag.to_row(ag.annotate(name, seq, ref[0], ref[1], a.genotype)))
+    except ag.AntigenicError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 2
+
+    with open(a.out, "w", newline="") as fh:
+        w = _csv.DictWriter(fh, fieldnames=ag.TSV_COLUMNS, delimiter="\t")
+        w.writeheader()
+        w.writerows(rows)
+    flagged = sum(r["candidate_antigenic_shift"] == "true" for r in rows)
+    print(f"annotated {len(rows)} sequence(s) against {ref[0]} -> {a.out}")
+    print(f"  {flagged} flagged candidate_antigenic_shift")
+    print(f"  {ag.CAVEAT}")
+    return 0
+
+
 def main(argv=None):
     top = argparse.ArgumentParser(
         prog="calicityper",
@@ -216,7 +283,7 @@ def main(argv=None):
                     "is not validated; sapovirus genotyping (--type-sapovirus) is experimental and "
                     "not yet benchmarked.")
     top.add_argument("--version", action="version", version=__version__)
-    sub = top.add_subparsers(dest="command", required=True, metavar="{type,novel,recomb,setup}")
+    sub = top.add_subparsers(dest="command", required=True, metavar="{type,novel,recomb,antigenic,setup}")
     _add_type_args(sub.add_parser(
         "type",
         help="assign genogroup and norovirus GI/GII ORF1/ORF2 types (validated scope)",
@@ -238,6 +305,15 @@ def main(argv=None):
         description="Evidence-weighted recombination analysis for norovirus/sapovirus alignments. "
                     "Use --dry-run to validate inputs and tool availability.",
         formatter_class=argparse.RawDescriptionHelpFormatter))
+    _add_antigenic_args(sub.add_parser(
+        "antigenic",
+        help="annotate GII.4 antigenic sites on an aligned VP1 amino-acid alignment",
+        description="Annotation only. Reports which published GII.4 antigenic-site "
+                    "residues differ from a reference, and screens for the change "
+                    "combination associated with antigenic shift. Does not type, does "
+                    "not change any call, and cannot measure antigenic distance, which "
+                    "needs blockade or neutralisation titres.",
+        formatter_class=argparse.RawDescriptionHelpFormatter))
     _add_setup_args(sub.add_parser(
         "setup",
         help="fetch and verify the reference data set",
@@ -252,6 +328,8 @@ def main(argv=None):
         if a.command == "setup":
             from . import setup_data
             return setup_data.main(a)
+        if a.command == "antigenic":
+            return _run_antigenic(a)
         if a.command == "novel":
             return _run_novel(a)
         return _run_type(a)
@@ -786,4 +864,7 @@ def _run_recomb(a):
 
 
 if __name__ == "__main__":
-    main()
+    # propagate the exit code: main() returns 2 on a usage error and
+    # discarding it made `python -m calicityper.cli` always exit 0,
+    # which hid every failure from any script that checked.
+    raise SystemExit(main())

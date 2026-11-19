@@ -243,3 +243,34 @@ def to_row(ann):
     for s in CONSERVED:
         r[f"conserved_{s}_changes"] = ann.conserved_changes.get(s, "")
     return r
+
+
+# --------------------------------------------------------------- immunotypes
+#: Parra et al. 2017 immunotypes, read from Fig. S5 (the maximum-likelihood
+#: tree, same topology as Fig. 5) and Table 1. Annotation only: an immunotype
+#: is a published grouping of genotypes by VP1 amino-acid divergence, not a
+#: property of a query and not a predictor of which genotype will dominate.
+#: Tohma et al. 2017 is the counter-example -- GII.2 re-emerged through
+#: polymerase changes with its capsid essentially unchanged.
+IMMUNOTYPE = {
+    "GI.1": "A",
+    "GI.2": "B", "GI.4": "B", "GI.6": "B",
+    "GI.3": "C", "GI.7": "C", "GI.8": "C", "GI.9": "C",
+    "GII.1": "D", "GII.12": "D",
+    "GII.3": "F",
+    "GII.4": "G", "GII.20": "G",
+    "GII.6": "H",
+    "GII.7": "I",
+    "GII.13": "J", "GII.17": "J",
+}
+#: Parra et al. 2017 Table 1: GII.4 is the only genotype classified evolving.
+EVOLVING = ("GII.4",)
+
+
+def immunotype(genotype):
+    """(immunotype letter or None, 'evolving'|'static'|None) for a genotype."""
+    g = (genotype or "").split("_")[0]
+    letter = IMMUNOTYPE.get(g)
+    if letter is None:
+        return None, None
+    return letter, ("evolving" if g in EVOLVING else "static")
