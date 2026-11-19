@@ -11,7 +11,7 @@ Follows the benchmarking-folder convention: `scripts/` (runnable steps), `inputs
 | F1 GII.4 AA variant caller | scaffolding only | GII.4-only AA alignment; validated variant threshold; LOO re-run |
 | F2 divergent-sublineage flag | scaffolding only | sublineage table; validated distance rule; **5%/15% not yet approved as flags** |
 | F3 cluster-aware representatives | scaffolding only | intra-genotypic cluster table; LOO proof calls do not move |
-| F4 immunotype/regime lookup | scaffolding only | complete, curated genotype→immunotype table; manifest version bump |
+| F4 immunotype/regime lookup | **table recovered** | letters for 9 of 12 clades; manifest version bump |
 
 External tools: Python 3.10+, `biopython` (translation/alignment parsing), `MAFFT` (F1 alignment), `iqtree` (optional, ML distances). All analyses were designed for the UCD Sonic HPC (`~/scratch/calicityper_runs`), matching the manuscript benchmarking layout.
 
