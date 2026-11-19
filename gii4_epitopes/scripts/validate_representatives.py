@@ -1,19 +1,41 @@
 #!/usr/bin/env python3
 """F3 validation: LOO with current vs proposed representatives.
 
-For each reference in inputs/intragenotypic_clusters.tsv that has a same-type
-partner, remove it and compute its p-distance to the retained representatives
-under (a) the current first-two rule and (b) the proposed distinct-cluster
-rule. The proposal is acceptable only if it does not reduce recovery or
-increase the distance to the nearest retained representative. This is a
-screening check; a full re-typing run on the HPC is still required.
+Updated from technical audit: reads shipped ``reference_sequences_VP1/GII.aln`` (Clustal
+alignment, indexing pipe-delimited ``GII|type|accession`` headers by accession) automatically
+when ``GII.fasta`` is absent.
 """
 from pathlib import Path
 
-from common import RESULTS, p_distance, read_fasta, read_tsv, write_tsv
+from common import INPUTS, RESULTS, p_distance, read_fasta, read_tsv, write_tsv
 
 CURRENT = RESULTS / "f3_current_representatives.tsv"
 PROPOSED = RESULTS / "f3_proposed_representatives.tsv"
+
+
+def _load_aligned_gii_vp1(data_dir: Path) -> dict[str, str] | None:
+    vp1_dir = Path(data_dir) / "reference_sequences_VP1"
+    aln = vp1_dir / "GII.aln"
+    if aln.exists():
+        from Bio import AlignIO
+
+        out: dict[str, str] = {}
+        for r in AlignIO.read(aln, "clustal"):
+            s = str(r.seq).upper()
+            for tok in r.id.split("|"):
+                out.setdefault(tok, s)
+                out.setdefault(tok.split(".")[0], s)
+        return out
+    fa = vp1_dir / "GII.fasta"
+    if fa.exists():
+        raw = read_fasta(fa)
+        out = {}
+        for k, s in raw.items():
+            for tok in k.split("|"):
+                out.setdefault(tok, s)
+                out.setdefault(tok.split(".")[0], s)
+        return out
+    return None
 
 
 def main():
@@ -27,17 +49,13 @@ def main():
         import sys
         print(str(e), file=sys.stderr)
 
-    vp1 = None
-    if data_dir:
-        cand = Path(data_dir) / "reference_sequences_VP1" / "GII.fasta"
-        if cand.exists():
-            vp1 = read_fasta(cand)
+    vp1 = _load_aligned_gii_vp1(data_dir) if data_dir else None
     if vp1 is None:
-        raise SystemExit("Need verified reference set with GII VP1 FASTA for LOO distances")
+        raise SystemExit("Need verified reference set with GII.aln / GII.fasta for LOO distances")
 
     cur = read_tsv(CURRENT, required=["genotype", "accession"])
     prop = read_tsv(PROPOSED, required=["genotype", "accession"])
-    clusters = read_tsv(__import__("common").INPUTS / "intragenotypic_clusters.tsv")
+    clusters = read_tsv(INPUTS / "intragenotypic_clusters.tsv")
     acc_to_geno = {r["accession"]: r["genotype"] for r in clusters}
 
     def nearest(acc, reps):

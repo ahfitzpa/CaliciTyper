@@ -1,7 +1,8 @@
 """GII.4 antigenic-site annotation.
 
 The annotation is only as good as the residue-to-column mapping, so most of
-these test that mapping and its refusals rather than the arithmetic.
+these test that mapping, its refusals, coevolving pairs, loop indels, and
+coordinate anchoring.
 """
 import subprocess
 import sys
@@ -10,7 +11,7 @@ import pytest
 
 from calicityper import antigenic as ag
 
-REF_LEN = 540          # a plausible full-length GII.4 VP1
+REF_LEN = 540          # canonical post-2002 full-length GII.4 VP1
 
 
 def seq(length=REF_LEN, fill="A"):
@@ -24,9 +25,7 @@ def test_site_residues_match_the_published_definitions():
     assert ag.SITES["D"] == (393, 394, 395, 396, 397, 398)
     assert ag.SITES["E"] == (407, 408, 409, 410, 411, 412, 413, 414)
     assert ag.SITES["G"] == (352, 355, 356, 357, 359, 364)
-    # only half of site E is variable
     assert ag.VARIABLE["E"] == (407, 412, 413, 414)
-    # the mAb A1431 footprint
     assert ag.CONSERVED["I"] == (402, 403, 504, 505, 506)
 
 
@@ -34,31 +33,25 @@ def test_residues_map_to_columns_through_the_reference_not_raw_indices():
     """A gap before a residue must shift its column, or every site is wrong."""
     row = "-" * 10 + seq()
     cols = ag.residue_columns(row, [1, 294, 506])
-    assert cols[1] == 10          # first residue sits after the gaps
+    assert cols[1] == 10
     assert cols[294] == 10 + 293
     assert cols[506] == 10 + 505
 
 
 def test_a_trimmed_alignment_is_refused():
-    """The P2-only alignment case: its residue 1 is not VP1 residue 1.
-
-    gii4_vp1_aa_279.aln starts at residue 279, so reading its first column as
-    residue 1 would point every site at the wrong amino acid. Refusing is the
-    only safe behaviour, because the file itself carries no offset.
-    """
-    trimmed = seq(260)            # ~279..540, far short of residue 506
+    """The P2-only alignment case: its residue 1 is not VP1 residue 1."""
+    trimmed = seq(260)
     with pytest.raises(ag.AntigenicError, match="full-length VP1 numbering"):
         ag.residue_columns(trimmed, ag.SITES["A"])
 
 
 def test_site_c_alone_does_not_call_a_shift():
-    """Kendra et al. 2021: site C was enriched among pairs that were NOT
-    antigenically different, so it is excluded from the site criterion."""
+    """Kendra et al. 2021: site C is excluded from the site criterion."""
     ref = seq()
     q = list(ref)
     for r in ag.SITES["C"]:
         q[r - 1] = "W"
-    for i in range(100, 160):     # plenty of changes elsewhere, >= 18
+    for i in range(100, 160):
         q[i] = "W"
     ann = ag.annotate("q", "".join(q), "ref", ref)
     assert ann.aa_differences >= ag.MIN_AA_CHANGES
@@ -107,19 +100,89 @@ def test_mismatched_alignment_lengths_are_refused():
         ag.annotate("q", seq(500), "ref", seq(540))
 
 
-def test_immunotype_lookup_is_annotation_with_one_evolving_genotype():
+def test_immunotype_lookup_covers_all_28_parra_human_genotypes():
+    assert len(ag.IMMUNOTYPE) == 28
+    assert set(ag.IMMUNOTYPE.values()) == set("ABCDEFGHIJKL")
     assert ag.immunotype("GII.4") == ("G", "evolving")
     assert ag.immunotype("GII.20") == ("G", "static")
-    assert ag.immunotype("GI.3")[0] == ag.immunotype("GI.9")[0] == "C"
+    assert ag.immunotype("GII.2") == ("E", "static")
+    assert ag.immunotype("GII.16") == ("D", "static")
+    assert ag.immunotype("GII.8") == ("I", "static")
+    assert ag.immunotype("GII.15") == ("K", "static")
+    assert ag.immunotype("GII.22") == ("L", "static")
+    assert ag.immunotype("GI.3")[0] == ag.immunotype("GI.8")[0] == ag.immunotype("GI.9")[0] == "C"
     assert ag.immunotype("GII.17")[0] == ag.immunotype("GII.13")[0] == "J"
     assert ag.immunotype("GII.99") == (None, None)
-    # a variant suffix must not defeat the lookup
     assert ag.immunotype("GII.4_Sydney") == ("G", "evolving")
 
 
+def test_load_gii4_variant_references_orders_sydney_first(tmp_path):
+    vp1_dir = tmp_path / "reference_sequences_VP1"
+    vp1_dir.mkdir(parents=True)
+    (vp1_dir / "GII.orf").write_text(
+        f">GII|GII.4_US95_96|AJ004864.1\n{'GCT' * 539}TAA\n"
+        f">GII|GII.4_Sydney|JX459908.1\n{'GCT' * 540}TAA\n"
+    )
+    refs = ag.load_gii4_variant_references(data_dir=tmp_path)
+    assert refs[0][0] == "JX459908.1|Sydney"
+    assert len(refs[0][1]) == 540
+    assert refs[1][0] == "AJ004864.1|US95_96"
+    assert len(refs[1][1]) == 539
+
+
+def test_all_eight_coevolving_pairs_are_evaluated():
+    """Every Kendra et al. 2021 Table 1 pair (including non-SITES 119-145, 309-459,
+    395-504, 397-448, 465-483) must be mapped and detected."""
+    ref = seq()
+    q = list(ref)
+    for a, b in ag.COEVOLVING:
+        q[a - 1] = "Y"
+        q[b - 1] = "Y"
+    ann = ag.annotate("q", "".join(q), "ref", ref)
+    assert ann.coevolving_pairs_changed == [f"{a}-{b}" for a, b in ag.COEVOLVING]
+
+
+def test_internal_loop_insertion_caught_while_terminal_gaps_ignored():
+    """GII.4 San Francisco Epitope A 294-295 insertion counts; terminal gaps do not."""
+    ref_540 = "A" * 294 + "-" + "A" * (540 - 294)
+    q_sf = "A" * 294 + "V" + "A" * (540 - 294 - 15) + "-" * 15
+    ann = ag.annotate("sf", q_sf, "sydney", ref_540)
+    assert ann.aa_differences == 1
+    assert "294_295insV" in ann.site_changes["A"]["changes"]
+    assert "[+V]" in ann.haplotype()
+
+
+def test_540aa_anchor_prevents_us95_96_coordinate_shift(tmp_path):
+    """Comparing against 539-aa US95_96 (gap at 394) using --anchor JX459908.1."""
+    sydney = "A" * 540
+    us95 = "A" * 393 + "-" + "A" * (540 - 394)
+    query = list(us95)
+    query[503] = "K"  # Site I residue 504
+    fa = tmp_path / "gii4.faa"
+    fa.write_text(f">JX459908.1|Sydney\n{sydney}\n>AJ004864.1|US95_96\n{us95}\n>q\n{''.join(query)}\n")
+    out = tmp_path / "out.tsv"
+    r = subprocess.run(
+        [sys.executable, "-m", "calicityper.cli", "antigenic", str(fa),
+         "--reference", "AJ004864.1|US95_96", "--anchor", "JX459908.1|Sydney", "-o", str(out)],
+        capture_output=True, text=True,
+    )
+    assert r.returncode == 0, r.stderr
+    assert "504A>K" in out.read_text()
+
+
+def test_hbga_pocket_qc_alert_and_informational_sites():
+    ref = seq()
+    q = list(ref)
+    q[374 - 1] = "G"
+    q[309 - 1] = "N"
+    ann = ag.annotate("ont_q", "".join(q), "ref", ref)
+    assert ann.hbga_pocket_qc_alert is True
+    assert ann.informational_changes["HBGA_CORE"] == "374A>G"
+    assert ann.informational_changes["H"] == "309A>N"
+    assert not ann.candidate_antigenic_shift
+
+
 def test_cli_refuses_a_non_gii4_genotype(tmp_path):
-    """Residue numbers must not be carried to another genotype: VP1 runs
-    530-550 residues across human genotypes."""
     fa = tmp_path / "a.faa"
     fa.write_text(f">r\n{seq()}\n>q\n{seq()}\n")
     r = subprocess.run([sys.executable, "-m", "calicityper.cli", "antigenic",
@@ -148,8 +211,6 @@ def test_cli_writes_a_tsv(tmp_path):
     assert "query" in text and "true" in text
 
 
-# ------------------------------------------------------------------ entropy
-
 def test_entropy_is_zero_for_an_invariant_column_and_two_bits_for_four():
     assert ag.shannon_entropy("AAAA") == 0.0
     assert repr(ag.shannon_entropy("AAAA")) == "0.0", "negative zero reads wrong"
@@ -157,11 +218,9 @@ def test_entropy_is_zero_for_an_invariant_column_and_two_bits_for_four():
 
 
 def test_entropy_ignores_gaps_rather_than_counting_them_as_a_state():
-    """A gap is missing data. Counting it as a 21st residue makes a ragged
-    column look variable when it is only incomplete."""
     assert ag.shannon_entropy("AAAA----") == 0.0
     assert ag.shannon_entropy("AAAAXXXX") == 0.0
-    assert ag.shannon_entropy("----") is None, "nothing to score is not 'conserved'"
+    assert ag.shannon_entropy("----") is None
 
 
 def test_entropy_is_a_property_of_the_alignment_not_of_a_pair():
@@ -171,9 +230,8 @@ def test_entropy_is_a_property_of_the_alignment_not_of_a_pair():
     rows = [ref, "".join(a), "".join(b)]
     cols = ag.residue_columns(ref, [294, 295])
     ent = ag.site_entropy(rows, cols)
-    assert ent[294] > 0, "three different residues at 294"
-    assert ent[295] == 0.0, "invariant"
-    # the same entropy dict annotates every query, so the column cannot differ
+    assert ent[294] > 0
+    assert ent[295] == 0.0
     one = ag.annotate("a", rows[1], "ref", ref, entropy=ent)
     two = ag.annotate("b", rows[2], "ref", ref, entropy=ent)
     assert one.site_entropy == two.site_entropy
@@ -200,6 +258,5 @@ def test_cli_writes_a_provenance_sidecar(tmp_path):
     assert rec["shift_rule"]["min_aa_differences"] == 18
     assert rec["shift_rule"]["site_C_excluded"] is True
     assert rec["entropy"]["conserved_at_or_below"] == 0.3
-    # the entropy cut-off came from a 1,572-sequence corpus, not from this run
     assert "not that corpus" in rec["entropy"]["measured_over"]
     assert "Parra" in rec["site_definitions"] and "Kendra" in rec["shift_rule"]["source"]

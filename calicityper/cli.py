@@ -237,12 +237,20 @@ def _antigenic_provenance(a, reference, n_seqs, entropy, path):
 
 def _add_antigenic_args(p):
     p.add_argument("alignment", nargs="?",
-                   help="aligned VP1 amino acids (FASTA), full-length")
+                   help="aligned VP1 amino acids (FASTA), or unaligned ORF2 NT / VP1 AA when --unaligned is passed")
     p.add_argument("-o", "--out", default="antigenic.tsv", help="output TSV")
     p.add_argument("--genotype", default="GII.4",
                    help="genotype the site coordinates belong to (default GII.4)")
+    p.add_argument("--unaligned", action="store_true",
+                   help="translate (if ORF2 NT) and align input queries against bundled GII.4 variant references "
+                        "(using packaged data/gii4_variant_references.tsv + GII.orf and MAFFT)")
+    p.add_argument("--threads", type=int, default=1,
+                   help="MAFFT threads when --unaligned is used [default: 1]")
     p.add_argument("--reference", metavar="NAME",
-                   help="sequence id to compare against; default is the first record")
+                   help="sequence id to compare against; default is the first record (or nearest GII.4 variant under --unaligned)")
+    p.add_argument("--anchor", metavar="NAME",
+                   help="optional 540-aa GII.4 coordinate-anchor id in the alignment "
+                        "(e.g. JX459908.1|Sydney) when --reference is a 539-aa pre-2002 variant")
     p.add_argument("--show-sites", action="store_true",
                    help="print the residue definitions and exit")
 
@@ -257,7 +265,7 @@ def _run_antigenic(a):
         return 2
     if a.show_sites:
         for r in ag.sites_table():
-            print(f"{r['site']:2s} {r['kind']:9s} {r['residues']}")
+            print(f"{r['site']:9s} {r['kind']:13s} {r['residues']}")
         return 0
     if a.genotype.split("_")[0] != "GII.4":
         print(f"Error: the site coordinates are GII.4 VP1 numbering. VP1 length varies "
@@ -267,42 +275,96 @@ def _run_antigenic(a):
 
     from Bio import SeqIO
     recs = [(r.id, str(r.seq)) for r in SeqIO.parse(a.alignment, "fasta")]
-    if len(recs) < 2:
-        print(f"Error: need at least two aligned sequences, found {len(recs)}.",
-              file=sys.stderr)
-        return 2
-    if a.reference:
-        hit = [r for r in recs if r[0] == a.reference]
-        if not hit:
-            print(f"Error: reference {a.reference!r} is not in the alignment.",
+    all_res = ag.all_tracked_residues()
+    rows = []
+
+    if getattr(a, "unaligned", False):
+        if not recs:
+            print("Error: no sequences found in input FASTA.", file=sys.stderr)
+            return 2
+        try:
+            aln_refs, aln_qrys, anchor = ag.align_unaligned_queries(recs, threads=a.threads)
+            if getattr(a, "anchor", None):
+                ahit = [r for r in aln_refs if r[0] == a.anchor or r[0].split("|")[0] == a.anchor]
+                if not ahit:
+                    print(f"Error: coordinate anchor {a.anchor!r} is not in bundled GII.4 references.",
+                          file=sys.stderr)
+                    return 2
+                anchor = ahit[0]
+            cols = ag.residue_columns(anchor[1], all_res)
+            pool_seqs = [s for _, s in aln_refs] + [s for _, s in aln_qrys]
+            ent = ag.site_entropy(pool_seqs, cols)
+            fixed_ref = None
+            if a.reference:
+                rhit = [r for r in aln_refs if r[0] == a.reference or r[0].split("|")[0] == a.reference]
+                if not rhit:
+                    print(f"Error: reference {a.reference!r} is not in bundled GII.4 references.",
+                          file=sys.stderr)
+                    return 2
+                fixed_ref = rhit[0]
+
+            for qname, qseq in aln_qrys:
+                chosen_ref = fixed_ref or min(
+                    aln_refs, key=lambda r: ag.total_aa_differences(qseq, r[1])
+                )
+                rows.append(ag.to_row(ag.annotate(
+                    qname, qseq, chosen_ref[0], chosen_ref[1],
+                    a.genotype, entropy=ent,
+                    anchor_row=anchor[1], anchor_name=anchor[0],
+                )))
+            prov_ref_label = fixed_ref[0] if fixed_ref else f"nearest_of_{len(aln_refs)}_GII.4_variants(anchor={anchor[0]})"
+            n_total_aln = len(pool_seqs)
+        except ag.AntigenicError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            return 2
+    else:
+        if len(recs) < 2:
+            print(f"Error: need at least two aligned sequences, found {len(recs)}.",
                   file=sys.stderr)
             return 2
-        ref = hit[0]
-    else:
-        ref = recs[0]
+        if a.reference:
+            hit = [r for r in recs if r[0] == a.reference]
+            if not hit:
+                print(f"Error: reference {a.reference!r} is not in the alignment.",
+                      file=sys.stderr)
+                return 2
+            ref = hit[0]
+        else:
+            ref = recs[0]
 
-    all_res = sorted({r for rs in ag.SITES.values() for r in rs}
-                     | {r for rs in ag.CONSERVED.values() for r in rs})
-    rows = []
-    try:
-        cols = ag.residue_columns(ref[1], all_res)
-        ent = ag.site_entropy([s for _, s in recs], cols)
-        for name, seq in recs:
-            if name == ref[0]:
-                continue
-            rows.append(ag.to_row(ag.annotate(name, seq, ref[0], ref[1],
-                                              a.genotype, entropy=ent)))
-    except ag.AntigenicError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        return 2
+        if getattr(a, "anchor", None):
+            ahit = [r for r in recs if r[0] == a.anchor]
+            if not ahit:
+                print(f"Error: coordinate anchor {a.anchor!r} is not in the alignment.",
+                      file=sys.stderr)
+                return 2
+            anchor = ahit[0]
+        else:
+            anchor = ref
+
+        try:
+            cols = ag.residue_columns(anchor[1], all_res)
+            ent = ag.site_entropy([s for _, s in recs], cols)
+            for name, seq in recs:
+                if name == ref[0]:
+                    continue
+                rows.append(ag.to_row(ag.annotate(name, seq, ref[0], ref[1],
+                                                  a.genotype, entropy=ent,
+                                                  anchor_row=anchor[1],
+                                                  anchor_name=anchor[0])))
+            prov_ref_label = ref[0]
+            n_total_aln = len(recs)
+        except ag.AntigenicError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            return 2
 
     with open(a.out, "w", newline="") as fh:
         w = _csv.DictWriter(fh, fieldnames=ag.TSV_COLUMNS, delimiter="\t")
         w.writeheader()
         w.writerows(rows)
-    _antigenic_provenance(a, ref[0], len(recs), ent, a.out + ".provenance.json")
+    _antigenic_provenance(a, prov_ref_label, n_total_aln, ent, a.out + ".provenance.json")
     flagged = sum(r["candidate_antigenic_shift"] == "true" for r in rows)
-    print(f"annotated {len(rows)} sequence(s) against {ref[0]} -> {a.out}")
+    print(f"annotated {len(rows)} sequence(s) against {prov_ref_label} -> {a.out}")
     print(f"  {flagged} flagged candidate_antigenic_shift")
     print(f"  {ag.CAVEAT}")
     return 0
