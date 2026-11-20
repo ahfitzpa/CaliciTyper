@@ -41,6 +41,8 @@ from __future__ import annotations
 
 import math
 from collections import Counter
+from functools import lru_cache
+from pathlib import Path
 from dataclasses import dataclass, field
 
 #: Primary variable antigenic sites, GII.4 540-aa VP1 numbering (Parra et al. 2026)
@@ -94,6 +96,25 @@ COEVOLVING = (
 
 CANONICAL_GII4_VP1_AA = 540
 MIN_AA_CHANGES = 18
+
+#: Input guard. The site coordinates are norovirus GII VP1 numbering, resolved
+#: through a GII.4 anchor row, so this command accepts norovirus GII VP1 and
+#: nothing else: a GI, animal-genogroup or sapovirus VP1 aligned against the
+#: GII.4 anchor differs from it at far more than MIN_AA_CHANGES residues, so it
+#: would be reported as an antigenic-change candidate on divergence alone.
+#: A query is accepted when its nearest bundled VP1 reference, by shared
+#: amino-acid k-mer containment, is a norovirus GII reference.
+GUARD_K = 6
+#: Floor for the nearest reference's containment. Below this the query does not
+#: contain a bundled VP1 (truncated, frameshifted, wrong reading frame, or not
+#: a calicivirus VP1) and the nearest-genogroup label carries no information.
+#:
+#: 0.3 from the panel check of 2026-11-20 (outputs/antigenic_guard_panel.tsv).
+#: Across complete-VP1 records, true GII sat at a median containment of 0.955,
+#: but the lowest true GII was KF931178.2 at 0.492, while the non-GII records
+#: whose nearest reference happened to be GII sat at 0.093 or below. 0.05 let
+#: those through and 0.5 refused KF931178.2, so the floor sits between them.
+GUARD_MIN_CONTAINMENT = 0.3
 CONSERVED_ENTROPY = 0.3
 MAX_RESIDUE = max(
     max(r)
@@ -595,6 +616,96 @@ def _to_vp1_aa(seq: str) -> str:
             aa = aa[:-1]
         return aa
     return clean
+
+
+def _kmers(aa: str, k: int = GUARD_K) -> frozenset:
+    return frozenset(aa[i:i + k] for i in range(len(aa) - k + 1))
+
+
+@lru_cache(maxsize=None)
+def vp1_genogroup_panel(data_dir=None):
+    """[(virus, genogroup, accession, kmers)] from the bundled VP1 reference sets.
+
+    Both genera are loaded because the guard has to tell a sapovirus VP1 from a
+    norovirus one, and sapovirus genogroups reuse the names `GI`, `GII`, ... so
+    they are distinguished by which reference set they came from, never by
+    label. Headers are `genogroup|type|accession` and the sequences are
+    nucleotide ORFs, translated here.
+    """
+    from Bio import SeqIO
+
+    from . import config as cg
+
+    panel = []
+    sources = (
+        ("norovirus", cg.REF_DIR["orf2"], "reference_sequences_VP1"),
+        ("sapovirus", cg.SAPOVIRUS_REF_DIR["orf2"], "reference_sequences_sapovirus_VP1"),
+    )
+    for virus, ref_dir, leaf in sources:
+        base = Path(data_dir) / leaf if data_dir else Path(ref_dir)
+        orf = base / "all.orf"
+        if not orf.exists():
+            continue
+        for rec in SeqIO.parse(str(orf), "fasta"):
+            parts = rec.id.split("|")
+            if len(parts) < 3:
+                continue
+            gg, _ty, acc = parts[:3]
+            aa = _to_vp1_aa(str(rec.seq))
+            if len(aa) >= GUARD_K:
+                panel.append((virus, gg, acc, _kmers(aa)))
+    return tuple(panel)
+
+
+def nearest_vp1_reference(aa: str, data_dir=None):
+    """(containment, virus, genogroup, accession) for the closest bundled VP1.
+
+    Containment is the fraction of the REFERENCE's amino-acid k-mers present in
+    the query, which separates genogroups without needing an alignment.
+
+    Normalised by the reference and not by the query on purpose: dividing by the
+    query's k-mer count penalises length, so a whole-genome translation scored
+    about 0.001 against the VP1 it contains and the guard refused real GII
+    sequences (2,817 of 3,747 in the panel check of 2026-11-20). Reference
+    normalisation asks "is a known VP1 inside this sequence", which is the
+    question the guard needs answered.
+    """
+    q = _kmers(aa)
+    best = (0.0, None, None, None)
+    if not q:
+        return best
+    for virus, gg, acc, ref_k in vp1_genogroup_panel(data_dir):
+        if not ref_k:
+            continue
+        c = len(q & ref_k) / len(ref_k)
+        if c > best[0]:
+            best = (c, virus, gg, acc)
+    return best
+
+
+def check_gii_input(query_name: str, aa: str, data_dir=None) -> tuple[str, float]:
+    """Accept norovirus GII VP1 only; raise AntigenicError otherwise.
+
+    Returns (nearest accession, containment) so the caller can record what the
+    query was matched against.
+    """
+    cont, virus, gg, acc = nearest_vp1_reference(aa, data_dir)
+    if virus is None or cont < GUARD_MIN_CONTAINMENT:
+        raise AntigenicError(
+            f"query {query_name!r} matches no bundled VP1 reference "
+            f"(best {GUARD_K}-mer containment {cont:.3f} < {GUARD_MIN_CONTAINMENT}); "
+            f"`calicityper antigenic` takes a norovirus GII VP1 (complete ORF2)."
+        )
+    if virus != "norovirus" or gg.split(".")[0] != "GII":
+        where = f"{virus} {gg}"
+        raise AntigenicError(
+            f"query {query_name!r} is nearest {where} reference {acc} "
+            f"(containment {cont:.3f}), not norovirus GII. The site coordinates are "
+            f"GII VP1 numbering resolved through a GII.4 anchor, so a {where} VP1 "
+            f"would be scored as antigenic change on divergence alone. "
+            f"Type the sequence first (`calicityper type`) and pass GII VP1 only."
+        )
+    return acc, cont
 
 
 def load_gii4_variant_references(data_dir=None) -> list[tuple[str, str]]:

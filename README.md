@@ -18,6 +18,7 @@ CaliciTyper (`calicityper`) assigns norovirus genogroup, ORF1 polymerase (P-) ty
 
 - **Validated/supported genotyping scope:** norovirus **GI/GII** (ORF1 + ORF2) and broad Caliciviridae genogroup detection.
 - **Sapovirus:** VP1 genotyping and RdRp P-typing per Zhao *et al.* 2024, on by default, reported as a dual type (`GI.4[P1]`). VP1 is reliable; RdRp assigns accurately among known P-types but **cannot flag a novel P-type** — see [`docs/SAPOVIRUS_STATUS.md`](docs/SAPOVIRUS_STATUS.md). Disable with `CALICITYPER_TYPE_SAPOVIRUS=0`.
+- **GII.4 antigenic sites:** `calicityper antigenic` annotates which published antigenic-site residues a norovirus GII VP1 differs from in the nearest bundled GII.4 variant. Annotation only — it feeds no genotype, P-type, novelty or recombination call, and non-GII input is refused.
 - **Not validated:** non-GI/GII norovirus genotyping calls may be reported but are not validated.
 - **Research software:** independent reimplementation (not produced by or affiliated with RIVM).
 
@@ -101,12 +102,28 @@ calicityper type contigs.fasta -o typed.tsv --threads 8
 # Reports (predictable naming: PREFIX.md/.json/.html)
 calicityper type contigs.fasta -o typed.tsv --report run01 --threads 8
 
+# Typing with sapovirus dual typing off (genogroup only)
+calicityper type contigs.fasta -o typed.tsv --no-type-sapovirus
+
+# Short dual PolCap amplicons (570/579 bp): per-region aligned-site floors
+calicityper type amplicons.fasta -o typed.tsv --preset polcap
+
 # Putative-novel screen (norovirus only, tentative)
 calicityper novel sequences.fasta -o novel.tsv
 
-# Recombination (aligned FASTA, or --input to align with MAFFT)
+# Recombination (aligned FASTA, or --input to align with MAFFT).
+# --virus picks the genome model and DEFAULTS TO norovirus: pass
+# --virus sapovirus for sapovirus, otherwise junctions are reported against
+# the norovirus ORF1/ORF2 boundary rather than the sapovirus RdRp/VP1 one.
 calicityper recomb --alignment panel.fasta --query SAMPLE_01 -o recomb_out/
+calicityper recomb --alignment panel.fasta --query SAMPLE_01 --virus sapovirus -o recomb_out/
 calicityper recomb --alignment panel.fasta --query SAMPLE_01 --dry-run
+
+# GII.4 antigenic-site annotation. Norovirus GII VP1 only (complete ORF2);
+# --unaligned translates and aligns against the bundled GII.4 variants.
+calicityper antigenic vp1.faa -o antigenic.tsv
+calicityper antigenic orf2_cds.fasta --unaligned -o antigenic.tsv --threads 8
+calicityper antigenic --show-sites
 
 # Reference data install/verify (offline/local archive supported)
 calicityper setup
@@ -118,7 +135,7 @@ Run `calicityper <command> --help` for full options and examples.
 
 ## Input/output notes
 
-- **Input:** FASTA contigs/genomes for `type`/`novel` (not raw FASTQ). `recomb` requires `--alignment` or `--input`. **Stdin is not supported** for sequence input.
+- **Input:** FASTA contigs/genomes for `type`/`novel` (not raw FASTQ). `recomb` requires `--alignment` or `--input`. `antigenic` takes an aligned VP1 amino-acid FASTA, or, with `--unaligned`, unaligned ORF2 nucleotide or VP1 amino-acid sequence; either way it must be a **norovirus GII complete VP1** and anything else is refused, because the site coordinates are GII VP1 numbering resolved through a GII.4 anchor. **Stdin is not supported** for sequence input.
 - **Output:** `type`/`novel` write TSV to stdout by default (`-o -`) or to a file; status/progress messages go to stderr.
 - **`--report PREFIX`:** writes `PREFIX.md`, `PREFIX.json`, `PREFIX.html`.
 - **Provenance/auditability:** file-based TSV outputs get `*.provenance.json`; JSON outputs include `tool_version`, effective parameters, and reference-set DOI/version/manifest hash. See [`docs/OUTPUT_SCHEMA.md`](docs/OUTPUT_SCHEMA.md).
@@ -131,9 +148,10 @@ Run `calicityper <command> --help` for full options and examples.
 | Norovirus dual genotyping (ORF1 + ORF2) | GI, GII | **Validated/supported** | Primary supported typing use case. |
 | Norovirus genotyping attempts | GIII–GX | **Not validated** | May be reported; restricted by default. |
 | GII.4 variant resolution | 11 variants | Supported (within bundled set) | Variant suffix in `orf2_type`. |
-| Putative novel ORF1/ORF2 screening | Norovirus | **Tentative screening** | Not a genotype designation; `not_assessable` possible. |
-| Recombination analysis | Norovirus, sapovirus | Working with caveats | Alignment-dependent; optional OpenRDP/external tools. |
-| Sapovirus genotyping | GI–GXIX | **Not implemented** | Genogroup detection only. |
+| Putative novel ORF1/ORF2 screening | Norovirus only | **Tentative screening** | Not a genotype designation; `not_assessable` possible. Sapovirus is declined with a reason: the published RdRp cut-off overlaps between-type distances, so only 1 of 20 testable P-types is separated from every other P-type in its genogroup. |
+| Recombination analysis | Norovirus, sapovirus | Working with caveats | Alignment-dependent; optional OpenRDP/external tools. **`--virus` defaults to `norovirus`** and sets the junction model, so pass `--virus sapovirus` for sapovirus. |
+| Sapovirus dual typing (VP1 genotype + RdRp P-type) | Multi-genogroup, Zhao et al. 2024 scheme | **On by default**, benchmarked | Nucleotide p-distance cut-offs (VP1 `0.161`/`0.503`, RdRp `0.266`/`0.531`); beyond the cut-off a query is `untypeable`, never assigned to its nearest neighbour. `--no-type-sapovirus` reports genogroup only. RdRp P-types are provisional: the cut-off cannot flag a novel P-type. |
+| GII.4 antigenic-site annotation (`antigenic`) | Norovirus GII VP1 | Annotation only | Reports which published antigenic-site residues differ from the nearest GII.4 variant. Needs a complete VP1; non-GII input is refused (`--skip-input-check` overrides). Feeds no genotype, P-type, novelty or recombination call. |
 | Raw reads (FASTQ) | — | Unsupported | Assemble first. |
 
 More detail: [`docs/REFERENCE.md`](docs/REFERENCE.md#supported-vs-unsupported).

@@ -163,7 +163,8 @@ def test_540aa_anchor_prevents_us95_96_coordinate_shift(tmp_path):
     out = tmp_path / "out.tsv"
     r = subprocess.run(
         [sys.executable, "-m", "calicityper.cli", "antigenic", str(fa),
-         "--reference", "AJ004864.1|US95_96", "--anchor", "JX459908.1|Sydney", "-o", str(out)],
+         "--reference", "AJ004864.1|US95_96", "--anchor", "JX459908.1|Sydney",
+         "--skip-input-check", "-o", str(out)],
         capture_output=True, text=True,
     )
     assert r.returncode == 0, r.stderr
@@ -203,7 +204,8 @@ def test_cli_writes_a_tsv(tmp_path):
     fa.write_text(f">ref\n{ref}\n>query\n{''.join(q)}\n")
     out = tmp_path / "antigenic.tsv"
     r = subprocess.run([sys.executable, "-m", "calicityper.cli", "antigenic",
-                        str(fa), "--genotype", "GII.4", "-o", str(out)],
+                        str(fa), "--genotype", "GII.4", "--skip-input-check",
+                        "-o", str(out)],
                        capture_output=True, text=True)
     assert r.returncode == 0, r.stderr
     text = out.read_text()
@@ -250,7 +252,8 @@ def test_cli_writes_a_provenance_sidecar(tmp_path):
     fa.write_text(f">ref\n{ref}\n>q\n{''.join(q)}\n")
     out = tmp_path / "ag.tsv"
     r = subprocess.run([sys.executable, "-m", "calicityper.cli", "antigenic",
-                        str(fa), "-o", str(out)], capture_output=True, text=True)
+                        str(fa), "--skip-input-check", "-o", str(out)],
+                       capture_output=True, text=True)
     assert r.returncode == 0, r.stderr
     import json
     rec = json.loads((tmp_path / "ag.tsv.provenance.json").read_text())
@@ -260,3 +263,67 @@ def test_cli_writes_a_provenance_sidecar(tmp_path):
     assert rec["entropy"]["conserved_at_or_below"] == 0.3
     assert "not that corpus" in rec["entropy"]["measured_over"]
     assert "Parra" in rec["site_definitions"] and "Kendra" in rec["shift_rule"]["source"]
+
+
+# --- input guard: norovirus GII VP1 only -----------------------------------
+
+def _first_vp1(virus):
+    """One translated VP1 per genogroup from the bundled reference sets."""
+    out = {}
+    for v, gg, acc, _kmers in ag.vp1_genogroup_panel():
+        if v == virus:
+            out.setdefault(gg, acc)
+    return out
+
+
+def _translated(virus, genogroup):
+    from Bio import SeqIO
+
+    from calicityper import config as cg
+
+    ref_dir = cg.REF_DIR["orf2"] if virus == "norovirus" else cg.SAPOVIRUS_REF_DIR["orf2"]
+    for rec in SeqIO.parse(str(ref_dir / "all.orf"), "fasta"):
+        if rec.id.split("|")[0] == genogroup:
+            return rec.id.split("|")[2], ag._to_vp1_aa(str(rec.seq))
+    raise AssertionError(f"no {virus} {genogroup} reference")
+
+
+def test_guard_accepts_a_norovirus_gii_vp1():
+    name, aa = _translated("norovirus", "GII")
+    acc, cont = ag.check_gii_input(name, aa)
+    assert cont > 0.5 and acc
+
+
+def test_guard_accepts_gii_that_is_not_gii4():
+    # the site coordinates are resolved through a GII.4 anchor row, so any GII
+    # VP1 is in scope -- only non-GII input is refused
+    from Bio import SeqIO
+
+    from calicityper import config as cg
+
+    for rec in SeqIO.parse(str(cg.REF_DIR["orf2"] / "all.orf"), "fasta"):
+        gg, ty, acc = rec.id.split("|")[:3]
+        if gg == "GII" and not ty.startswith("GII.4"):
+            ag.check_gii_input(acc, ag._to_vp1_aa(str(rec.seq)))
+            return
+    raise AssertionError("no non-GII.4 GII reference to test")
+
+
+def test_guard_refuses_a_sapovirus_vp1():
+    name, aa = _translated("sapovirus", "GI")
+    with pytest.raises(ag.AntigenicError) as e:
+        ag.check_gii_input(name, aa)
+    assert "sapovirus" in str(e.value) and "not norovirus GII" in str(e.value)
+
+
+def test_guard_refuses_a_norovirus_gi_vp1():
+    name, aa = _translated("norovirus", "GI")
+    with pytest.raises(ag.AntigenicError) as e:
+        ag.check_gii_input(name, aa)
+    assert "GI" in str(e.value)
+
+
+def test_guard_refuses_something_that_is_not_a_vp1():
+    with pytest.raises(ag.AntigenicError) as e:
+        ag.check_gii_input("junk", "W" * 600)
+    assert "matches no bundled VP1 reference" in str(e.value)

@@ -88,6 +88,52 @@ NOT_NOROVIRUS = ("not a norovirus: this screen is norovirus only. Sapovirus VP1 
                  "distribution and cannot establish that a query belongs to none of "
                  "the known P-types, so no sapovirus novelty screen is offered. See "
                  "docs/SAPOVIRUS_STATUS.md")
+SAPOVIRUS_RDRP_NA = (
+    "sapovirus RdRp is not screened: the published 0.266 P-type cut-off overlaps the "
+    "between-type distance distribution -- only 1 of 20 testable P-types is separated "
+    "from every other P-type in its genogroup -- so a distance beyond the cut-off "
+    "cannot be read as novelty. See docs/SAPOVIRUS_STATUS.md")
+
+
+def sapovirus_vp1_flag(row):
+    """(flag, detail) for a sapovirus VP1 call, from the published cut-offs.
+
+    Deliberately not a 2x SD bound like the norovirus screen. One was built and
+    measured on the bundled sapovirus VP1 references (2026-11-20): on
+    nucleotide, the units the published scheme is defined in, the genotype-level
+    bound came out at a median of 0.262, above the 0.161 cut-off for 37 of 50
+    clusters, so it would have flagged strictly less than the cut-off the typing
+    path already applies. (Cross-genogroup nucleotide p-distance also proved
+    unmeasurable by pairwise alignment, which collapsed the tree the bound
+    needs.) So the signal reported here IS the cut-off outcome: a VP1 further
+    than the genotype cut-off from every reference is a possible novel genotype,
+    which is what the typing path records as `untypeable`.
+
+    Unlike the norovirus screen this adds no computation -- it reads the call
+    the typing step already made -- and it is still screening, not a
+    designation: the VP1 reference set is unevenly sampled, and a flag means
+    "no represented genotype is within the cut-off", not "new genotype".
+    """
+    gt_cut, gg_cut = cg.SAPOVIRUS_CUTOFFS["orf2"]
+    called = str(row.get("orf2_type") or "").strip()
+    try:
+        d = float(row.get("orf2_distance"))
+    except (TypeError, ValueError):
+        d = None
+    if called == "unassigned" or not called:
+        return NA, "no sapovirus VP1 reference overlaps the query enough to measure a distance"
+    if called != "untypeable":
+        return KNOWN, (f"VP1 p-distance {d:.3f} to the nearest reference is within the "
+                       f"{gt_cut} genotype cut-off" if d is not None else
+                       f"VP1 within the {gt_cut} genotype cut-off of {called}")
+    if d is None:
+        return NA, "VP1 is untypeable but no distance was recorded"
+    if d < gg_cut:
+        return NOVEL_TYPE, (f"VP1 p-distance {d:.3f} to the nearest reference is over the "
+                            f"{gt_cut} genotype cut-off but within the {gg_cut} genogroup "
+                            f"cut-off: possible novel genotype within a known genogroup")
+    return NOVEL_GROUP, (f"VP1 p-distance {d:.3f} is over the {gg_cut} genogroup cut-off: "
+                         f"the query sits outside every bundled sapovirus genogroup")
 
 
 # ------------------------------------------------------------------ distances

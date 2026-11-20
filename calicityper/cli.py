@@ -283,6 +283,11 @@ def _add_antigenic_args(p):
     p.add_argument("--anchor", metavar="NAME",
                    help="optional 540-aa GII.4 coordinate-anchor id in the alignment "
                         "(e.g. JX459908.1|Sydney) when --reference is a 539-aa pre-2002 variant")
+    p.add_argument("--skip-input-check", action="store_true",
+                   help="annotate even when a query is not a norovirus GII VP1. The site "
+                        "coordinates are GII VP1 numbering, so the residues reported for "
+                        "another genogroup or genus are not the published sites; for "
+                        "deliberate cross-genotype work and synthetic input only")
     p.add_argument("--show-sites", action="store_true",
                    help="print the residue definitions and exit")
 
@@ -335,6 +340,9 @@ def _run_antigenic(a):
                 fixed_ref = rhit[0]
 
             for qname, qseq in aln_qrys:
+                # norovirus GII VP1 only: see antigenic.check_gii_input
+                if not getattr(a, "skip_input_check", False):
+                    ag.check_gii_input(qname, qseq.replace("-", "").replace(".", ""))
                 chosen_ref = fixed_ref or min(
                     aln_refs, key=lambda r: ag.total_aa_differences(qseq, r[1])
                 )
@@ -379,6 +387,9 @@ def _run_antigenic(a):
             for name, seq in recs:
                 if name == ref[0]:
                     continue
+                # norovirus GII VP1 only: see antigenic.check_gii_input
+                if not getattr(a, "skip_input_check", False):
+                    ag.check_gii_input(name, seq.replace("-", "").replace(".", ""))
                 rows.append(ag.to_row(ag.annotate(name, seq, ref[0], ref[1],
                                                   a.genotype, entropy=ent,
                                                   anchor_row=anchor[1],
@@ -641,7 +652,18 @@ def _run_novel(a):
                        accepted=row.get(f"{region}_accepted", ""),
                        nearest=row.get(f"{region}_nearest", ""),
                        nearest_identity=row.get(f"{region}_nearest_identity", ""))
-            if g in ("", "unassigned") or g not in ty.cg.NOROVIRUS_GROUPS:
+            if ty.cg.is_sapovirus(g) and ty.cg.TYPE_SAPOVIRUS:
+                # sapovirus VP1 is screened by the published cut-offs, which the
+                # typing step has already applied; RdRp is not screened at all
+                if region == "orf2":
+                    flag, detail = putative_novel.sapovirus_vp1_flag(row)
+                    rec.update(flag=flag, closest_type=row.get("orf2_nearest_type", ""),
+                               distance=row.get("orf2_distance", ""),
+                               bound=ty.cg.SAPOVIRUS_CUTOFFS["orf2"][0], detail=detail)
+                else:
+                    rec.update(flag=putative_novel.NA, closest_type="", distance="", bound="",
+                               detail=putative_novel.SAPOVIRUS_RDRP_NA)
+            elif g in ("", "unassigned") or g not in ty.cg.NOROVIRUS_GROUPS:
                 rec.update(flag=putative_novel.NA, closest_type="", distance="", bound="",
                            detail=putative_novel.NOT_NOROVIRUS if g not in ("", "unassigned")
                            else "no norovirus genogroup assigned")
@@ -777,10 +799,16 @@ def _screen_putative_novel(rows, alns, todo, only_unaccepted=True):
             row[f"{region}_putative_novel"], row[f"{region}_putative_novel_detail"] = "", ""
             accepted = str(row.get(f"{region}_accepted", "")).startswith("accepted")
             if ty.cg.is_sapovirus(row.get("genogroup", "")):
-                row[f"{region}_putative_novel"] = putative_novel.NA
-                row[f"{region}_putative_novel_detail"] = (
-                    "sapovirus: novelty is decided by the distance cut-off in the type call, "
-                    "not by the norovirus 2x SD screen")
+                # VP1: report the cut-off outcome the type call already reached,
+                # rather than leaving the column blank. RdRp: not screened.
+                if region == "orf2" and ty.cg.TYPE_SAPOVIRUS:
+                    row[f"{region}_putative_novel"], row[f"{region}_putative_novel_detail"] = \
+                        putative_novel.sapovirus_vp1_flag(row)
+                else:
+                    row[f"{region}_putative_novel"] = putative_novel.NA
+                    row[f"{region}_putative_novel_detail"] = (
+                        putative_novel.SAPOVIRUS_RDRP_NA if region == "orf1" else
+                        "sapovirus dual typing is off (--no-type-sapovirus): genogroup only")
                 continue
             if only_unaccepted and accepted:
                 row[f"{region}_putative_novel"] = putative_novel.KNOWN
