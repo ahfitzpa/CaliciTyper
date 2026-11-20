@@ -1,9 +1,6 @@
-import argparse, os, subprocess, sys, tempfile
+import argparse, csv, os, subprocess, sys, tempfile
 from pathlib import Path
 from collections import defaultdict
-from multiprocessing import Pool
-from Bio import SeqIO
-import pandas as pd
 from . import typing as ty
 from . import config as cg, align, tree, __version__
 from . import recomb_config as _rc
@@ -14,10 +11,11 @@ def _work(chunk):
     region, g, lst = chunk
     a = _ARGS
     ref, aln = align.align_queries(region, g, [(str(i), s) for i, s in lst], threads=1)
+    fast_boot = bool(getattr(a, "fast_boot", False))
     out = []
     for (i, _), qa in zip(lst, aln):
         res = ty.type_aligned(ref, qa, nrep=a.bootstraps, seed=a.seed, min_support=a.min_support,
-                              max_refs_per_type=a.max_refs_per_type)
+                              max_refs_per_type=a.max_refs_per_type, fast_boot=fast_boot)
         # keep the aligned query only when a report will use it: for thousands of
         # queries these strings are the bulk of what crosses back from a worker.
         out.append(((i, region), res, (g, qa) if a._want_aln else None))
@@ -31,8 +29,17 @@ def _apply_runtime_overrides(a):
     workers do not inherit module state changed at run time, so setting it in
     the parent alone would only take effect with --threads 1.
     """
+    preset = getattr(a, "preset", None)
+    if preset is not None:
+        cfg = cg.PRESETS.get(preset, {})
+        cg.MIN_INFORMATIVE_SITES_ORF1 = cfg.get("min_sites_orf1")
+        cg.MIN_INFORMATIVE_SITES_ORF2 = cfg.get("min_sites_orf2")
     if getattr(a, "min_sites", None) is not None:
         cg.MIN_INFORMATIVE_SITES = a.min_sites
+    if getattr(a, "min_sites_orf1", None) is not None:
+        cg.MIN_INFORMATIVE_SITES_ORF1 = a.min_sites_orf1
+    if getattr(a, "min_sites_orf2", None) is not None:
+        cg.MIN_INFORMATIVE_SITES_ORF2 = a.min_sites_orf2
     if getattr(a, "rivm_window_mode", None) is not None:
         cg.RIVM_WINDOW_MODE = a.rivm_window_mode
     if getattr(a, "type_all_groups", None) is not None:
@@ -43,6 +50,9 @@ def _apply_runtime_overrides(a):
     if getattr(a, "novel_distance", None) is not None:
         from . import putative_novel
         putative_novel.DISTANCE = a.novel_distance
+    if getattr(a, "fast_novel", False):
+        from . import putative_novel
+        putative_novel.FAST_NOVEL = True
 
 def _init(a):
     global _ARGS
@@ -61,6 +71,9 @@ def _add_type_args(p):
                    help="output TSV path, or '-' for stdout [default: -]. "
                         "When a file path is used, a provenance sidecar (<out>.provenance.json) is written.")
     p.add_argument("--bootstraps", type=int, default=100, help="bootstrap replicates [default: 100]")
+    p.add_argument("--fast-boot", action="store_true",
+                   help="opt-in sequential binomial early stopping at 25/100 replicates when support "
+                        "is 25/25 (100%%) or <=8/25 (<=32%%); borderline calls still run all replicates")
     p.add_argument("--min-support", type=float, default=70.0, help="minimum bootstrap %% to accept a type [default: 70]")
     p.add_argument("--max-refs-per-type", type=int, default=2, help="reference sequences per type used in the tree [default: 2]")
     p.add_argument("--threads", type=int, default=1,
@@ -85,11 +98,20 @@ def _add_type_args(p):
     p.add_argument("--screen-all", action="store_true",
                    help="run putative-novel screening on every call (default: only calls not accepted by bootstrap)")
     adv = p.add_argument_group("advanced (affect correctness/reproducibility; prefer CLI flags over env vars)")
+    adv.add_argument("--preset", choices=sorted(cg.PRESETS), default=None,
+                     help="amplicon threshold preset: 'polcap' sets --min-sites-orf1 170 --min-sites-orf2 250 "
+                          "for 570/579 bp dual PolCap amplicons")
     adv.add_argument("--min-sites", type=int, default=None, metavar="N",
                      help="minimum aligned informative sites to accept a type call "
                           f"[default: {cg.MIN_INFORMATIVE_SITES} or $CALICITYPER_MIN_SITES]")
+    adv.add_argument("--min-sites-orf1", type=int, default=None, metavar="N",
+                     help="minimum aligned informative sites for ORF1/RdRp only (overrides --min-sites / --preset)")
+    adv.add_argument("--min-sites-orf2", type=int, default=None, metavar="N",
+                     help="minimum aligned informative sites for ORF2/VP1 only (overrides --min-sites / --preset)")
     adv.add_argument("--novel-distance", choices=["ml", "nj", "p"], default=None,
                      help="distance measure for putative-novel screening: ml, nj, or p [default: ml]")
+    adv.add_argument("--fast-novel", action="store_true",
+                     help="use cached ML reference backbone constraint trees (IQ-TREE -g) during putative-novel screening")
     adv.add_argument("--type-all-groups", action=argparse.BooleanOptionalAction, default=None,
                      help="type all norovirus genogroups (GIII-GX) instead of restricting to validated GI/GII "
                           "(not validated). Overrides $CALICITYPER_TYPE_ALL_GROUPS.")
@@ -121,6 +143,8 @@ def _add_novel_args(p):
                    help="region(s) to screen [default: both]. ORF2 requires a complete VP1 reading frame; "
                         "ORF1 requires >=95%% of the 762 nt 3' RdRp typing region.")
     p.add_argument("--bootstraps", type=int, default=100, help="bootstrap replicates [default: 100]")
+    p.add_argument("--fast-boot", action="store_true",
+                   help="opt-in sequential binomial early stopping at 25/100 replicates for typing context")
     p.add_argument("--min-support", type=float, default=70.0, help="minimum bootstrap %% for typing context [default: 70]")
     p.add_argument("--max-refs-per-type", type=int, default=2, help="reference sequences per type [default: 2]")
     p.add_argument("--threads", type=int, default=1,
@@ -128,11 +152,19 @@ def _add_novel_args(p):
     p.add_argument("--seed", type=int, default=1, help="random seed for reproducibility [default: 1]")
     p.add_argument("--version", action="version", version=__version__)
     adv = p.add_argument_group("advanced (affect correctness/reproducibility; prefer CLI flags over env vars)")
+    adv.add_argument("--preset", choices=sorted(cg.PRESETS), default=None,
+                     help="amplicon threshold preset: 'polcap' sets --min-sites-orf1 170 --min-sites-orf2 250")
     adv.add_argument("--min-sites", type=int, default=None, metavar="N",
                      help="minimum aligned informative sites to accept a type call "
                           f"[default: {cg.MIN_INFORMATIVE_SITES} or $CALICITYPER_MIN_SITES]")
+    adv.add_argument("--min-sites-orf1", type=int, default=None, metavar="N",
+                     help="minimum aligned informative sites for ORF1/RdRp only")
+    adv.add_argument("--min-sites-orf2", type=int, default=None, metavar="N",
+                     help="minimum aligned informative sites for ORF2/VP1 only")
     adv.add_argument("--novel-distance", choices=["ml", "nj", "p"], default=None,
                      help="distance measure for putative-novel screening: ml, nj, or p [default: ml]")
+    adv.add_argument("--fast-novel", action="store_true",
+                     help="use cached ML reference backbone constraint trees (IQ-TREE -g) during screening")
     adv.add_argument("--type-all-groups", action=argparse.BooleanOptionalAction, default=None,
                      help="type all norovirus genogroups (not validated). Overrides $CALICITYPER_TYPE_ALL_GROUPS.")
     adv.add_argument("--rivm-window-mode", action=argparse.BooleanOptionalAction, default=None,
@@ -273,8 +305,7 @@ def _run_antigenic(a):
               f"applied to {a.genotype} without structural mapping.", file=sys.stderr)
         return 2
 
-    from Bio import SeqIO
-    recs = [(r.id, str(r.seq)) for r in SeqIO.parse(a.alignment, "fasta")]
+    recs = ty.read_fasta(a.alignment)
     all_res = ag.all_tracked_residues()
     rows = []
 
@@ -446,6 +477,33 @@ def main(argv=None):
         return 130
 
 
+def _write_tsv(rows, out_path):
+    """Write a list of row dicts to TSV using stdlib csv (matches pandas.to_csv output)."""
+    fields = []
+    seen = set()
+    for row in rows:
+        for k in row.keys():
+            if k not in seen:
+                seen.add(k)
+                fields.append(k)
+
+    def _emit(fh):
+        if not fields:
+            fh.write("\n")
+            return
+        w = csv.DictWriter(fh, fieldnames=fields, delimiter="\t",
+                           extrasaction="ignore", restval="", lineterminator="\n")
+        w.writeheader()
+        for row in rows:
+            w.writerow({k: ("" if v is None else v) for k, v in row.items()})
+
+    if out_path == "-":
+        _emit(sys.stdout)
+    else:
+        with open(out_path, "w", newline="", encoding="utf-8") as fh:
+            _emit(fh)
+
+
 def _align_and_type(a):
     """BLAST, plan, align and type every record. Returns (recs, rows, alns, todo).
 
@@ -458,16 +516,26 @@ def _align_and_type(a):
     cmd = getattr(a, "command", "type")
     print(f"[{cmd}] checking reference data and input...", file=sys.stderr)
     ty.cg.check_data()          # clear error if the bundled reference data is missing
-    recs = [(r.id, str(r.seq)) for r in SeqIO.parse(a.fasta, "fasta")]
+    recs = ty.read_fasta(a.fasta)
     if not recs:
         print(f"[{cmd}] no sequences found in {a.fasta}", file=sys.stderr)
     else:
         print(f"[{cmd}] loaded {len(recs)} sequence(s) from {a.fasta}", file=sys.stderr)
-    with tempfile.TemporaryDirectory(prefix="calicityper_") as td:
-        q = os.path.join(td, "all.fa")
-        SeqIO.write([r for r in SeqIO.parse(a.fasta, "fasta")], q, "fasta")
-        print(f"[{cmd}] running genogroup detection (BLAST)...", file=sys.stderr)
-        hits = ty.blast_genogroup(q, a.threads)
+    blast_recs = [
+        (rid, s) for rid, s in recs
+        if not ty.invalid_characters(s)
+        and len(str(s).replace("-", "").replace("N", "")) >= cg.MIN_INPUT_NT
+    ]
+    if blast_recs:
+        with tempfile.TemporaryDirectory(prefix="calicityper_") as td:
+            q = os.path.join(td, "all.fa")
+            with open(q, "w", encoding="utf-8") as fh:
+                for rid, s in blast_recs:
+                    fh.write(f">{rid}\n{s}\n")
+            print(f"[{cmd}] running genogroup detection (BLAST)...", file=sys.stderr)
+            hits = ty.blast_genogroup(q, a.threads)
+    else:
+        hits = {}
     rows, todo = {}, defaultdict(list)             # todo[(region, group)] -> [(index, seq)]
     for i, (rid, s) in enumerate(recs):
         row, jobs = ty.plan_query(rid, s, hits.get(rid))
@@ -481,11 +549,13 @@ def _align_and_type(a):
     for (region, g), lst in todo.items():
         size = max(8, -(-len(lst) // (2 * a.threads)))
         chunks += [(region, g, lst[k:k + size]) for k in range(0, len(lst), size)]
+    use_pool = a.threads > 1 and len(chunks) > 1 and n_jobs > 4
     if chunks:
-        mode = f"{a.threads} worker process(es)" if a.threads > 1 and len(chunks) > 1 else "1 process"
+        mode = f"{min(a.threads, len(chunks))} worker process(es)" if use_pool else "1 process"
         print(f"[{cmd}] aligning/typing {len(chunks)} chunk(s) with {mode}...", file=sys.stderr)
-    if a.threads > 1 and len(chunks) > 1:
-        with Pool(a.threads, initializer=_init, initargs=(a,)) as pool:
+    if use_pool:
+        from multiprocessing import Pool
+        with Pool(min(a.threads, len(chunks)), initializer=_init, initargs=(a,)) as pool:
             results = [r for part in pool.map(_work, chunks, chunksize=1) for r in part]
     else:
         _init(a); results = [r for c in chunks for r in _work(c)]
@@ -509,7 +579,6 @@ def _run_type(a):
     print("[type] running putative-novel screening...", file=sys.stderr)
     _screen_putative_novel(rows, alns, todo, only_unaccepted=not a.screen_all)
     ordered = [rows[i] for i in range(len(recs))]
-    df = pd.DataFrame(ordered)
     print("Scope: norovirus GI/GII genotyping validated/supported; other norovirus genogroups and "
           "non-norovirus Caliciviridae may be detected but genotyping is not validated. "
           + ("Sapovirus genotyping ON: VP1 genotype and RdRp P-type, benchmarked; "
@@ -518,10 +587,8 @@ def _run_type(a):
              else "Sapovirus: genogroup only (CALICITYPER_TYPE_SAPOVIRUS=1 enables typing). ")
           + "Putative-novel flags are tentative screening.",
           file=sys.stderr)
-    if a.out == "-":
-        df.to_csv(sys.stdout, sep="\t", index=False)
-    else:
-        df.to_csv(a.out, sep="\t", index=False)
+    _write_tsv(ordered, a.out)
+    if a.out != "-":
         from . import report
         prov_path = _provenance_sidecar_path(a.out)
         report.write_type_provenance(prov_path, len(ordered), meta=_type_meta(a, command="type"))
@@ -590,18 +657,15 @@ def _run_novel(a):
                            detail=res["detail"])
             out.append(rec)
     print("[novel] assessing putative-novel status for screened region(s)...", file=sys.stderr)
-    df = pd.DataFrame(out)
-    if a.out == "-":
-        df.to_csv(sys.stdout, sep="\t", index=False)
-    else:
-        df.to_csv(a.out, sep="\t", index=False)
+    _write_tsv(out, a.out)
+    if a.out != "-":
         meta = _type_meta(a, command="novel")
         meta.update(region=a.region, screen_regions=list(regions))
         prov_path = _provenance_sidecar_path(a.out)
         report.write_novel_provenance(prov_path, len(out), meta=meta)
         print(f"[novel] wrote {a.out} and {prov_path}", file=sys.stderr)
-    n = int((df.flag.isin(putative_novel.FLAGGED)).sum()) if len(df) else 0
-    print(f"[novel] {n} of {len(df)} region call(s) flagged as putative novel "
+    n = sum(r.get("flag") in putative_novel.FLAGGED for r in out)
+    print(f"[novel] {n} of {len(out)} region call(s) flagged as putative novel "
           f"(tentative screening; not genotype designation)", file=sys.stderr)
     return 0
 
@@ -829,13 +893,18 @@ def _trees(a, rows, alns):
 def _type_meta(a, command="type"):
     from . import putative_novel
     from . import provenance
-    return dict(bootstraps=a.bootstraps, min_support=a.min_support,
+    return dict(bootstraps=a.bootstraps, fast_boot=bool(getattr(a, "fast_boot", False)),
+                min_support=a.min_support,
                 max_refs_per_type=a.max_refs_per_type, seed=a.seed, input=a.fasta,
+                preset=getattr(a, "preset", None),
                 min_sites=cg.MIN_INFORMATIVE_SITES,
+                min_sites_orf1=cg.min_sites_for("orf1"),
+                min_sites_orf2=cg.min_sites_for("orf2"),
                 typeable_groups=list(cg.TYPEABLE_GROUPS),
                 rivm_window_mode=bool(cg.RIVM_WINDOW_MODE),
                 type_sapovirus=bool(cg.TYPE_SAPOVIRUS),
                 novel_distance=putative_novel.effective_measure(),
+                fast_novel=bool(putative_novel.FAST_NOVEL),
                 threads=getattr(a, "threads", None),
                 command=command,
                 reference_set=provenance.reference_set_info())

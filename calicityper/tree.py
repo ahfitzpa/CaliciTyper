@@ -54,9 +54,78 @@ def tn93(codes, w=None, pre=None):
     return (d + d.T) / 2
 
 
+# Upper-triangle pair-indicator ceiling (~80 MB float32 total across 4 matrices).
+# All bundled CaliciTyper reference sets are well below this (n <= 120, P <= 1500).
+_MAX_BATCH_PAIR_ELEMS = 20_000_000
+
+
+def pair_indicators(codes):
+    """Precompute symmetric upper-triangle base-pair indicators for batched TN93.
+
+    Returns (n, iu, ju, v_pair, m_pair, ag_pair, ct_pair, col_counts) or None if
+    the alignment exceeds _MAX_BATCH_PAIR_ELEMS (caller falls back to tn93()).
+    """
+    n, P = codes.shape
+    if n < 2:
+        return None
+    M = n * (n - 1) // 2
+    if M * P > _MAX_BATCH_PAIR_ELEMS:
+        return None
+    iu, ju = np.triu_indices(n, k=1)
+    ci = codes[iu]
+    cj = codes[ju]
+    valid_i = ci < 4
+    v_pair = (valid_i & (cj < 4)).astype(np.float32)
+    m_pair = ((ci == cj) & valid_i).astype(np.float32)
+    ag_pair = (((ci == 0) & (cj == 2)) | ((ci == 2) & (cj == 0))).astype(np.float32)
+    ct_pair = (((ci == 1) & (cj == 3)) | ((ci == 3) & (cj == 1))).astype(np.float32)
+    col_counts = np.stack([(codes == k).sum(axis=0) for k in range(4)], axis=0).astype(np.float32)
+    return n, iu, ju, v_pair, m_pair, ag_pair, ct_pair, col_counts
+
+
+def tn93_batch(codes, W, pair_pre=None, pre=None):
+    """Batched pairwise Tamura-Nei distances for a (B, P) site-weight matrix W.
+
+    Computes all B (n x n) distance matrices in four 2D BLAS SGEMM calls over
+    upper-triangle pairs, matching tn93(codes, W[b]) to floating-point equality.
+    """
+    Wf = np.asarray(W, dtype=np.float32)
+    B = Wf.shape[0]
+    if pair_pre is None:
+        pair_pre = pair_indicators(codes)
+    if pair_pre is None:
+        pre = pre if pre is not None else indicators(codes)
+        return np.stack([tn93(codes, Wf[b], pre) for b in range(B)], axis=0)
+    n, iu, ju, v_pair, m_pair, ag_pair, ct_pair, col_counts = pair_pre
+    WT = np.ascontiguousarray(Wf.T, dtype=np.float32)
+    V_u = (v_pair @ WT).T.astype(np.float64)
+    M_u = (m_pair @ WT).T.astype(np.float64)
+    AG_u = (ag_pair @ WT).T.astype(np.float64)
+    CT_u = (ct_pair @ WT).T.astype(np.float64)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        P1 = AG_u / V_u
+        P2 = CT_u / V_u
+        Q = (V_u - M_u - AG_u - CT_u) / V_u
+    cnt = (Wf @ col_counts.T).astype(np.float64) + 1e-9
+    g = cnt / cnt.sum(axis=1, keepdims=True)
+    gA, gC, gG, gT = g[:, 0:1], g[:, 1:2], g[:, 2:3], g[:, 3:4]
+    gR, gY = gA + gG, gC + gT
+    a1 = np.maximum(1.0 - gR * P1 / (2.0 * gA * gG) - Q / (2.0 * gR), 1e-12)
+    a2 = np.maximum(1.0 - gY * P2 / (2.0 * gC * gT) - Q / (2.0 * gY), 1e-12)
+    a3 = np.maximum(1.0 - Q / (2.0 * gR * gY), 1e-12)
+    du = (-2.0 * gA * gG / gR * np.log(a1)
+          - 2.0 * gC * gT / gY * np.log(a2)
+          - 2.0 * (gR * gY - gA * gG * gY / gR - gC * gT * gR / gY) * np.log(a3))
+    du = np.where(np.isfinite(du) & (V_u > 0), np.minimum(du, MAX_DIST), MAX_DIST)
+    out = np.zeros((B, n, n), dtype=np.float64)
+    out[:, iu, ju] = du
+    out[:, ju, iu] = du
+    return out
+
+
 def nj_splits(D):
     """Neighbour joining; returns the set of leaf bitmasks of every internal node (clade) of the tree."""
-    D = np.array(D, dtype=float)
+    D = np.array(D, dtype=float, copy=True)
     m = D.shape[0]
     masks = [1 << i for i in range(m)]
     full = (1 << m) - 1
@@ -72,11 +141,15 @@ def nj_splits(D):
         mask = masks[i] | masks[j]
         splits.add(mask)
         D[i, :] = new; D[:, i] = new; D[i, i] = 0.0
-        keep = [k for k in range(m) if k != j]
-        D = D[np.ix_(keep, keep)]
         masks[i] = mask
-        del masks[j]
-        m -= 1
+        last = m - 1
+        if j != last:
+            D[j, :] = D[last, :]
+            D[:, j] = D[:, last]
+            masks[j] = masks[last]
+        D = D[:last, :last]
+        masks.pop()
+        m = last
     splits.update(masks)
     return splits, full
 
@@ -202,7 +275,21 @@ MIN_IDENTITY_SITES = 50
 # raising it would withhold correct calls to catch that one. Decision taken
 # 2026-11-17: keep 70 and report support beside every call so a borderline
 # result is visible. Revisit only with more than one observation in the gap.
-def assign(names, types, query, codes, nrep=100, seed=1, min_support=70.0, max_refs_per_type=None):
+FAST_BOOT_CHECKPOINT = 25
+FAST_BOOT_LOW_CUTOFF = 8
+
+
+def _sample_pattern_weights(rng, L, probs, inv, n_pats, count):
+    """Draw `count` multinomial bootstrap weight vectors collapsed to column patterns."""
+    W_raw = rng.multinomial(L, probs, size=count)
+    return np.asarray(
+        [np.bincount(inv, weights=w, minlength=n_pats) for w in W_raw],
+        dtype=np.float32,
+    )
+
+
+def assign(names, types, query, codes, nrep=100, seed=1, min_support=70.0,
+           max_refs_per_type=None, fast_boot=False):
     """names: aligned sequence names (references + query); types: {ref_name: type}; query: its name.
     Returns dict(type, support, supports, n_sites, n_refs)."""
     qi = names.index(query)
@@ -230,19 +317,42 @@ def assign(names, types, query, codes, nrep=100, seed=1, min_support=70.0, max_r
     pats, inv = np.unique(codes.T, axis=0, return_inverse=True)
     pcodes = pats.T.copy()
     inv = inv.ravel()
+    n_pats = len(pats)
     rng = np.random.default_rng(seed)
+    probs = np.full(L, 1.0 / L)
     counts = np.zeros(len(tnames))
-    pre = indicators(pcodes)
+    pair_pre = pair_indicators(pcodes)
+    pre = None if pair_pre is not None else indicators(pcodes)
     clades = _nj_clades if HAVE_NUMBA else _clades_python
-    for rep in range(nrep):
-        w = rng.multinomial(L, np.full(L, 1.0 / L))
-        wp = np.bincount(inv, weights=w, minlength=len(pats))
-        counts += clades(tn93(pcodes, wp, pre), G)
-    sup = {t: 100.0 * c / nrep for t, c in zip(tnames, counts)}
+
+    def _run_batch(batch_n):
+        Wp = _sample_pattern_weights(rng, L, probs, inv, n_pats, batch_n)
+        Ds = tn93_batch(pcodes, Wp, pair_pre=pair_pre, pre=pre)
+        for rep in range(batch_n):
+            counts[:] += clades(Ds[rep], G)
+
+    if fast_boot and nrep > FAST_BOOT_CHECKPOINT:
+        b0 = FAST_BOOT_CHECKPOINT
+        _run_batch(b0)
+        best_c = int(counts.max()) if len(counts) else 0
+        stop_high = (best_c == b0 and min_support <= 95.0)
+        stop_low = (best_c <= FAST_BOOT_LOW_CUTOFF and min_support >= 70.0)
+        if stop_high or stop_low:
+            used_rep = b0
+        else:
+            _run_batch(nrep - b0)
+            used_rep = nrep
+    else:
+        if nrep > 0:
+            _run_batch(nrep)
+        used_rep = max(1, nrep)
+
+    sup = {t: 100.0 * c / used_rep for t, c in zip(tnames, counts)}
     best = max(sup, key=sup.get)
     ranked = sorted(sup.items(), key=lambda kv: -kv[1])[:3]
     return dict(type=best if sup[best] >= min_support else None, support=sup[best],
-                best_type=best, supports=dict(ranked), all_supports=sup, n_sites=L, n_refs=len(refs))
+                best_type=best, supports=dict(ranked), all_supports=sup,
+                n_sites=L, n_refs=len(refs), n_replicates=used_rep)
 
 
 def warmup():

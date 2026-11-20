@@ -148,6 +148,13 @@ def install(source, data_dir, manifest=None, force=False):
             if target.exists():
                 shutil.rmtree(target) if target.is_dir() else target.unlink()
             shutil.move(str(item), str(target))
+    try:
+        from . import align
+        n_cached = align.warm_cache(data_dir)
+        if n_cached:
+            print(f"pre-cached {n_cached} encoded reference alignment(s)")
+    except Exception:
+        pass
     print(f"installed reference set {m.get('reference_set_version', '?')} into {data_dir}")
     print(f"set CALICITYPER_DATA={data_dir} (or leave it, if that is the default path)")
     return 0

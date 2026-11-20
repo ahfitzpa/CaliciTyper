@@ -72,6 +72,8 @@ DISTANCE = os.environ.get("CALICITYPER_NOVEL_DISTANCE", "ml").lower()
 if DISTANCE == "patristic":
     DISTANCE = "ml"
 MEASURES = ("ml", "nj", "p")
+# Opt-in constrained IQ-TREE (-g) placement against a cached reference backbone tree (S6).
+FAST_NOVEL = os.environ.get("CALICITYPER_FAST_NOVEL", "").lower() in ("1", "true", "yes")
 
 VP1_LEN_TOL = 0.10        # complete VP1 must be within 10% of the reference length range
 RDRP_MIN_COVER = 0.95     # fraction of the RdRp typing region the query must cover
@@ -214,7 +216,7 @@ def effective_measure(measure=None):
     return m
 
 
-def as_patristic(D, method=None, records=None, alphabet="nt", threads=1):
+def as_patristic(D, method=None, records=None, alphabet="nt", threads=1, constraint=None):
     """Measure distances between the taxa of `D` (and `records`) under `method`.
 
     `D` is the observed distance matrix; `records` is [(name, aligned seq)] in
@@ -224,18 +226,17 @@ def as_patristic(D, method=None, records=None, alphabet="nt", threads=1):
     import numpy as _np
     m = (method or DISTANCE)
     m = "ml" if m == "patristic" else m
-    D = _np.asarray(D, dtype=float)
     if m == "p":
-        return D
+        return _np.asarray(D, dtype=float)
     if m == "nj":
         from .patristic import patristic_matrix
-        return patristic_matrix(D)
+        return patristic_matrix(_np.asarray(D, dtype=float))
     if m == "ml":
         if records is None:
             raise ValueError("the ml measure needs the alignment, not only distances")
         from .patristic import ml_patristic
         try:
-            return ml_patristic(records, alphabet, threads)
+            return ml_patristic(records, alphabet, threads, constraint=constraint)
         except FileNotFoundError as e:
             # IQ-TREE is a newer dependency than the rest of the tool. Falling
             # back to the NJ tree is honest -- the measure is reported with the
@@ -245,8 +246,10 @@ def as_patristic(D, method=None, records=None, alphabet="nt", threads=1):
             _warn_once(f"{e}\nFalling back to neighbour joining for the 2x SD screen "
                        f"(CALICITYPER_NOVEL_DISTANCE=nj). Sensitivity is lower: RdRp P-type "
                        f"50% rather than 63%, genogroup 21% rather than 52%.")
+            if D is None:
+                raise
             from .patristic import patristic_matrix
-            return patristic_matrix(D)
+            return patristic_matrix(_np.asarray(D, dtype=float))
     raise ValueError(f"unknown distance measure {m!r} (use one of {MEASURES})")
 
 
@@ -640,6 +643,34 @@ def _averages(dists, labels):
     return {c: float(np.mean(v)) for c, v in acc.items()}
 
 
+def _cached_backbone(tag, records, alphabet, threads=1):
+    """Return path to a cached reference-only ML tree for IQ-TREE `-g`, or None."""
+    if not FAST_NOVEL or effective_measure() != "ml" or len(records) < 4:
+        return None
+    key = hashlib.sha256("|".join(f"{n}:{len(s)}" for n, s in records).encode()).hexdigest()[:16]
+    path = _cache_dir() / f"backbone_{tag}_{alphabet}_{key}.treefile"
+    if path.exists() and path.stat().st_size > 0:
+        return path
+    from .patristic import backbone_newick
+    try:
+        nwk = backbone_newick(records, alphabet=alphabet, threads=threads)
+    except FileNotFoundError:
+        return None
+    if not nwk:
+        return None
+    tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    try:
+        tmp.write_text(nwk + "\n")
+        os.replace(tmp, path)
+    except OSError:
+        try:
+            tmp.unlink(missing_ok=True)
+        except OSError:
+            pass
+        return nwk
+    return path
+
+
 def assess(region, group, qa, sub):
     """Flag one typed query region against the 2x SD criterion.
 
@@ -661,8 +692,10 @@ def assess(region, group, qa, sub):
         if cover < RDRP_MIN_COVER:
             return _na(region, f"RdRp typing region {cover:.0%} covered (< {RDRP_MIN_COVER:.0%})")
         obs, _ = msa_distances(q[cols], ref.codes[mem][:, cols])
-        recs = rdrp_alignment(group) + [("QUERY", "".join(np.asarray(list(qa))[cols]))]
-        P = as_patristic(augment(Dref, obs), records=recs, alphabet="nt")
+        ref_recs = rdrp_alignment(group)
+        recs = ref_recs + [("QUERY", "".join(np.asarray(list(qa))[cols]))]
+        constraint = _cached_backbone(f"orf1_{group}", ref_recs, "nt")
+        P = as_patristic(augment(Dref, obs), records=recs, alphabet="nt", constraint=constraint)
         d = P[-1, :-1]
         types = [genotype(ref.types[k]) for k in mem]
         group_avg = {group: float(np.nanmean(d))}
@@ -672,18 +705,23 @@ def assess(region, group, qa, sub):
         return _result(region, flag, t, dist, b, f" (P-group compared within {group} only)"
                        if flag == NOVEL_GROUP else "")
 
-    refs, Dref = vp1_reference_matrix()
+    refs = vp1_references()
     if not refs:
         return _na(region, "no VP1 references")
     vp1 = complete_vp1(sub, [len(s) for *_, s in refs])
     if vp1 is None:
         return _na(region, "no complete VP1 open reading frame")
-    obs = [p_distance(vp1, s, "aa")[0] for *_, s in refs]
-    recs = None
-    if DISTANCE == "ml":
+    if effective_measure() == "ml":
         aligned_refs, aligned_q = add_to_vp1_alignment(vp1)
-        recs = aligned_refs + [("QUERY", aligned_q)]
-    P = as_patristic(augment(Dref, obs), records=recs, alphabet="aa")
+        aa_by_acc = dict(aligned_refs)
+        ordered_refs = [(r[0], aa_by_acc[r[0]]) for r in refs]
+        recs = ordered_refs + [("QUERY", aligned_q)]
+        constraint = _cached_backbone("orf2_vp1", ordered_refs, "aa")
+        P = as_patristic(None, records=recs, alphabet="aa", constraint=constraint)
+    else:
+        refs, Dref = vp1_reference_matrix()
+        obs = [p_distance(vp1, s, "aa")[0] for *_, s in refs]
+        P = as_patristic(augment(Dref, obs), records=None, alphabet="aa")
     d = P[-1, :-1]
     # both levels come off the one tree: the shortlist the observed-distance
     # version needed to keep the cost down is unnecessary here, because the

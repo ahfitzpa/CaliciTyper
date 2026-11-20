@@ -121,6 +121,30 @@ RIVM_WINDOW_MODE = os.environ.get("CALICITYPER_RIVM_WINDOW_MODE", "").lower() in
 # ORF2 98.2) and sits at 96.7/96.9 at 250. Below it the type is still reported,
 # with the shortfall named in the `_accepted` column.
 MIN_INFORMATIVE_SITES = int(os.environ.get("CALICITYPER_MIN_SITES", 300))
+# Optional region-specific floors (S7): PolCap dual amplicons (570/579 bp) span
+# ~215-235 nt of trimmed ORF1 alongside ~302 nt of ORF2 Region C, so splitting
+# the floor lets users accept dual calls without lowering ORF2 globally.
+MIN_INFORMATIVE_SITES_ORF1 = (
+    int(os.environ["CALICITYPER_MIN_SITES_ORF1"])
+    if os.environ.get("CALICITYPER_MIN_SITES_ORF1") else None
+)
+MIN_INFORMATIVE_SITES_ORF2 = (
+    int(os.environ["CALICITYPER_MIN_SITES_ORF2"])
+    if os.environ.get("CALICITYPER_MIN_SITES_ORF2") else None
+)
+PRESETS = {
+    "default": {},
+    "polcap": {"min_sites_orf1": 170, "min_sites_orf2": 250},
+}
+
+
+def min_sites_for(region):
+    """Return the minimum aligned informative sites floor for `region` ('orf1' or 'orf2')."""
+    if region == "orf1" and MIN_INFORMATIVE_SITES_ORF1 is not None:
+        return MIN_INFORMATIVE_SITES_ORF1
+    if region == "orf2" and MIN_INFORMATIVE_SITES_ORF2 is not None:
+        return MIN_INFORMATIVE_SITES_ORF2
+    return MIN_INFORMATIVE_SITES
 
 # Shorter input than this cannot produce the 100 aligned sites the typing step
 # needs, measured rather than assumed: at 80 nt nothing was assignable at all,
