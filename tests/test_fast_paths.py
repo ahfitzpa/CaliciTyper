@@ -166,5 +166,6 @@ def test_ml_patristic_passes_constraint_to_iqtree(tmp_path, monkeypatch):
     P = patristic.ml_patristic(recs, alphabet="nt", iqtree="fake_iqtree",
                                constraint="(t0:0.1,t1:0.2,t2:0.1);")
     assert "-g" in seen_cmd["cmd"]
+    assert "-seed" in seen_cmd["cmd"]
     assert P.shape == (4, 4)
     assert np.isclose(P[0, 1], 0.3)

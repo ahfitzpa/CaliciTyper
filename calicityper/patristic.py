@@ -200,7 +200,7 @@ def backbone_newick(records, alphabet="nt", threads=1, iqtree=None):
             for i, (_, seq) in enumerate(records):
                 fh.write(f">t{i}\n{seq}\n")
         cmd = [str(exe), "-s", str(fa), "-m", MODEL[alphabet], "-fast", "-nt", str(max(1, threads)),
-               "--prefix", str(Path(td) / "bb"), "--quiet", "-redo"]
+               "-seed", "1", "--prefix", str(Path(td) / "bb"), "--quiet", "-redo"]
         p = subprocess.run(cmd, capture_output=True, text=True)
         tree = Path(td) / "bb.treefile"
         if p.returncode != 0 or not tree.exists():
@@ -228,7 +228,7 @@ def ml_patristic(records, alphabet="nt", threads=1, iqtree=None, constraint=None
             for i, (_, seq) in enumerate(records):
                 fh.write(f">t{i}\n{seq}\n")
         cmd = [str(exe), "-s", str(fa), "-m", MODEL[alphabet], "-fast", "-nt", str(max(1, threads)),
-               "--prefix", str(Path(td) / "out"), "--quiet", "-redo"]
+               "-seed", "1", "--prefix", str(Path(td) / "out"), "--quiet", "-redo"]
         if constraint is not None:
             if isinstance(constraint, Path) or (isinstance(constraint, str) and not constraint.lstrip().startswith("(")):
                 cpath = Path(constraint)
