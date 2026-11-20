@@ -1,0 +1,9 @@
+sublineage_id	genotype	region	label	source_example_accession	evidence	notes
+GII.4_Sydney	GII.4	VP1	GII.4 variant	JX459908.1	bundled v0.8.1 reference set	Named variant; not an immunotype
+GII.4_Hunter	GII.4	VP1	GII.4 variant	AY883096.1	bundled v0.8.1 reference set	Named variant
+GII.4_Bristol	GII.4	VP1	GII.4 variant	X76716.1	bundled v0.8.1 reference set	Named variant
+GII.17_Kawasaki_C	GII.17	VP1	candidate sub-lineage	AB983218	Parra 2017 (5.4+/-1.1pct aa vs D)	GII.17 labelled Static in Table 1
+GII.17_Kawasaki_D	GII.17	VP1	candidate sub-lineage	LC037415	Parra 2017 emerging 2014-2015	Do not call regime evolving without decision
+GII.6_A	GII.6	VP1	candidate sub-lineage	AB039777	Parra 2017 Fig 2A	A/B/C up to ~57 aa apart
+GII.6_B	GII.6	VP1	candidate sub-lineage	AF414410	Parra 2017 Fig 2A	Co-circulating static variant
+GII.6_C	GII.6	VP1	candidate sub-lineage	HM633213	Parra 2017 Fig 2A	Co-circulating static variant

@@ -24,6 +24,10 @@ for released versions.
 - `reference_accessions.tsv` is generated rather than maintained, and the manifest recomputes `n_records` and `n_accessions` from the same walk. Both had drifted to a pre-sapovirus set (455 records and 309 accessions against 662 and 509), and those two numbers are copied into every run's `provenance.json`.
 
 ### Added
+- **`calicityper antigenic`**, an opt-in annotation subcommand. Given an aligned GII.4 VP1 amino-acid alignment it reports, per sequence, the differences from a reference at the published antigenic sites (A, C, D, E, G and conserved F, I; Parra et al. 2026 J Virol, CC BY 4.0), the per-site Shannon entropy of the alignment, which Kendra et al. 2021 Table 1 coevolving pairs changed, and a `candidate_antigenic_shift` screen. Writes a TSV and a provenance sidecar. It does not type, and changes no existing call, threshold or schema.
+  - The screen needs **both** >=18 amino-acid differences and changes at two or more of sites A, D, E, G. Site C is excluded because Kendra et al. found it enriched among pairs that were *not* antigenically different. Their ~22% false-positive rate is a column on every row, not a footnote.
+  - Residue numbers resolve to alignment columns through the reference row, and a reference under 506 residues is refused. VP1 is 530-550 residues across human genotypes, so GII.4 coordinates cannot be carried elsewhere, and a P2-only alignment would renumber every site with nothing in the file to reveal it.
+
 - `tests/test_reference_integrity.py`, `tests/test_zhao_tables.py`, `tests/test_zhao_independent_parse.py` and `tests/test_recomb_ordering.py`.
 - `scripts/build_reference_accessions.py`, `scripts/sweep_recomb_rules.py`, `scripts/reaggregate_recomb_table3.py`, `scripts/logo_novelty.py`.
 - `scripts/third_party/convert_sapovirus_table.py`, an independently written parse of Zhao et al. Supplemental Table 1, and the CSV it produces, as a cross-check on our own parse.

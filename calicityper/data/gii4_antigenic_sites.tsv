@@ -1,0 +1,8 @@
+site	kind	residues	variable_residues	source	quote
+A	variable	294-298,368,372,373	294-298,368,372,373	Parra 2026 J Virol	"formed by residues from two coils (residues: 294-298, 368, 372, and 373)"; "composed of eight residues with high variability"
+C	variable	339-341,375-378	339-341,375-378	Parra 2026 J Virol	"encompasses residues that map to two coils (residues: 339-341, 375-378)"
+D	variable	393-398	393-398	Parra 2026 J Virol	"includes residues from a single coil (residues: 393-398)"
+E	variable	407-414	407,412-414	Parra 2026 J Virol	"includes residues from a single coil (407-414), but only half of these residues (i.e., 407, 412-414) are variable"
+G	variable	352,355-357,359,364	352,355-357,359,364	Parra 2026 J Virol	"includes six variable residues (352, 355-357, 359, and 364) from a single coil"
+F	conserved	254-257,327,404		Parra 2026 J Virol (Lindesmith classification)	"classified residues mapping to antigenic site I into two different antigenic sites: F (254-257, 327, 404)"
+I	conserved	402,403,504-506	250,255,504	Parra 2026 J Virol (Lindesmith classification)	"and I (402, 403, 504-506)"; "only three residues (250, 255, and 504) showed variability within this region"; mAb A1431 footprint (PDB 6N8D)

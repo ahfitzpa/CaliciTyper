@@ -83,11 +83,19 @@ class StatusRules:
     estimate, and do not tune these on thirteen strains
     (scripts/sweep_recomb_rules.py in the benchmarking repository shows what
     a change would do; it is not a fitting procedure).
+
+    `likely_require_phylo` is False for the same reason and to keep the
+    ladder monotonic. With it True while `strong_require_phylo` was False,
+    `likely` was not a weaker `strong`: an event with three scanners and
+    distinct parents but weak phylogeny was `strong`, while one with three
+    scanners and good phylogeny but indistinct parents was only `likely`,
+    so a sequence could reach `strong` without ever qualifying for
+    `likely`. The levels now differ only by the distinct-parents test.
     """
     weak_min_methods: int = 1
     possible_min_methods: int = 2
     likely_min_methods: int = 3
-    likely_require_phylo: bool = True
+    likely_require_phylo: bool = False
     strong_min_methods: int = 3
     strong_require_phylo: bool = False
     strong_require_distinct: bool = True

@@ -187,11 +187,35 @@ def _patristic_from_edges(edges, n_nodes, n_tips):
     return out
 
 
-def ml_patristic(records, alphabet="nt", threads=1, iqtree=None):
+def backbone_newick(records, alphabet="nt", threads=1, iqtree=None):
+    """Infer a reference-only ML tree (tips t0..t{n-1}) as a Newick string for `-g` constraints."""
+    from . import config as cg
+    exe = iqtree or os.environ.get("CALICITYPER_IQTREE") or cg.exe("iqtree")
+    n = len(records)
+    if n < 4:
+        return None
+    with tempfile.TemporaryDirectory(prefix="calicityper_bb_") as td:
+        fa = Path(td) / "aln.fasta"
+        with open(fa, "w") as fh:
+            for i, (_, seq) in enumerate(records):
+                fh.write(f">t{i}\n{seq}\n")
+        cmd = [str(exe), "-s", str(fa), "-m", MODEL[alphabet], "-fast", "-nt", str(max(1, threads)),
+               "-seed", "1", "--prefix", str(Path(td) / "bb"), "--quiet", "-redo"]
+        p = subprocess.run(cmd, capture_output=True, text=True)
+        tree = Path(td) / "bb.treefile"
+        if p.returncode != 0 or not tree.exists():
+            raise RuntimeError(f"IQ-TREE backbone failed (exit {p.returncode}) on {n} sequences:\n"
+                               f"{(p.stderr or p.stdout or '')[-1500:]}")
+        return tree.read_text().strip()
+
+
+def ml_patristic(records, alphabet="nt", threads=1, iqtree=None, constraint=None):
     """Patristic distances from an IQ-TREE maximum likelihood tree.
 
     `records` is [(name, aligned sequence)], already aligned and all of one
-    length. Returns a matrix in the order given.
+    length. Returns a matrix in the order given. When `constraint` is provided
+    (a Path to a Newick file or a Newick string covering reference tips t0..t{k-1}),
+    IQ-TREE is invoked with `-g` constrained backbone placement.
     """
     from . import config as cg
     exe = iqtree or os.environ.get("CALICITYPER_IQTREE") or cg.exe("iqtree")
@@ -204,7 +228,15 @@ def ml_patristic(records, alphabet="nt", threads=1, iqtree=None):
             for i, (_, seq) in enumerate(records):
                 fh.write(f">t{i}\n{seq}\n")
         cmd = [str(exe), "-s", str(fa), "-m", MODEL[alphabet], "-fast", "-nt", str(max(1, threads)),
-               "--prefix", str(Path(td) / "out"), "--quiet", "-redo"]
+               "-seed", "1", "--prefix", str(Path(td) / "out"), "--quiet", "-redo"]
+        if constraint is not None:
+            if isinstance(constraint, Path) or (isinstance(constraint, str) and not constraint.lstrip().startswith("(")):
+                cpath = Path(constraint)
+            else:
+                cpath = Path(td) / "backbone.treefile"
+                cpath.write_text(str(constraint).strip() + "\n")
+            if cpath.exists():
+                cmd += ["-g", str(cpath)]
         p = subprocess.run(cmd, capture_output=True, text=True)
         tree = Path(td) / "out.treefile"
         if p.returncode != 0 or not tree.exists():

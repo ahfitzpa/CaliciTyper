@@ -1,0 +1,32 @@
+genotype	immunotype	regime	evidence	status
+GI.1	A	static	Parra 2017 Fig 5/Table 1 (verified from supplied figures)	SUPPORTED
+GI.2	B	not_assessed	Parra 2017 Fig 5/Table 1 (verified from supplied figures)	SUPPORTED
+GI.3	C	static	Parra 2017 Fig 5/Table 1 (verified from supplied figures)	SUPPORTED
+GI.4	B	static	Parra 2017 Fig 5/Table 1 (verified from supplied figures)	SUPPORTED
+GI.5	B	not_assessed	Parra 2017 Fig 5/Table 1 (verified from supplied figures)	SUPPORTED
+GI.6	B	static	Parra 2017 Fig 5/Table 1 (verified from supplied figures)	SUPPORTED
+GI.7	C	not_assessed	Parra 2017 Fig 5/Table 1 (verified from supplied figures)	SUPPORTED
+GI.8	C	not_assessed	Parra 2017 Fig 5/Table 1 (verified from supplied figures)	SUPPORTED
+GI.9	C	not_assessed	Parra 2017 Fig 5/Table 1 (verified from supplied figures)	SUPPORTED
+GII.1	D	static	Parra 2017 Fig 5/Table 1 (verified from supplied figures)	SUPPORTED
+GII.2	E	static	Parra 2017 Fig 5/Table 1 (verified from supplied figures)	SUPPORTED
+GII.3	F	static	Parra 2017 Fig 5/Table 1 (verified from supplied figures)	SUPPORTED
+GII.4	G	evolving	Parra 2017 Fig 5/Table 1 (verified from supplied figures)	SUPPORTED
+GII.5	E	static	Parra 2017 Fig 5/Table 1 (verified from supplied figures)	SUPPORTED
+GII.6	H	static	Parra 2017 Fig 5/Table 1 (verified from supplied figures)	SUPPORTED
+GII.7	I	static	Parra 2017 Fig 5/Table 1 (verified from supplied figures)	SUPPORTED
+GII.12	D	static	Parra 2017 Fig 5/Table 1 (verified from supplied figures)	SUPPORTED
+GII.13	J	static	Parra 2017 Fig 5/Table 1 (verified from supplied figures)	SUPPORTED
+GII.17	J	static_emerging_candidate	Parra 2017 Fig 5/Table 1 (verified from supplied figures)	SUPPORTED
+GII.20	G	not_assessed	Parra 2017 Fig 5/Table 1 (verified from supplied figures)	SUPPORTED
+GII.10	E	not_assessed	Parra 2017 Fig 5/Table 1	SUPPORTED
+GII.11	porcine	not_assessed	Parra 2017 Fig 5/Table 1	SUPPORTED
+GII.14	I	not_assessed	Parra 2017 Fig 5/Table 1	SUPPORTED
+GII.15	K	not_assessed	Parra 2017 Fig 5/Table 1	SUPPORTED
+GII.16	D	not_assessed	Parra 2017 Fig 5/Table 1	SUPPORTED
+GII.18	porcine	not_assessed	Parra 2017 Fig 5/Table 1	SUPPORTED
+GII.19	porcine	not_assessed	Parra 2017 Fig 5/Table 1	SUPPORTED
+GII.21	J	not_assessed	Parra 2017 Fig 5/Table 1	SUPPORTED
+GII.22	L	not_assessed	Parra 2017 Fig 5/Table 1	SUPPORTED
+GII.8	I	not_assessed	Parra 2017 Fig 5/Table 1	SUPPORTED
+GII.9	I	not_assessed	Parra 2017 Fig 5/Table 1	SUPPORTED

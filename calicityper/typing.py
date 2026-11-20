@@ -1,22 +1,51 @@
 """Typing pipeline: BLAST genogroup -> region check (>=100 nt) -> ClustalW profile alignment -> NJ + bootstrap."""
-import os, subprocess, tempfile
+import csv, math, os, subprocess, tempfile
 from functools import lru_cache
 import numpy as np
-import pandas as pd
-from Bio import SeqIO
-from Bio.Seq import Seq
 from . import config as cg
 from . import tree, align
 
 MIN_OVERLAP = 100
 MIN_QUERY_FRAC_COLS = 0.5   # keep alignment columns where >=50% of references have a base
 
+_RC_TABLE = str.maketrans(
+    "ACGTURYKMSWBDHVNacgturykmswbdhvn-",
+    "TGCAAYRMKSWVHDBNtgcaayrmkswvhdbn-",
+)
+
+
+def _revcomp(seq):
+    return str(seq).translate(_RC_TABLE)[::-1]
+
+
+def read_fasta(path):
+    """Fast stdlib FASTA reader returning [(record_id, seq_str)] matching SeqIO.parse."""
+    recs = []
+    rid = None
+    buf = []
+    with open(path, encoding="utf-8") as fh:
+        for raw in fh:
+            line = raw.strip()
+            if not line:
+                continue
+            if line.startswith(">"):
+                if rid is not None:
+                    recs.append((rid, "".join(buf)))
+                parts = line[1:].strip().split(None, 1)
+                rid = parts[0] if parts else ""
+                buf = []
+            elif rid is not None:
+                buf.append(line)
+    if rid is not None:
+        recs.append((rid, "".join(buf)))
+    return recs
+
 
 @lru_cache(maxsize=None)
 def load_reference(region, group):
     """Return (aln_path, {accession: type}) for a region ('orf1'/'orf2') and genogroup."""
     aln, orf = cg.ref_paths(region, group)
-    types = {r.id.split("|")[2]: r.id.split("|")[1] for r in SeqIO.parse(orf, "fasta")}
+    types = {rid.split("|")[2]: rid.split("|")[1] for rid, _ in read_fasta(orf)}
     return str(aln), types
 
 
@@ -44,11 +73,11 @@ def _type_region_clustalw(seq, group, region, exclude=(), nrep=100, seed=1, min_
             from Bio.Align import MultipleSeqAlignment
             AlignIO.write(MultipleSeqAlignment(kept), ref_aln, "clustal")
         _clustalw_profile(ref_aln, q, out)
-        recs = list(SeqIO.parse(out, "fasta"))
-    names = [r.id for r in recs]
+        recs = read_fasta(out)
+    names = [rid for rid, _ in recs]
     # alignment labels are either a bare accession or 'group|type|accession' depending on the file
     types = {n: types[n.split("|")[-1]] for n in names if n != "QUERY" and n.split("|")[-1] in types}
-    seqs = [str(r.seq) for r in recs]
+    seqs = [sq for _, sq in recs]
     codes = tree.encode(seqs)
     qi = names.index("QUERY")
     refmask = np.array([i != qi for i in range(len(names))])
@@ -65,7 +94,8 @@ def _type_region_clustalw(seq, group, region, exclude=(), nrep=100, seed=1, min_
     return res
 
 
-def type_aligned(ref, qaln, exclude=(), nrep=100, seed=1, min_support=70.0, max_refs_per_type=None):
+def type_aligned(ref, qaln, exclude=(), nrep=100, seed=1, min_support=70.0,
+                 max_refs_per_type=None, fast_boot=False):
     """Bootstrap-NJ typing of one query already aligned to `ref` (align.RefSet)."""
     ex = set(exclude)
     keep = [i for i, n in enumerate(ref.names) if n not in ex]
@@ -78,7 +108,7 @@ def type_aligned(ref, qaln, exclude=(), nrep=100, seed=1, min_support=70.0, max_
         return dict(type=None, support=0.0, supports={}, n_sites=int(cols.sum()), n_refs=len(types),
                     region_sites=int((frac >= MIN_QUERY_FRAC_COLS).sum()), note="too few aligned sites")
     res = tree.assign(names, types, "QUERY", codes[:, cols], nrep=nrep, seed=seed, min_support=min_support,
-                      max_refs_per_type=max_refs_per_type)
+                      max_refs_per_type=max_refs_per_type, fast_boot=fast_boot)
     res["region_sites"] = int((frac >= MIN_QUERY_FRAC_COLS).sum())   # columns the region spans
     acc, ident, n_ident = tree.nearest_reference(names, "QUERY", codes[:, cols])
     res.update(nearest=acc, nearest_identity=ident, nearest_sites=n_ident,
@@ -87,19 +117,38 @@ def type_aligned(ref, qaln, exclude=(), nrep=100, seed=1, min_support=70.0, max_
 
 
 def type_region(seq, group, region, exclude=(), nrep=100, seed=1, min_support=70.0, max_refs_per_type=None,
-                backend="mafft", threads=1):
+                backend="mafft", threads=1, fast_boot=False):
     """Type one sequence for one region against the reference set of `group`."""
     if backend == "clustalw":
         return _type_region_clustalw(seq, group, region, exclude, nrep, seed, min_support, max_refs_per_type)
     ref, (qaln,) = align.align_queries(region, group, [("q", seq)], exclude, threads)
-    return type_aligned(ref, qaln, exclude, nrep, seed, min_support, max_refs_per_type)
+    return type_aligned(ref, qaln, exclude, nrep, seed, min_support, max_refs_per_type, fast_boot=fast_boot)
+
+
+def _opt_coord(val):
+    s = (val or "").strip()
+    if not s or s.lower() in ("na", "nan", "none"):
+        return None
+    v = float(s)
+    return None if math.isnan(v) else v
 
 
 @lru_cache(maxsize=1)
 def _annotation():
-    a = pd.read_csv(cg.ANNOTATION)
-    a["acc"] = a["id"].astype(str)
-    return a.set_index("acc")
+    """Return {acc: (rdrp_start, rdrp_end, vp1_start, vp1_end)} parsed via stdlib csv."""
+    out = {}
+    with open(cg.ANNOTATION, newline="", encoding="utf-8") as fh:
+        for row in csv.DictReader(fh):
+            acc = str(row.get("id", "")).strip()
+            if not acc:
+                continue
+            out[acc] = (
+                _opt_coord(row.get("rdrp_start")),
+                _opt_coord(row.get("rdrp_end")),
+                _opt_coord(row.get("vp1_start")),
+                _opt_coord(row.get("vp1_end")),
+            )
+    return out
 
 
 def blast_genogroup(query_fa, threads=1):
@@ -124,17 +173,17 @@ def blast_genogroup(query_fa, threads=1):
 def region_overlap(hit, region):
     ann = _annotation()
     acc = hit["subject"].split("|")[-1].split()[0]
-    if acc not in ann.index:
+    coords = ann.get(acc)
+    if coords is None:
         return 0
-    row = ann.loc[acc]
     lo, hi = min(hit["sstart"], hit["send"]), max(hit["sstart"], hit["send"])
-    a, b = (row.rdrp_start, row.rdrp_end) if region == "orf1" else (row.vp1_start, row.vp1_end)
-    if pd.isna(a) or pd.isna(b):
+    a, b = (coords[0], coords[1]) if region == "orf1" else (coords[2], coords[3])
+    if a is None or b is None:
         return 0
     return max(0, min(hi, b) - max(lo, a))
 
 
-def type_query(rec_id, seq, hit, nrep=100, seed=1, min_support=70.0, max_refs_per_type=None):
+def type_query(rec_id, seq, hit, nrep=100, seed=1, min_support=70.0, max_refs_per_type=None, fast_boot=False):
     row = dict(query=rec_id, genogroup="unassigned", orf1_type="", orf1_support="", orf1_runners="",
                orf2_type="", orf2_support="", orf2_runners="", note="")
     if hit is None:
@@ -146,7 +195,7 @@ def type_query(rec_id, seq, hit, nrep=100, seed=1, min_support=70.0, max_refs_pe
         row["note"] = "other Caliciviridae: genogroup only"
         return row
     if hit["reverse"]:
-        seq = str(Seq(str(seq)).reverse_complement())
+        seq = _revcomp(seq)
     notes = []
     for region in ("orf1", "orf2"):
         if region_overlap(hit, region) < MIN_OVERLAP:
@@ -155,7 +204,7 @@ def type_query(rec_id, seq, hit, nrep=100, seed=1, min_support=70.0, max_refs_pe
         if cg.ref_paths(region, g) is None:
             continue
         res = type_region(seq, g, region, nrep=nrep, seed=seed, min_support=min_support,
-                          max_refs_per_type=max_refs_per_type)
+                          max_refs_per_type=max_refs_per_type, fast_boot=fast_boot)
         row[f"{region}_type"] = res["type"] or "unassigned"
         row[f"{region}_support"] = round(res["support"], 1)
         if res["type"] is None:
@@ -171,11 +220,11 @@ def orf_window(hit, region):
     """Approximate window (0-based, half-open) of `region` on the ORIGINAL query, mapped through the BLAST HSP."""
     ann = _annotation()
     acc = hit["subject"].split("|")[-1].split()[0]
-    if acc not in ann.index:
+    coords = ann.get(acc)
+    if coords is None:
         return None
-    row = ann.loc[acc]
-    a, b = (row.rdrp_start, row.rdrp_end) if region == "orf1" else (row.vp1_start, row.vp1_end)
-    if pd.isna(a) or pd.isna(b):
+    a, b = (coords[0], coords[1]) if region == "orf1" else (coords[2], coords[3])
+    if a is None or b is None:
         return None
     f = (lambda x: hit["qstart"] + (hit["sstart"] - x)) if hit["reverse"] else (lambda x: hit["qstart"] + (x - hit["sstart"]))
     lo, hi = sorted((f(a), f(b)))
@@ -243,7 +292,7 @@ def plan_query(rec_id, seq, hit):
         if w:                                   # long query (e.g. whole genome): align only the ORF neighbourhood
             sub = sub[w[0]:w[1]]
         if hit["reverse"]:
-            sub = str(Seq(sub).reverse_complement())
+            sub = _revcomp(sub)
         jobs.append((region, g, sub))
     row["note"] = "; ".join(notes)
     return row, jobs
@@ -314,8 +363,9 @@ def apply_result(row, region, res, min_support):
         why.append("no type could be computed")
     if res["support"] < min_support:
         why.append(f"support {res['support']:.0f}% < {min_support:.0f}%")
-    if sites < cg.MIN_INFORMATIVE_SITES:
-        why.append(f"{sites} aligned sites < {cg.MIN_INFORMATIVE_SITES}")
+    min_s = cg.min_sites_for(region)
+    if sites < min_s:
+        why.append(f"{sites} aligned sites < {min_s}")
     row[f"{region}_accepted"] = "accepted" if not why else "rejected: " + "; ".join(why)
     if why:
         row["note"] = "; ".join(x for x in (row["note"], f"{region}: " + "; ".join(why)) if x)

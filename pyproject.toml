@@ -1,6 +1,6 @@
 [project]
 name = "calicityper"
-version = "0.8.0"
+version = "0.8.1"
 description = "CaliciTyper: command-line typing for Caliciviridae"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -42,6 +42,10 @@ include-package-data = false
 # (doi:10.5281/zenodo.24161236) fetched by `calicityper setup`. Only the small
 # text files the package needs to find and verify it travel with the code.
 calicityper = [
+  "data/gii4_antigenic_sites.tsv",
+  "data/gii4_coevolving_pairs.tsv",
+  "data/gii4_variant_references.tsv",
+  "data/immunotype_regime.tsv",
   "data/putative_novel_bounds.tsv",
   "data/reference_accessions.tsv",
   "data/reference_manifest.json",

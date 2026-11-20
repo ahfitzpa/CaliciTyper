@@ -44,7 +44,3 @@ calicityper/data/.cache/
 # does not depend on those hosts being up. Repopulate with
 # containers/fetch_cache.sh; the definition downloads anything absent.
 containers/cache/
-
-# GII.4 epitope/immunotype scaffolding: development, not tool behaviour.
-# Lives on the dev-gii4-epitopes branch until any of F1-F4 is promoted.
-gii4_epitopes/
