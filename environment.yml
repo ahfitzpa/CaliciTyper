@@ -14,19 +14,25 @@
 # separate pinned environment due to numpy<2 constraints (see README).
 name: calicityper
 channels: [conda-forge, bioconda]
+# Bounds, not exact versions: the Python packages mirror pyproject.toml's pins
+# (keep the two in sync) and the external tools carry floors only, since their
+# patch releases do not change a call. For an exact, test-verified set use
+# environment.lock.yml, which benchmarking/slurm/make_env_lock.sh in the
+# CaliciTyper_manuscript repo writes only after the suite passes in the solved
+# environment.
 dependencies:
   - python>=3.10
-  - numpy
-  - pandas
-  - biopython
-  - blast          # genogroup assignment
-  - mafft          # aligns queries onto the pre-aligned references (default backend)
-  - clustalw       # only for the legacy --backend clustalw path
-  - iqtree         # ML trees for the putative-novel 2x SD screen (Chhabra et al. use PhyML)
-  - numba          # optional: ~10x faster bootstrap (pure-numpy fallback if absent)
-  - bokeh         # figures in the HTML report (--html / --report)
-  - entrez-direct  # only for scripts/fetch_rivm_test_set.sh (RIVM comparison set)
-  - pytest
+  - numpy>=2.0,<3
+  - pandas>=2.0,<4
+  - biopython>=1.81,<2
+  - blast>=2.15        # genogroup assignment
+  - mafft>=7.5         # aligns queries onto the pre-aligned references (default backend)
+  - clustalw>=2.1      # only for the legacy --backend clustalw path
+  - iqtree>=2.2        # ML trees for the putative-novel 2x SD screen (Chhabra et al. use PhyML)
+  - numba>=0.59,<1     # optional: ~10x faster bootstrap (pure-numpy fallback if absent)
+  - bokeh>=3.1,<4      # figures in the HTML report (--html / --report)
+  - entrez-direct      # only for scripts/fetch_rivm_test_set.sh (RIVM comparison set)
+  - pytest>=7.4,<10
   - pip
   - pip:
       - -e .

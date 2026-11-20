@@ -6,7 +6,18 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [{ name = "Amy Fitzpatrick" }]
-dependencies = ["biopython", "numpy", "pandas"]
+# Floors are the oldest releases that support requires-python and provide the
+# APIs used (Bio.Align.PairwiseAligner with substitution_matrices; the NumPy 2
+# scalar and copy semantics the distance code relies on). Ceilings are the next
+# major: unbounded dependencies let a new upstream major turn CI red with no
+# code change, which is what these pins are for. Raise a ceiling only after CI
+# has run against that major. environment.lock.yml carries one solved,
+# test-verified set of versions for reproducing a run exactly.
+dependencies = [
+  "biopython>=1.81,<2",
+  "numpy>=2.0,<3",
+  "pandas>=2.0,<4",
+]
 classifiers = [
   "Intended Audience :: Science/Research",
   "License :: OSI Approved :: MIT License",
@@ -16,9 +27,9 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
 ]
 [project.optional-dependencies]
-fast = ["numba"]
-report = ["bokeh"]
-test = ["pytest", "bokeh"]
+fast = ["numba>=0.59,<1"]
+report = ["bokeh>=3.1,<4"]
+test = ["pytest>=7.4,<10", "bokeh>=3.1,<4"]
 [project.urls]
 Homepage = "https://github.com/ahfitzpa/CaliciTyper"
 Repository = "https://github.com/ahfitzpa/CaliciTyper"

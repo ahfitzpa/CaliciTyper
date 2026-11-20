@@ -44,3 +44,6 @@ calicityper/data/.cache/
 # does not depend on those hosts being up. Repopulate with
 # containers/fetch_cache.sh; the definition downloads anything absent.
 containers/cache/
+
+# Apptainer image built by containers/calicityper-tools.def (335 MB)
+containers/*.sif

@@ -1,9 +1,0 @@
-genotype	cluster	accession	source_label	evidence
-GII.4	Sydney	JX459908.1	GII.4_Sydney	bundled v0.8.1
-GII.4	Hunter	AY883096.1	GII.4_Hunter	bundled v0.8.1
-GII.4	Bristol	X76716.1	GII.4_Bristol	bundled v0.8.1
-GII.17	C	AB983218	Kawasaki_2014	Parra 2017 Fig S2: Kawasaki323/2013/JPN in Variant_C
-GII.17	D	LC037415	Kawasaki_2014	Parra 2017 Fig S2: Kawasaki308/2015/JPN in Variant_D
-GII.6	A	AB039777	GII.6A	Fig 2A: SaitamaU4/1997/JPN in bottom Variant A clade
-GII.6	B	AF414410	GII.6B	Fig 2A: Miami/1994/USA in Variant B cluster (high-confidence right-hand clade)
-GII.6	C	HM633213	GII.6C	Fig 2A: 8913 Shizuoka/2000/JPN in Variant C cluster (high-confidence left-hand clade)

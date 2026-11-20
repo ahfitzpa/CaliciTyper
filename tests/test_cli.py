@@ -263,8 +263,9 @@ def test_classify_follows_per_cluster_bounds():
     assert nv.classify("orf2", {"GII.NA1": 0.12}, None, t)[0] == nv.KNOWN
 
 
-def test_putative_novel_columns_and_sapovirus_not_assessed(tmp_path):
-    """Every row carries the putative novel columns; non-noroviruses are not assessed."""
+def test_putative_novel_columns_and_sapovirus_vp1_reported(tmp_path):
+    """Every row carries the putative novel columns. A sapovirus VP1 reports the
+    published distance cut-off's outcome; sapovirus RdRp stays unassessed."""
     import pandas as pd
     from calicityper import putative_novel as nv
     ex = Path(__file__).resolve().parent.parent / "examples" / "example.fasta"
@@ -273,7 +274,10 @@ def test_putative_novel_columns_and_sapovirus_not_assessed(tmp_path):
     d = pd.read_csv(out, sep="\t", dtype=str).fillna("").set_index("query")
     for c in ("orf1_putative_novel", "orf2_putative_novel", "orf1_putative_novel_detail", "orf2_putative_novel_detail"):
         assert c in d.columns
-    assert d.loc["MN509084.1", "orf2_putative_novel"] == nv.NA
+    assert d.loc["MN509084.1", "orf2_putative_novel"] == nv.KNOWN
+    assert "cut-off" in d.loc["MN509084.1", "orf2_putative_novel_detail"]
+    assert d.loc["MN509084.1", "orf1_putative_novel"] == nv.NA
+    assert "P-type cut-off" in d.loc["MN509084.1", "orf1_putative_novel_detail"]
     assert d.loc["MT451991.1", "orf2_putative_novel"] == nv.KNOWN
 
 
@@ -545,16 +549,26 @@ def test_novel_command_screens_complete_sequence_only(tmp_path):
 
 
 @needs_tools
-def test_novel_command_refuses_non_norovirus(tmp_path):
-    """The 2x SD bounds are norovirus bounds; sapovirus has its own published
-    cut-offs, so it is declined rather than measured against the wrong ones."""
+def test_novel_command_reports_sapovirus_by_its_own_cutoffs(tmp_path):
+    """The 2x SD bounds are norovirus bounds, so sapovirus is never measured
+    against them. VP1 reports the published cut-off outcome the type call
+    already reached; RdRp is not screened at all, because the 0.266 P-type
+    cut-off overlaps the between-type distances."""
     sapo = [r for r in SeqIO.parse(cg.BLAST_FASTA, "fasta") if "Sapovirus" in r.id][0]
     sapo.id, sapo.description = "sapovirus", ""
     q = tmp_path / "s.fa"
     SeqIO.write([sapo], q, "fasta")
     rows = run_novel(q, tmp_path / "novel.tsv")
-    assert rows and all(r["flag"] == "not_assessable" for r in rows), rows
-    assert all("sapovirus" in r["detail"] for r in rows), rows
+    assert rows, rows
+    by_region = {r["region"]: r for r in rows}
+    orf1 = by_region["orf1"]
+    assert orf1["flag"] == "not_assessable", orf1
+    assert "P-type cut-off" in orf1["detail"], orf1
+    orf2 = by_region["orf2"]
+    # a cut-off outcome, never a 2x SD bound
+    assert orf2["flag"] in ("known", "putative_novel_type",
+                            "putative_novel_group", "not_assessable"), orf2
+    assert "cut-off" in orf2["detail"] or "distance" in orf2["detail"], orf2
 
 
 @needs_tools

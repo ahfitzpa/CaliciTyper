@@ -151,6 +151,11 @@ def test_a_sapovirus_genome_is_typed_end_to_end(tmp_path):
     assert row["genogroup"] == G
     assert (row["orf1_type"], row["orf2_type"]) == ("GII.P2", "GII.2")
     assert row["orf1_accepted"] == row["orf2_accepted"] == "accepted"
-    # novelty is the distance cut-off's job; the norovirus 2x SD screen must not run
+    # novelty is the distance cut-off's job, and the VP1 column now reports that
+    # outcome; the norovirus 2x SD screen still must not run, and RdRp is not
+    # screened at all because its cut-off overlaps the between-type distances
     from calicityper import putative_novel
-    assert row["orf1_putative_novel"] == row["orf2_putative_novel"] == putative_novel.NA
+    assert row["orf2_putative_novel"] == putative_novel.KNOWN
+    assert "genotype cut-off" in row["orf2_putative_novel_detail"]
+    assert row["orf1_putative_novel"] == putative_novel.NA
+    assert "P-type cut-off" in row["orf1_putative_novel_detail"]

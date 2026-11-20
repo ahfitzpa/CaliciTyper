@@ -1,0 +1,150 @@
+# Solved, test-verified environment for CaliciTyper. NOT hand-edited.
+#
+# Written by benchmarking/slurm/make_env_lock.sh after `pytest tests/`
+# passed in this exact environment:
+#   125 passed, 13 deselected, 4 warnings in 131.16s (0:02:11)
+#   platform linux-64, python 3.12, 2026-11-20
+#   calicityper ed0384e on main
+#
+# Use it to reproduce a run exactly:
+#   conda env create -n calicityper-locked -f environment.lock.yml
+# environment.yml stays the bounded spec to install from normally, and
+# CI keeps resolving 3.10 and 3.12 fresh so upstream breakage still shows.
+# Exported --no-builds: versions pinned, build strings left out so the
+# file is not tied to one package build.
+name: 
+channels:
+  - bioconda
+  - conda-forge
+dependencies:
+  - _openmp_mutex=4.5
+  - biopython=1.88
+  - blast=2.17.0
+  - bokeh=3.10.0
+  - bzip2=1.0.8
+  - c-ares=1.34.9
+  - ca-certificates=2026.10.23
+  - clustalw=2.1
+  - colorama=0.4.6
+  - contourpy=1.4.0
+  - curl=8.23.0
+  - entrez-direct=26.0
+  - exceptiongroup=1.3.2
+  - gawk=5.4.1
+  - gmp=6.3.0
+  - icu=79.1
+  - iniconfig=2.3.1
+  - iqtree=3.1.4
+  - jinja2=3.1.6
+  - keyutils=1.6.3
+  - krb5=1.22.2
+  - lcms2=2.20
+  - ld_impl_linux-64=2.46.1
+  - lerc=4.3.0
+  - libasprintf=0.25.1
+  - libblas=3.11.0
+  - libcblas=3.11.0
+  - libcurl=8.23.0
+  - libdeflate=1.26
+  - libedit=3.1.20260512
+  - libev=4.33
+  - libexpat=2.9.0
+  - libffi=3.7.0
+  - libfreetype=2.14.3
+  - libfreetype6=2.14.3
+  - libgcc=16.2.0
+  - libgcc-ng=16.2.0
+  - libgettextpo=0.25.1
+  - libgfortran=16.2.0
+  - libgfortran5=16.2.0
+  - libgomp=16.2.0
+  - libiconv=1.18
+  - libidn2=2.3.8
+  - libjpeg-turbo=3.2.1
+  - liblapack=3.11.0
+  - liblzma=5.8.3
+  - libmpdec=4.0.0
+  - libnghttp2=1.71.0
+  - libnsl=2.0.1
+  - libopenblas=0.3.34
+  - libpng=1.6.59
+  - libpsl=0.23.1
+  - libpython=3.12.16
+  - libsqlite=3.54.1
+  - libssh2=1.11.1
+  - libstdcxx=16.2.0
+  - libtiff=4.7.2
+  - libunistring=0.9.10
+  - libuuid=2.42.4
+  - libwebp-base=1.6.0
+  - libxcb=1.17.0
+  - libxcrypt=4.4.38
+  - libzlib=1.3.2
+  - llvmlite=0.50.0
+  - mafft=7.526
+  - markupsafe=3.0.4
+  - mpfr=4.2.2
+  - narwhals=2.29.0
+  - ncbi-vdb=3.4.1
+  - ncurses=6.6
+  - numba=0.68.1
+  - numpy=2.5.5
+  - openjpeg=2.5.4
+  - openssl=3.6.5
+  - packaging=26.3
+  - pandas=3.1.1
+  - pcre2=10.47
+  - perl=5.32.1
+  - perl-archive-tar=3.14
+  - perl-carp=1.50
+  - perl-common-sense=3.75
+  - perl-compress-raw-bzip2=2.214
+  - perl-compress-raw-zlib=2.214
+  - perl-encode=3.24
+  - perl-exporter=5.74
+  - perl-exporter-tiny=1.002002
+  - perl-extutils-makemaker=7.70
+  - perl-io-compress=2.216
+  - perl-io-zlib=1.15
+  - perl-json=4.11
+  - perl-json-xs=4.04
+  - perl-list-moreutils=0.430
+  - perl-list-moreutils-xs=0.430
+  - perl-parent=0.243
+  - perl-pathtools=3.75
+  - perl-scalar-list-utils=1.70
+  - perl-storable=3.15
+  - perl-types-serialiser=1.01
+  - pillow=13.0.0
+  - pip=26.2.2
+  - pluggy=1.7.0
+  - pthread-stubs=0.4
+  - pygments=2.21.0
+  - pytest=9.2.0
+  - python=3.12.16
+  - python-dateutil=4.0.0
+  - python-tzdata=2026.6
+  - python_abi=3.12
+  - pyyaml=6.0.3
+  - readline=8.3
+  - setuptools=84.2.1
+  - tk=8.6.13
+  - tomli=2.5.0
+  - tornado=6.6.1
+  - typing_extensions=4.16.0
+  - tzdata=2026e
+  - wget=1.25.0
+  - wheel=0.48.0
+  - xorg-libxau=1.0.12
+  - xorg-libxdmcp=1.1.5
+  - xyzservices=2026.9.1
+  - yaml=0.2.5
+  - zlib=1.3.2
+  - zlib-ng=2.3.3
+  - zstd=1.5.7
+  - pip:
+    - calicityper==0.8.1
+    - psycopg==3.3.4
+    - psycopg-binary==3.3.4
+    - psycopg-pool==3.3.1
+
