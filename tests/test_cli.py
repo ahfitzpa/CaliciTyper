@@ -44,9 +44,9 @@ def run_cli(fasta, out, *extra):
         return list(csv.DictReader(fh, delimiter="\t"))
 
 
-def run_novel(fasta, out, *extra):
+def run_novel(fasta, out, *extra, env=None):
     cmd = [sys.executable, "-m", "calicityper.cli", "novel", str(fasta), "-o", str(out), *extra]
-    p = subprocess.run(cmd, capture_output=True, text=True)
+    p = subprocess.run(cmd, capture_output=True, text=True, env=env)
     assert p.returncode == 0, f"calicityper novel failed:\n{p.stdout}\n{p.stderr}"
     with open(out) as fh:
         return list(csv.DictReader(fh, delimiter="\t"))
@@ -546,6 +546,27 @@ def test_novel_command_screens_complete_sequence_only(tmp_path):
     assert "nucleotide" in by[(ref.id, "orf1")]["basis"]      # P-types are nt, not aa
     for region in ("orf1", "orf2"):
         assert by[("regionC_300nt", region)]["flag"] == "not_assessable"
+
+
+@needs_tools
+def test_novel_command_falls_back_to_nj_without_iqtree(tmp_path):
+    """Without IQ-TREE the screen falls back to NJ patristic distances for both
+    regions instead of crashing on the VP1 path (CI run on e8ae5bd)."""
+    import os
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    for tool in ("blastn", "makeblastdb", "mafft"):
+        (bin_dir / tool).symlink_to(shutil.which(tool))
+    env = {k: v for k, v in os.environ.items()
+           if k not in ("CALICITYPER_IQTREE", "CALICITYPER_NOVEL_DISTANCE")}
+    env["PATH"] = f"{bin_dir}:/usr/bin:/bin"
+    ref = reference_genomes(1)[0]
+    q = tmp_path / "q.fa"
+    SeqIO.write([ref], q, "fasta")
+    rows = run_novel(q, tmp_path / "novel.tsv", env=env)
+    by = {r["region"]: r for r in rows}
+    assert by["orf2"]["flag"] == "known", by["orf2"]
+    assert "NJ patristic" in by["orf2"]["detail"], by["orf2"]["detail"]
 
 
 @needs_tools

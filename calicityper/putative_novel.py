@@ -757,7 +757,8 @@ def assess(region, group, qa, sub):
     vp1 = complete_vp1(sub, [len(s) for *_, s in refs])
     if vp1 is None:
         return _na(region, "no complete VP1 open reading frame")
-    if effective_measure() == "ml":
+    measure = effective_measure()
+    if measure == "ml":
         aligned_refs, aligned_q = add_to_vp1_alignment(vp1)
         aa_by_acc = dict(aligned_refs)
         ordered_refs = [(r[0], aa_by_acc[r[0]]) for r in refs]
@@ -767,7 +768,7 @@ def assess(region, group, qa, sub):
     else:
         refs, Dref = vp1_reference_matrix()
         obs = [p_distance(vp1, s, "aa")[0] for *_, s in refs]
-        P = as_patristic(augment(Dref, obs), records=None, alphabet="aa")
+        P = as_patristic(augment(Dref, obs), method=measure, records=None, alphabet="aa")
     d = P[-1, :-1]
     # both levels come off the one tree: the shortlist the observed-distance
     # version needed to keep the cost down is unnecessary here, because the
