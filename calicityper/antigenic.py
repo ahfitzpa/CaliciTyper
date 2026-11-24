@@ -133,6 +133,19 @@ CAVEAT = (
     "neutralisation titres and is not inferable from sequence."
 )
 
+#: P domain span in 540-aa GII.4 VP1 numbering, for --export-novel-pdimer.
+#: P1 runs 226-278 and 406-520, P2 279-405, so 226-520 is the P domain as a
+#: whole. These are a construct boundary, not a fact about any one sequence:
+#: adjust here if a different P-particle definition is wanted.
+P_DOMAIN = (226, 520)
+
+#: Substitution matrix for the per-site radicality score. BLOSUM62 is used
+#: rather than Grantham because Biopython ships it, so no 190-value table is
+#: transcribed by hand. Scores are substitution log-odds, NOT physicochemical
+#: distances: lower (more negative) means a less conservative exchange. A
+#: Grantham option would need its property table added as sourced data.
+SUBST_MATRIX = "BLOSUM62"
+
 
 class AntigenicError(ValueError):
     """Raised when the input cannot support a trustworthy annotation."""
