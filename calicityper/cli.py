@@ -1,3 +1,4 @@
+"""Command-line interface (`calicityper type|novel|recomb|antigenic|setup`)."""
 import argparse, csv, os, subprocess, sys, tempfile
 from pathlib import Path
 from collections import defaultdict

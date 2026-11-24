@@ -32,14 +32,14 @@ Detailed reference: [`docs/REFERENCE.md`](docs/REFERENCE.md) • Output schemas/
 sdist and the matching reference-set archive.
 
 ```bash
-pip install https://github.com/ahfitzpa/CaliciTyper/releases/download/v0.8.0/calicityper-0.8.0-py3-none-any.whl
-calicityper setup --source calicityper-reference-0.8.0.tar.gz
+pip install https://github.com/ahfitzpa/CaliciTyper/releases/download/v0.8.1/calicityper-0.8.1-py3-none-any.whl
+calicityper setup --source calicityper-reference-0.8.1.tar.gz
 ```
 
 Or straight from Git:
 
 ```bash
-pip install git+https://github.com/ahfitzpa/CaliciTyper@v0.8.0
+pip install git+https://github.com/ahfitzpa/CaliciTyper@v0.8.1
 calicityper setup
 ```
 
@@ -251,8 +251,22 @@ Full troubleshooting and performance guidance: [`docs/REFERENCE.md`](docs/REFERE
 - Three levels of reproducibility, strongest last:
   - [`environment.yml`](environment.yml) — bounded spec, for a normal install. Resolves fresh, so versions differ between machines.
   - [`environment.lock.yml`](environment.lock.yml) — one solved, **test-verified** set (linux-64, Python 3.12): every version pinned, written only after `pytest tests/` passed in that exact environment. `conda env create -n calicityper-locked -f environment.lock.yml`.
-  - [`containers/calicityper-tools.def`](containers/calicityper-tools.def) — Apptainer image, which also isolates OpenRDP's `numpy<2` requirement from the tool's `numpy>=2`.
+  - [`containers/calicityper-tools.def`](containers/calicityper-tools.def) and [`containers/calicityper.def`](containers/calicityper.def) — Apptainer images (tools-only and all-in-one), isolating OpenRDP's `numpy<2` requirement from CaliciTyper's `numpy>=2`.
 - CI deliberately resolves 3.10 and 3.12 fresh rather than installing the lock, so upstream breakage still surfaces; the upper bounds are what keep that from being noise. OpenRDP workflow and version guidance: [`docs/REFERENCE.md`](docs/REFERENCE.md).
+
+## Codebase map
+
+| Path | Role |
+|---|---|
+| `calicityper/cli.py` | CLI entry point (`type`, `novel`, `recomb`, `antigenic`, `setup`) and multiprocessing orchestration |
+| `calicityper/config.py` | Reference paths, container `/data` default, thresholds, and external-tool resolution |
+| `calicityper/align.py` | BLAST genogrouping and MAFFT profile alignment onto fixed reference columns |
+| `calicityper/typing.py`, `tree.py`, `patristic.py` | Norovirus NJ/bootstrap typing, sapovirus p-distance typing, and patristic distance |
+| `calicityper/putative_novel.py` | Norovirus `mean + 2 SD` patristic novelty screening |
+| `calicityper/recomb.py`, `recomb_config.py` | OpenRDP wrapper, clustering, and categorical evidence-level rules |
+| `calicityper/antigenic.py` | Norovirus GII.4 VP1 antigenic-site annotation and BLOSUM62 radicality |
+| `calicityper/report.py`, `provenance.py`, `setup_data.py` | Markdown/JSON/HTML reporting, provenance sidecars, and verified Zenodo data setup |
+| `containers/`, `scripts/`, `tests/`, `examples/` | Apptainer recipes, reference-build utilities, `pytest` suite, and worked examples |
 
 ## Documentation
 
