@@ -327,3 +327,81 @@ def test_guard_refuses_something_that_is_not_a_vp1():
     with pytest.raises(ag.AntigenicError) as e:
         ag.check_gii_input("junk", "W" * 600)
     assert "matches no bundled VP1 reference" in str(e.value)
+
+
+# ------------------------------- radicality, mutated-site count, P-dimer export
+def test_substitution_score_is_symmetric_and_rejects_non_residues():
+    assert ag.substitution_score("A", "A") > ag.substitution_score("A", "W")
+    assert ag.substitution_score("K", "R") == ag.substitution_score("R", "K")
+    # indel tokens and empty states are not scorable pairs, and must not be 0
+    assert ag.substitution_score("ins", "A") is None
+    assert ag.substitution_score("A", "del") is None
+    assert ag.substitution_score("", "A") is None
+
+
+def test_site_radicality_excludes_indels_rather_than_scoring_them_zero():
+    """An indel at a site must not drag the mean toward zero."""
+    only_indel = {294: ("ins", "A"), 295: ("A", "del")}
+    assert ag.site_radicality(only_indel) is None
+    mixed = {294: ("A", "W"), 295: ("ins", "A")}
+    assert ag.site_radicality(mixed) == ag.site_radicality({294: ("A", "W")})
+
+
+def test_mutated_site_count_counts_sites_not_residues():
+    """Two changes inside one site are one mutated site, not two."""
+    ref = seq()
+    q = list(ref)
+    for res in (294, 295):                       # both in Site A
+        q[res - 1] = "W"
+    ann = ag.annotate("q", "".join(q), "r", ref)
+    assert ann.site_changes["A"]["n_changed"] == 2
+    assert ann.mutated_site_count == 1
+    assert ann.site_radicality["A"] is not None
+    assert ann.site_radicality["C"] is None
+
+
+def test_annotation_carries_the_immunotype_for_its_genotype():
+    ann = ag.annotate("q", seq(), "r", seq())
+    assert (ann.immunotype, ann.evolutionary_regime) == ("G", "evolving")
+
+
+def test_p_domain_sequence_is_resolved_through_the_anchor_not_raw_indices():
+    anchor = seq()
+    row = "-" * 7 + anchor                       # same leading gap in both
+    got = ag.p_domain_sequence(row, row)
+    start, end = ag.P_DOMAIN
+    assert got is not None and len(got) == end - start + 1
+
+
+def test_p_domain_sequence_refuses_an_anchor_that_does_not_reach_the_span():
+    short = seq(ag.P_DOMAIN[1] - 5)
+    assert ag.p_domain_sequence(short, short) is None
+
+
+def test_pdimer_export_only_flagged_deduplicated_and_in_chain_form(tmp_path):
+    ref = seq()
+    q = list(ref)
+    for res in range(1, 40):                     # push past MIN_AA_CHANGES
+        q[res - 1] = "W"
+    for res in (294, 393, 407, 352):             # variable changes at A/D/E/G
+        q[res - 1] = "W"
+    row = "".join(q)
+
+    flagged = ag.annotate("q1", row, "r", ref)
+    same = ag.annotate("q2", row, "r", ref)      # identical P domain
+    assert flagged.candidate_antigenic_shift
+
+    quiet = ag.annotate("q3", ref, "r", ref)
+    assert not quiet.candidate_antigenic_shift
+
+    recs = ag.pdimer_records([flagged, same, quiet],
+                             {"q1": row, "q2": row, "q3": ref}, ref)
+    assert len(recs) == 1, "identical P domains must collapse to one record"
+    assert "q1" in recs[0][0] and "q2" in recs[0][0]
+
+    out = tmp_path / "pd.fasta"
+    assert ag.write_pdimer_fasta(out, recs) == 1
+    body = [l for l in out.read_text().splitlines() if not l.startswith(">")][0]
+    assert body.count(":") == 1, "one colon separates the two chains"
+    left, right = body.split(":")
+    assert left == right, "a homodimer repeats the same chain"

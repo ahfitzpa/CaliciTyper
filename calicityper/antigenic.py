@@ -177,6 +177,10 @@ class Annotation:
     coordinate_warning: str = ""
     reason: str = ""
     site_entropy: dict = field(default_factory=dict)
+    site_radicality: dict = field(default_factory=dict)
+    mutated_site_count: int = 0
+    immunotype: str = ""
+    evolutionary_regime: str = ""
     caveat: str = CAVEAT
 
     def haplotype(self) -> str:
@@ -185,6 +189,50 @@ class Annotation:
             f"{s}:{self.site_changes.get(s, {}).get('query_residues', '')}"
             for s in sorted(SITES)
         )
+
+
+@lru_cache(maxsize=1)
+def _subst_matrix():
+    """Load the substitution matrix, or None when Biopython is unavailable."""
+    try:
+        from Bio.Align import substitution_matrices
+        return substitution_matrices.load(SUBST_MATRIX)
+    except Exception:
+        return None
+
+
+def substitution_score(ref_aa: str, query_aa: str) -> float | None:
+    """BLOSUM62 score for one exchange, or None if it is not a scorable pair.
+
+    Indels ('ins'/'del'), ambiguity letters and anything outside the matrix
+    return None rather than a number, so they are excluded from the mean
+    instead of being silently scored as zero.
+    """
+    m = _subst_matrix()
+    if m is None:
+        return None
+    a, b = (ref_aa or "").upper(), (query_aa or "").upper()
+    if len(a) != 1 or len(b) != 1:
+        return None
+    try:
+        return float(m[a, b])
+    except (KeyError, IndexError):
+        return None
+
+
+def site_radicality(diffs: dict) -> float | None:
+    """Mean BLOSUM62 score over the scorable substitutions at one site.
+
+    Lower (more negative) means a less conservative set of exchanges. None
+    when the site has no scorable substitution, which is not the same as 0.
+    """
+    scores = [
+        s for (a, b) in diffs.values()
+        if (s := substitution_score(a, b)) is not None
+    ]
+    if not scores:
+        return None
+    return round(sum(scores) / len(scores), 3) + 0.0
 
 
 def shannon_entropy(column) -> float | None:
@@ -433,8 +481,14 @@ def annotate(
             "changes": ",".join(change_tokens),
             "query_residues": "".join(q_chars),
         }
+        ann.site_radicality[site] = site_radicality(diffs)
         if site in SHIFT_SITES and has_var_change:
             changed_shift_sites.append(site)
+
+    ann.mutated_site_count = sum(
+        1 for s in SITES if ann.site_changes.get(s, {}).get("n_changed", 0)
+    )
+    ann.immunotype, ann.evolutionary_regime = (x or "" for x in immunotype(genotype))
 
     for site, residues in CONSERVED.items():
         diffs, _ = compare(query_row, reference_row, {r: cols[r] for r in residues})
@@ -515,10 +569,14 @@ TSV_COLUMNS = [
     "query",
     "reference",
     "genotype",
+    "immunotype",
+    "evolutionary_regime",
     "aa_differences",
     "residues_compared",
+    "mutated_site_count",
     "epitope_haplotype",
     "mean_site_entropy",
+    "site_radicality",
     "site_A_changes",
     "site_C_changes",
     "site_D_changes",
@@ -542,11 +600,19 @@ def to_row(ann: Annotation) -> dict[str, object]:
         "query": ann.query,
         "reference": ann.reference,
         "genotype": ann.genotype,
+        "immunotype": ann.immunotype,
+        "evolutionary_regime": ann.evolutionary_regime,
         "aa_differences": ann.aa_differences,
         "residues_compared": ann.compared_sites,
+        "mutated_site_count": ann.mutated_site_count,
         "epitope_haplotype": ann.haplotype(),
         "mean_site_entropy": ";".join(
             f"{s}={ann.site_entropy[s]}" for s in sorted(ann.site_entropy)
+        ),
+        "site_radicality": ";".join(
+            f"{s}={ann.site_radicality[s]}"
+            for s in sorted(ann.site_radicality)
+            if ann.site_radicality[s] is not None
         ),
         "site_B_changes": ann.informational_changes.get("B", ""),
         "site_H_changes": ann.informational_changes.get("H", ""),
@@ -839,4 +905,78 @@ def align_unaligned_queries(
     aln_qrys = [(conv_queries[j][0], parsed[f"__qry_{j}"]) for j in range(len(conv_queries))]
     anchor = aln_refs[0]
     return aln_refs, aln_qrys, anchor
+
+
+# ------------------------------------------------------- P-dimer export (opt-in)
+def p_domain_sequence(query_row: str, coord_row: str) -> str | None:
+    """Ungapped P-domain amino acids of one aligned query, or None if incomplete.
+
+    The span is resolved to alignment columns through the coordinate anchor,
+    exactly as the site residues are, so it is not an index into the raw
+    sequence. Returns None when the query does not cover the whole span: a
+    partial P domain would fold into a structure the sequence does not support.
+    """
+    start, end = P_DOMAIN
+    try:
+        cols = residue_columns(coord_row, range(start, end + 1), min_length=end)
+    except AntigenicError:
+        return None
+    out = []
+    for res in range(start, end + 1):
+        col = cols[res]
+        if col >= len(query_row):
+            return None
+        ch = query_row[col].upper()
+        if ch in "-.":
+            continue
+        if ch == "X":
+            return None
+        out.append(ch)
+    if len(out) < (end - start + 1) * 0.9:
+        return None
+    return "".join(out)
+
+
+def pdimer_records(annotations, rows_by_query, coord_row):
+    """[(name, seq)] of deduplicated P-domain sequences for flagged queries.
+
+    `rows_by_query` maps query name to its aligned row. Only queries whose
+    `candidate_antigenic_shift` is true are exported, which is the point: it
+    keeps a structural follow-up to the handful of candidates rather than the
+    whole run. Identical P domains collapse to one record, with every
+    contributing query named in the header.
+    """
+    by_seq: dict[str, list[str]] = {}
+    for ann in annotations:
+        if not ann.candidate_antigenic_shift:
+            continue
+        row = rows_by_query.get(ann.query)
+        if row is None:
+            continue
+        seq = p_domain_sequence(row, coord_row)
+        if seq is None:
+            continue
+        by_seq.setdefault(seq, []).append(ann.query)
+    return [
+        (" ".join(sorted(names)), seq)
+        for seq, names in sorted(by_seq.items(), key=lambda kv: sorted(kv[1]))
+    ]
+
+
+def write_pdimer_fasta(path, records) -> int:
+    """Write homodimer FASTA records as `SEQ:SEQ`, the colabfold/boltz form.
+
+    The colon separates chains of one complex, so each record folds as a
+    P-domain homodimer. Returns the number of records written.
+    """
+    p = Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    with p.open("w", encoding="utf-8") as fh:
+        for name, seq in records:
+            first = name.split()[0]
+            fh.write(f">{first}_pdimer aa {P_DOMAIN[0]}-{P_DOMAIN[1]} chainA:chainB")
+            if len(name.split()) > 1:
+                fh.write(f" identical_to={name}")
+            fh.write(f"\n{seq}:{seq}\n")
+    return len(records)
 

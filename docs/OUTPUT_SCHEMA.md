@@ -211,10 +211,13 @@ residues. It does not type, and nothing in it feeds a typing call.
 |---|---|
 | `query`, `reference` | sequence ids from the alignment |
 | `genotype` | the genotype the site coordinates belong to; only `GII.4` is accepted |
+| `immunotype`, `evolutionary_regime` | Parra et al. 2017 immunotype letter and regime for `genotype`, read from the packaged `immunotype_regime.tsv`. Constant (`G`, `evolving`) while this command is GII.4-only; carried so a row is self-describing |
 | `aa_differences` | amino-acid differences over columns both sequences resolve |
 | `residues_compared` | site residues actually scorable in this pair |
+| `mutated_site_count` | how many of the five sites A/C/D/E/G carry any change, 0-5. Counts sites, not residues: two changes inside Site A is 1 |
 | `epitope_haplotype` | `A:...|C:...|D:...|E:...|G:...`, the query residues at each site |
 | `mean_site_entropy` | per-site Shannon entropy over the whole alignment, in bits |
+| `site_radicality` | per-site mean BLOSUM62 score of the substitutions at that site, e.g. `A=0.75;C=-1.0`. Lower (more negative) is the less conservative exchange. A site with no scorable substitution is omitted rather than written as `0`, and indels are excluded rather than scored |
 | `site_<X>_changes` | e.g. `294E>W,297Q>W` for sites A, C, D, E, G |
 | `conserved_<X>_changes` | changes at conserved sites F and I; reported, never used to call |
 | `coevolving_pairs_changed` | Kendra et al. 2021 Table 1 pairs where both residues changed |
@@ -232,6 +235,22 @@ site silently.
 of pairs with >=18 changes were not antigenically different, and ten pairs
 were different with fewer. Antigenic distance needs blockade or
 neutralisation titres and is not inferable from sequence.
+
+`site_radicality` is BLOSUM62, a substitution log-odds score, **not** a
+physicochemical distance: it says how often such an exchange is tolerated in
+homologous proteins, not how different the two side chains are. BLOSUM62 is
+used because Biopython ships it, so no 190-value table is transcribed by
+hand. A Grantham option would need its property table added as sourced data.
+
+`--export-novel-pdimer FASTA` writes a P-domain homodimer for the queries
+flagged `candidate_antigenic_shift` and no others, as `SEQ:SEQ` — the colon
+is the colabfold/boltz chain separator, so each record folds as a P dimer.
+Identical P domains collapse to one record naming every contributing query.
+The span is `P_DOMAIN` (aa 226-520, P1 226-278 + 406-520 around P2 279-405),
+resolved through the coordinate anchor like any other residue number; a query
+that does not cover it is skipped rather than exported as a partial fold.
+Exporting only the flagged strains is the point: it keeps a structural
+follow-up to a handful of candidates instead of the whole run.
 
 A `<out>.provenance.json` sidecar records the tool version, the reference,
 the site definitions and their source, the shift rule, and the entropy

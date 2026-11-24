@@ -288,6 +288,11 @@ def _add_antigenic_args(p):
                         "coordinates are GII VP1 numbering, so the residues reported for "
                         "another genogroup or genus are not the published sites; for "
                         "deliberate cross-genotype work and synthetic input only")
+    p.add_argument("--export-novel-pdimer", metavar="FASTA",
+                   help="write P-domain homodimer FASTA (SEQ:SEQ, the colabfold/boltz "
+                        "chain form) for queries flagged candidate_antigenic_shift only, "
+                        "deduplicated. A structural follow-up to the few candidates, not "
+                        "the whole run; nothing about the flag changes")
     p.add_argument("--show-sites", action="store_true",
                    help="print the residue definitions and exit")
 
@@ -313,6 +318,7 @@ def _run_antigenic(a):
     recs = ty.read_fasta(a.alignment)
     all_res = ag.all_tracked_residues()
     rows = []
+    anns, qrows, anchor_row = [], {}, None
 
     if getattr(a, "unaligned", False):
         if not recs:
@@ -346,11 +352,15 @@ def _run_antigenic(a):
                 chosen_ref = fixed_ref or min(
                     aln_refs, key=lambda r: ag.total_aa_differences(qseq, r[1])
                 )
-                rows.append(ag.to_row(ag.annotate(
+                ann = ag.annotate(
                     qname, qseq, chosen_ref[0], chosen_ref[1],
                     a.genotype, entropy=ent,
                     anchor_row=anchor[1], anchor_name=anchor[0],
-                )))
+                )
+                anns.append(ann)
+                qrows[qname] = qseq
+                rows.append(ag.to_row(ann))
+            anchor_row = anchor[1]
             prov_ref_label = fixed_ref[0] if fixed_ref else f"nearest_of_{len(aln_refs)}_GII.4_variants(anchor={anchor[0]})"
             n_total_aln = len(pool_seqs)
         except ag.AntigenicError as e:
@@ -390,10 +400,14 @@ def _run_antigenic(a):
                 # norovirus GII VP1 only: see antigenic.check_gii_input
                 if not getattr(a, "skip_input_check", False):
                     ag.check_gii_input(name, seq.replace("-", "").replace(".", ""))
-                rows.append(ag.to_row(ag.annotate(name, seq, ref[0], ref[1],
-                                                  a.genotype, entropy=ent,
-                                                  anchor_row=anchor[1],
-                                                  anchor_name=anchor[0])))
+                ann = ag.annotate(name, seq, ref[0], ref[1],
+                                  a.genotype, entropy=ent,
+                                  anchor_row=anchor[1],
+                                  anchor_name=anchor[0])
+                anns.append(ann)
+                qrows[name] = seq
+                rows.append(ag.to_row(ann))
+            anchor_row = anchor[1]
             prov_ref_label = ref[0]
             n_total_aln = len(recs)
         except ag.AntigenicError as e:
@@ -408,6 +422,18 @@ def _run_antigenic(a):
     flagged = sum(r["candidate_antigenic_shift"] == "true" for r in rows)
     print(f"annotated {len(rows)} sequence(s) against {prov_ref_label} -> {a.out}")
     print(f"  {flagged} flagged candidate_antigenic_shift")
+    if getattr(a, "export_novel_pdimer", None):
+        if anchor_row is None:
+            print("  P-dimer export skipped: no coordinate anchor resolved.", file=sys.stderr)
+        else:
+            recs_out = ag.pdimer_records(anns, qrows, anchor_row)
+            n = ag.write_pdimer_fasta(a.export_novel_pdimer, recs_out)
+            n_in = sum(1 for x in anns if x.candidate_antigenic_shift)
+            print(f"  P-dimer export: {n} unique P domain(s) from {n_in} flagged "
+                  f"query(ies) -> {a.export_novel_pdimer}")
+            if n < n_in:
+                print(f"  ({n_in - n} collapsed as identical or skipped for incomplete "
+                      f"aa {ag.P_DOMAIN[0]}-{ag.P_DOMAIN[1]} coverage)")
     print(f"  {ag.CAVEAT}")
     return 0
 
