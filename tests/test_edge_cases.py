@@ -68,3 +68,41 @@ def test_recomb_qc_refuses_high_ambiguity_mixed_consensus(tmp_path):
     assert not ok
     assert "ambiguous bases" in reason
     assert stats["ambiguous_fraction"] > cfg.max_ambiguous_fraction
+
+
+def test_gii4_variant_reference_missing_warning_on_divergent_or_rejected():
+    """Divergent (<94%) or low-support GII.4 calls emit variant_reference_missing_risk."""
+    def _row():
+        return {"genogroup": "GII", "note": ""}
+
+    # 1. Accepted GII.4 with <94% identity (e.g. post-2024 GII.4 San Francisco mapped to Sydney)
+    r_div = _row()
+    ty.apply_result(r_div, "orf2", {
+        "best_type": "GII.4_Sydney", "support": 80.0, "supports": {"GII.4_Sydney": 80.0},
+        "n_sites": 1600, "nearest": "JX459908.1", "nearest_identity": 91.95,
+        "nearest_type": "GII.4_Sydney",
+    }, min_support=70.0)
+    assert r_div["orf2_accepted"] == "accepted"
+    assert "variant_reference_missing_risk" in r_div["note"]
+    assert "92.0% < 94.0%" in r_div["note"]
+
+    # 2. Rejected GII.4 with low bootstrap support (e.g. GII.4 Hong Kong)
+    r_rej = _row()
+    ty.apply_result(r_rej, "orf2", {
+        "best_type": "GII.4_Osaka", "support": 36.0, "supports": {"GII.4_Osaka": 36.0},
+        "n_sites": 1600, "nearest": "AB434770.1", "nearest_identity": 91.02,
+        "nearest_type": "GII.4_Osaka",
+    }, min_support=70.0)
+    assert r_rej["orf2_accepted"].startswith("rejected:")
+    assert "variant_reference_missing_risk" in r_rej["note"]
+
+    # 3. Accepted GII.4 with >=94% identity (Sydney-like) -> no warning
+    r_ok = _row()
+    ty.apply_result(r_ok, "orf2", {
+        "best_type": "GII.4_Sydney", "support": 100.0, "supports": {"GII.4_Sydney": 100.0},
+        "n_sites": 1600, "nearest": "JX459908.1", "nearest_identity": 96.5,
+        "nearest_type": "GII.4_Sydney",
+    }, min_support=70.0)
+    assert r_ok["orf2_accepted"] == "accepted"
+    assert "variant_reference_missing_risk" not in r_ok["note"]
+

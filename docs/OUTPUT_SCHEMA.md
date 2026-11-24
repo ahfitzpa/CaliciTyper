@@ -40,7 +40,7 @@ One row per input query sequence (FASTA record), in input order. Columns are emi
 |---|---|---|
 | `query` | string | Query sequence identifier (FASTA record id). |
 | `genogroup` | string | Assigned/detected genogroup (e.g. `GI`, `GII`, other norovirus genogroups, or other Caliciviridae labels) or `unassigned`. |
-| `note` | string | Semicolon-separated notes/reasons (detection limits, unsupported/not-validated scope, rejection reasons, coverage notes, QC issues, etc.). |
+| `note` | string | Semicolon-separated notes/reasons (detection limits, unsupported/not-validated scope, rejection reasons, coverage notes, QC issues, sapovirus CI/competing-type warnings, and `variant_reference_missing_risk` warnings when a `GII.4` sequence fails variant support or shows `< 94.0%` nearest-reference identity against the pinned manifest). |
 | `orf1_type` | string | Best ORF1 (RdRp/P-type) call, or empty/`unassigned` when not called. |
 | `orf1_support` | number/string | Bootstrap support (%) for the ORF1 call (rounded as reported). |
 | `orf1_runners` | string | Runner-up ORF1 candidates/support values when available (implementation-formatted string; see JSON for structured runners). |

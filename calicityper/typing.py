@@ -373,6 +373,22 @@ def apply_result(row, region, res, min_support):
     row[f"{region}_accepted"] = "accepted" if not why else "rejected: " + "; ".join(why)
     if why:
         row["note"] = "; ".join(x for x in (row["note"], f"{region}: " + "; ".join(why)) if x)
+    if region == "orf2" and best.startswith("GII.4_"):
+        ident_val = res.get("nearest_identity")
+        if res["support"] < min_support:
+            warn = (
+                "orf2: variant_reference_missing_risk (GII.4 variant unconfirmed against "
+                "pinned reference manifest; inspect calicityper antigenic and phylogeny)"
+            )
+            row["note"] = "; ".join(x for x in (row["note"], warn) if x)
+        elif ident_val not in (None, "") and float(ident_val) < 94.0:
+            warn = (
+                f"orf2: variant_reference_missing_risk (divergent GII.4 nearest "
+                f"{res.get('nearest_type', best)} {float(ident_val):.1f}% < 94.0%; "
+                f"variant may be absent from pinned reference manifest -- inspect "
+                f"calicityper antigenic and phylogeny)"
+            )
+            row["note"] = "; ".join(x for x in (row["note"], warn) if x)
 
 
 def wilson_ci(k, n, z=1.959963984540054):
