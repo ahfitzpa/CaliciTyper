@@ -33,7 +33,7 @@ From: calicityper-tools.sif
     Data.mount    /data   (bind a host copy of the Zenodo reference set here)
     Data.setup    apptainer exec -B ./refdata:/data calicityper.sif calicityper setup
     # Inherited from calicityper-tools.sif, repeated so one `inspect` shows it:
-    Tools.absent  iqtree2, clustalw2
+    Tools         blastn, makeblastdb, mafft, clustalw2, iqtree, openrdp
     Cpu.default   1
     Cpu.useful    4
 
@@ -79,10 +79,11 @@ From: calicityper-tools.sif
       apptainer exec -B /scratch:/scratch --env CALICITYPER_DATA=/scratch/ref \
           calicityper.sif calicityper ...
 
-    Not in this image: iqtree2 and clustalw2. The patristic-distance and
-    clustalw paths need those on the host, via CALICITYPER_IQTREE and
-    CALICITYPER_CLUSTALW.
+    All five external tools are present: blastn, makeblastdb, mafft,
+    clustalw2 and iqtree (3.1.4, installed as `iqtree`/`iqtree3`, not
+    `iqtree2`), plus openrdp in its own interpreter. CALICITYPER_IQTREE and
+    CALICITYPER_CLUSTALW still override if you want host binaries.
 
-    One core by default; only MAFFT threads, and about four is the useful
-    ceiling. Outputs go to stdout and to whatever output path you pass, so
+    One core by default; MAFFT and IQ-TREE thread, and about four is the
+    useful ceiling. Outputs go to stdout and to whatever output path you pass, so
     redirect rather than looking for log files inside the container.
