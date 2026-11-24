@@ -1,26 +1,8 @@
 Bootstrap: localimage
 From: calicityper-tools.sif
 
-# CaliciTyper itself, on top of the tools image: ONE artifact that runs the
-# tool, rather than "sif + a host conda env + a host Python".
-#
-# Build both from the repository root, in this order. `localimage` and the
-# %files paths below are resolved against the current directory, so
-# calicityper-tools.sif has to sit in the repo root at build time (the built
-# copy currently lives in ../calicityper_runs/):
-#
-#   apptainer build calicityper-tools.sif containers/calicityper-tools.def
-#   apptainer build calicityper.sif       containers/calicityper.def
-#
-# Built from the tools image rather than from python:3.11 again, so the pinned
-# BLAST/MAFFT/OpenRDP %post is not duplicated and the two images cannot drift.
-# The tools image pins its own base by digest; this one inherits that.
-#
-# Reference data is NOT baked in. `calicityper setup` fetches ~GB from Zenodo
-# (doi:10.5281/zenodo.24161236) and verifies it, and writing that into the
-# image would be a post-build write into a read-only artifact. config.py
-# therefore defaults DATA to /data inside a container, which is the bind mount
-# below. An explicit CALICITYPER_DATA still wins.
+# Application image layered on calicityper-tools.sif (build from repo root, tools image first).
+# Reference data is not baked in (doi:10.5281/zenodo.24354774); bind a host copy to /data or set CALICITYPER_DATA.
 
 %files
     pyproject.toml /opt/calicityper-src/pyproject.toml
@@ -28,62 +10,48 @@ From: calicityper-tools.sif
     calicityper    /opt/calicityper-src/calicityper
 
 %labels
-    Description   CaliciTyper + BLAST+, MAFFT, OpenRDP
+    Description   CaliciTyper + BLAST+, MAFFT, ClustalW, IQ-TREE, OpenRDP
     Entrypoint    calicityper
-    Data.mount    /data   (bind a host copy of the Zenodo reference set here)
+    Data.mount    /data
     Data.setup    apptainer exec -B ./refdata:/data calicityper.sif calicityper setup
-    # Inherited from calicityper-tools.sif, repeated so one `inspect` shows it:
     Tools         blastn, makeblastdb, mafft, clustalw2, iqtree, openrdp
     Cpu.default   1
     Cpu.useful    4
 
 %post
     set -eu
-    # 1: the mount point has to exist in the image for -B /data to land.
+    export PATH=/opt/env/bin:/usr/local/bin:$PATH
     mkdir -p /data
-    # 2: install from the copied source, not from PyPI, so the image matches
-    #    the tree it was built from. Dependency pins live in pyproject.toml.
-    pip install --no-cache-dir /opt/calicityper-src
-    # 3: fail the build, not the first run, if the entry point is missing.
+    # Install into the lock conda env offline, leaving all conda-pinned dependencies untouched.
+    /opt/env/bin/pip install --no-cache-dir --no-build-isolation --no-deps /opt/calicityper-src
     calicityper --help > /dev/null
 
 %environment
+    case ":$PATH:" in
+        *":/opt/env/bin:"*) ;;
+        *) export PATH=/opt/env/bin:/usr/local/bin:$PATH ;;
+    esac
     export LC_ALL=C
-    # CALICITYPER_DATA deliberately unset: config.py defaults to /data in a
-    # container, and leaving it unset keeps an explicit override working.
+    # Leave CALICITYPER_DATA unset so config.py defaults to /data while still allowing --env overrides.
 
 %test
     set -e
     calicityper --help > /dev/null && echo "calicityper ok"
+    /opt/env/bin/python -c "import calicityper, numpy, pandas, Bio; print('python deps ok')"
     blastn -version | head -1
+    makeblastdb -version | head -1
     mafft --version
+    clustalw2 -help > /dev/null 2>&1 && echo "clustalw2 ok"
+    iqtree --version | head -1
     openrdp --help > /dev/null && echo "openrdp ok"
 
 %runscript
-    # Single entry point, arguments passed straight through: one container,
-    # one concern. `apptainer exec` still reaches the tools directly.
     exec calicityper "$@"
 
 %help
-    CaliciTyper with its external tools, in one image.
+    CaliciTyper and all external tools (BLAST+, MAFFT, ClustalW, IQ-TREE, OpenRDP).
 
-    Reference data lives on a bind mount, not in the image:
-
+    Reference data (bind-mounted at /data by default, or set CALICITYPER_DATA):
       mkdir -p refdata
       apptainer exec -B ./refdata:/data calicityper.sif calicityper setup
-      apptainer run  -B ./refdata:/data calicityper.sif --help
-
-    Any writable path works; /data is only the default inside the container.
-    To use a reference copy elsewhere, set CALICITYPER_DATA:
-
-      apptainer exec -B /scratch:/scratch --env CALICITYPER_DATA=/scratch/ref \
-          calicityper.sif calicityper ...
-
-    All five external tools are present: blastn, makeblastdb, mafft,
-    clustalw2 and iqtree (3.1.4, installed as `iqtree`/`iqtree3`, not
-    `iqtree2`), plus openrdp in its own interpreter. CALICITYPER_IQTREE and
-    CALICITYPER_CLUSTALW still override if you want host binaries.
-
-    One core by default; MAFFT and IQ-TREE thread, and about four is the
-    useful ceiling. Outputs go to stdout and to whatever output path you pass, so
-    redirect rather than looking for log files inside the container.
+      apptainer run  -B ./refdata:/data calicityper.sif type --help

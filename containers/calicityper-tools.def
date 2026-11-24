@@ -1,49 +1,12 @@
 Bootstrap: docker
-# Digest only, no tag. Apptainer 1.3.4 rejects both at once:
-#   FATAL: invalid image source: Docker references with both a tag and digest
-#   are currently not supported
-# This digest IS python:3.11 (resolved 2026-11-24); the tag is recorded in the
-# Base label below rather than in the reference.
+# Digest only: Apptainer 1.3.4 rejects tag+digest together. This is python:3.11 (2026-11-24).
 From: python@sha256:0b0c9d578126c0456945ac38b539a71d68b7ca19f0e601a2a835b2c07d5a37a5
 
-# External tools for CaliciTyper, pinned, in one image.
-#
-#   apptainer build calicityper-tools.sif containers/calicityper-tools.def
-#
-# Versions come from environment.lock.yml, the same solved, test-verified file
-# `conda env create` uses, so the image and the conda environment cannot drift.
-# That replaced ~100 lines of per-tool tarball fetching, fallback compilation
-# and chmod repair, and it is what makes clustalw and iqtree available here at
-# all: both are in the lock and neither ships a portable tarball worth
-# hand-maintaining. Changing a tool version means editing the lock, not this
-# file.
-#
-# Built WITHOUT apt-get, deliberately. On an HPC system where the account has
-# no /etc/subuid range and neither fakeroot nor proot is installed, Apptainer
-# falls back to a root-mapped namespace in which apt-get cannot drop
-# privileges to the _apt user and dies with
-#   E: setgroups 65534 failed - setgroups (1: Operation not permitted)
-# micromamba keeps the property that made the old prebuilt-binary approach
-# work here: one static binary, no privilege required.
-#
-# The base stays python:3.11, not -slim, because OpenRDP needs an interpreter
-# of its own: it requires numpy<2 while CaliciTyper runs numpy>=2. The conda
-# environment brings its own Python 3.12 and its own libgomp (which is why the
-# old recipe could not use -slim: BLAST+ links against libgomp and slim omits
-# it), so the base Python now serves only the OpenRDP venv. Pinned by digest,
-# because a tag moves.
-#
-# OpenRDP is the one tool not from the lock: it is on neither conda nor PyPI.
-# See docs/INSTALL_TOOLS.md.
+# External tools image for CaliciTyper (no apt-get: root-mapped HPC builds cannot drop to _apt).
+# Tool versions come from environment.lock.yml; OpenRDP stays in an isolated python:3.11 venv (numpy<2).
 
 %files
-    # The solved environment, and the host-cached OpenRDP source and
-    # micromamba binary so an upstream outage cannot fail a build. Each cached
-    # file is optional; %post falls back to downloading what is absent.
-    #
-    # NOT under /tmp: the build is run with --bind="$TMPDIR:/tmp" to keep
-    # Apptainer's scratch off the home filesystem, and that bind mounts over
-    # whatever %files placed at /tmp, so a cache there is invisible to %post.
+    # Kept under /opt rather than /tmp so --bind "$TMPDIR:/tmp" does not hide them.
     environment.lock.yml /opt/environment.lock.yml
     containers/cache /opt/cache
 
@@ -57,70 +20,49 @@ From: python@sha256:0b0c9d578126c0456945ac38b539a71d68b7ca19f0e601a2a835b2c07d5a
     OpenRDP      0.1.0 (PoonLab/OpenRDP @ b42d9e5, master)
     Micromamba   2.0.5
     Base         python:3.11 = sha256:0b0c9d578126c0456945ac38b539a71d68b7ca19f0e601a2a835b2c07d5a37a5
-    # Runtime confinement. NOT measured: these are the declared expectations
-    # the benchmarking SLURM scripts already run with (cpus-per-task 2-16,
-    # most often 4). MAFFT and IQ-TREE thread; BLAST, ClustalW and OpenRDP run
-    # single-core. Replace with measured figures once a run records MaxRSS.
     Cpu.default  1
     Cpu.useful   4
 
 %post
     set -eux
 
-    echo "### cache at /opt/cache:"
-    ls -la /opt/cache 2>/dev/null || echo "    (absent -- this build needs the network)"
-
-    # 1: micromamba, one static binary, pinned.
+    # 1. micromamba (static binary, no root privileges required)
     MM_VERSION=2.0.5
-    python3 - "$MM_VERSION" <<'PY'
+    /usr/local/bin/python3 - "$MM_VERSION" <<'PY'
 import os, pathlib, shutil, sys, time, urllib.request
 
 version = sys.argv[1]
 cached = pathlib.Path("/opt/cache") / f"micromamba-{version}-linux-64"
 dest = pathlib.Path("/usr/local/bin/micromamba")
-url = ("https://github.com/mamba-org/micromamba-releases/releases/download/"
-       f"{version}-0/micromamba-linux-64")
+url = f"https://github.com/mamba-org/micromamba-releases/releases/download/{version}-0/micromamba-linux-64"
 
 if cached.is_file():
-    print(f"using cached {cached.name} ({cached.stat().st_size} bytes)", flush=True)
     shutil.copyfile(cached, dest)
 else:
-    print(f"not cached: {cached.name}; falling back to {url}", flush=True)
     for n in range(1, 6):
         try:
-            print(f"fetching {url} (attempt {n}/5)", flush=True)
             urllib.request.urlretrieve(url, dest)
             break
         except Exception as e:
             if n == 5:
                 raise
-            wait = 20 * n
-            print(f"  {type(e).__name__}: {e}; retrying in {wait}s", flush=True)
-            time.sleep(wait)
+            time.sleep(20 * n)
 os.chmod(dest, 0o755)
 PY
 
-    # 2: the tool environment, straight from the lock. `name:` is blank in that
-    #    export, so the prefix is given explicitly, and --no-rc keeps any host
-    #    .condarc out of the build.
+    # 2. Install conda tools from environment.lock.yml; strip any pip: block (calicityper is installed in calicityper.def).
     export MAMBA_ROOT_PREFIX=/opt/mamba
-    micromamba --no-rc create -y -p /opt/env -f /opt/environment.lock.yml
+    sed '/^  - pip:/,$d' /opt/environment.lock.yml > /tmp/tools.lock.yml
+    micromamba --no-rc create -y -p /opt/env -f /tmp/tools.lock.yml
     micromamba --no-rc clean --all --yes
+    rm -f /tmp/tools.lock.yml
 
-    # 3: fail the build, not the first run, if a tool the lock promised is absent.
     for t in blastn makeblastdb mafft clustalw2 iqtree; do
         test -x "/opt/env/bin/$t" || { echo "missing from lock env: $t" >&2; exit 1; }
     done
 
-    # 4: OpenRDP, pinned commit, in its own interpreter.
-    #
-    # The commit tarball is used rather than git+https, because git is not in
-    # this base image and cannot be apt-installed here. b42d9e5 (master,
-    # 2025-08-23) declares numpy>=1.17.4,<2.0.0. The v0.1.0 TAG does not cap
-    # numpy, so pinning the tag resolves numpy 2.x and defeats the whole
-    # reason for isolating OpenRDP. This commit is what the working
-    # environment on Sonic was built from (its METADATA shows the <2.0.0 cap).
-    python3 - <<'PY'
+    # 3. OpenRDP in an isolated base-Python venv; commit b42d9e5 caps numpy<2 (v0.1.0 tag does not).
+    /usr/local/bin/python3 - <<'PY'
 import os, pathlib, shutil, tarfile, time, urllib.request
 
 SHA = "b42d9e5fb84c14e817e08aab2668aeb2c6a94f83"
@@ -129,40 +71,34 @@ tgz = "/tmp/openrdp.tar.gz"
 url = f"https://github.com/PoonLab/OpenRDP/archive/{SHA}.tar.gz"
 
 if cached.is_file():
-    print(f"using cached {cached.name}", flush=True)
     shutil.copyfile(cached, tgz)
 else:
-    print(f"not cached: {cached.name}; falling back to {url}", flush=True)
     for n in range(1, 6):
         try:
-            print(f"fetching {url} (attempt {n}/5)", flush=True)
             urllib.request.urlretrieve(url, tgz)
             break
         except Exception as e:
             if n == 5:
                 raise
-            wait = 20 * n
-            print(f"  {type(e).__name__}: {e}; retrying in {wait}s", flush=True)
-            time.sleep(wait)
+            time.sleep(20 * n)
 with tarfile.open(tgz) as t:
     t.extractall("/opt")
 os.rename(f"/opt/OpenRDP-{SHA}", "/opt/openrdp-src")
 os.remove(tgz)
 PY
 
-    python3 -m venv /opt/openrdp-venv
+    /usr/local/bin/python3 -m venv /opt/openrdp-venv
     /opt/openrdp-venv/bin/pip install --no-cache-dir --upgrade pip
     /opt/openrdp-venv/bin/pip install --no-cache-dir /opt/openrdp-src
     ln -sf /opt/openrdp-venv/bin/openrdp /usr/local/bin/openrdp
 
 %environment
-    # The lock environment first: it owns blastn, mafft, clustalw2 and iqtree.
     export PATH=/opt/env/bin:/usr/local/bin:$PATH
     export LC_ALL=C
 
 %test
     set -e
-    blastn -version
+    blastn -version | head -1
     makeblastdb -version | head -1
     mafft --version
     clustalw2 -help > /dev/null 2>&1 && echo "clustalw2 ok"
@@ -174,21 +110,5 @@ PY
     exec "$@"
 
 %help
-    BLAST+, MAFFT, ClustalW, IQ-TREE and OpenRDP for CaliciTyper, with the
-    first four pinned by environment.lock.yml.
-
-      apptainer exec calicityper-tools.sif blastn -version
-      apptainer exec calicityper-tools.sif mafft --version
-      apptainer exec calicityper-tools.sif clustalw2 -help
-      apptainer exec calicityper-tools.sif iqtree --version
-      apptainer exec calicityper-tools.sif openrdp --help
-
-    Bind the data you are working on; nothing persists in the image:
-
-      apptainer exec -B /scratch calicityper-tools.sif blastn ...
-
-    IQ-TREE 3.1.4 installs as `iqtree` and `iqtree3`, not `iqtree2`.
-    config.exe("iqtree") tries iqtree2 then iqtree, so it resolves here.
-
-    This image carries the tools only. For CaliciTyper itself in one
-    artifact, build containers/calicityper.def on top of it.
+    BLAST+, MAFFT, ClustalW, IQ-TREE (3.1.4 as iqtree/iqtree3) and OpenRDP for CaliciTyper.
+    Example: apptainer exec -B /scratch calicityper-tools.sif blastn -version

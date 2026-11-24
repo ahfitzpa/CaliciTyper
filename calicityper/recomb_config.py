@@ -13,20 +13,8 @@ from pathlib import Path
 
 ALL_METHODS = ("rdp", "geneconv", "bootscan", "maxchi", "chimaera", "siscan", "threeseq")
 
-# Breakpoint regions, per virus. These say only whether a breakpoint falls
-# somewhere biologically interesting; boundaries are strain-dependent and the
-# windows are deliberately generous.
-#
-# Norovirus: ORF1 (nonstructural, including RdRp), ORF2 (VP1 capsid), ORF3
-# (VP2). The dominant recombination hotspot is the ORF1/ORF2 junction.
-#
-# Sapovirus is NOT the same shape and cannot reuse the norovirus model. ORF1
-# encodes the nonstructural proteins AND the major capsid VP1 as one
-# polyprotein; ORF2 encodes the minor capsid VP2. The hotspot is therefore the
-# NS7(RdRp)/VP1 junction, which lies INSIDE ORF1 rather than between two ORFs
-# -- a porcine GIII recombinant maps its breakpoint to nt 5139 at exactly that
-# boundary. Labelling that an "ORF1-ORF2 junction" would be wrong, even though
-# the coordinate happens to be similar.
+# Generous virus-specific breakpoint windows (nt). Sapovirus VP1 is encoded inside ORF1,
+# so its recombination hotspot is the NS7(RdRp)-VP1 junction rather than ORF1-ORF2.
 REGIONS_NOROVIRUS = {
     "ORF1-ORF2 junction": [4800, 5600],
     "ORF1 (nonstructural)": [5, 5100],

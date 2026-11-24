@@ -28,22 +28,19 @@ zenodo/*
 !zenodo/DESCRIPTION.txt
 !zenodo/UPLOAD_NOTES.md
 
-# --- 8. Reference set and datasets: distributed via Zenodo, not git ---
-# doi:10.5281/zenodo.24161236 -- fetched by `calicityper setup`, verified against
-# calicityper/data/reference_manifest.json. The manifest, the accession list and
-# the derived bounds table stay tracked; the sequences and alignments do not.
+# Reference set distributed via Zenodo (doi:10.5281/zenodo.24354774), fetched by `calicityper setup`.
 calicityper/data/database/
 calicityper/data/reference_sequences_RdRp/
 calicityper/data/reference_sequences_VP1/
 calicityper/data/reference_sequences_sapovirus_RdRp/
 calicityper/data/reference_sequences_sapovirus_VP1/
-
 calicityper/data/.cache/
 
-# Host cache for the Apptainer build: ~335 MB of upstream tarballs, so a build
-# does not depend on those hosts being up. Repopulate with
-# containers/fetch_cache.sh; the definition downloads anything absent.
-containers/cache/
+# Host cache for Apptainer builds (repopulate with containers/fetch_cache.sh)
+containers/cache/*
+!containers/cache/.gitkeep
 
-# Apptainer image built by containers/calicityper-tools.def (335 MB)
+# Apptainer images and SLURM build logs
+*.sif
 containers/*.sif
+logs/

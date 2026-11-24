@@ -49,9 +49,7 @@ packages = ["calicityper"]
 include-package-data = false
 
 [tool.setuptools.package-data]
-# The reference set is NOT shipped in the wheel: it is a Zenodo dataset
-# (doi:10.5281/zenodo.24161236) fetched by `calicityper setup`. Only the small
-# text files the package needs to find and verify it travel with the code.
+# Reference set is distributed via Zenodo (doi:10.5281/zenodo.24354774) and fetched by `calicityper setup`.
 calicityper = [
   "data/gii4_antigenic_sites.tsv",
   "data/gii4_coevolving_pairs.tsv",
