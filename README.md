@@ -17,9 +17,9 @@
 CaliciTyper (`calicityper`) assigns norovirus genogroup, ORF1 polymerase (P-) type, and ORF2 capsid type to assembled contigs/genomes (FASTA), and provides evidence-weighted recombination analysis for norovirus/sapovirus alignments.
 
 - **Validated/supported genotyping scope:** norovirus **GI/GII** (ORF1 + ORF2) and broad Caliciviridae genogroup detection.
-- **Sapovirus:** VP1 genotyping and RdRp P-typing per Zhao *et al.* 2024, on by default, reported as a dual type (`GI.4[P1]`). VP1 is reliable; RdRp assigns accurately among known P-types but **cannot flag a novel P-type** — see [`docs/SAPOVIRUS_STATUS.md`](docs/SAPOVIRUS_STATUS.md). Disable with `CALICITYPER_TYPE_SAPOVIRUS=0`.
-- **GII.4 antigenic sites:** `calicityper antigenic` annotates which published antigenic-site residues a norovirus GII VP1 differs from in the nearest bundled GII.4 variant. Annotation only — it feeds no genotype, P-type, novelty or recombination call, and non-GII input is refused.
-- **Not validated:** non-GI/GII norovirus genotyping calls may be reported but are not validated.
+- **Sapovirus:** VP1 genotyping and RdRp P-typing per Zhao *et al.* 2024, on by default, reported as a dual type (`GI.4[P1]`) with 95% Wilson CIs on observed p-distances and second-nearest type distance margins. VP1 is reliable; RdRp assigns accurately among known P-types, but **sapovirus RdRp novelty screening is not implemented** (P-types are provisional) — see [`docs/SAPOVIRUS_STATUS.md`](docs/SAPOVIRUS_STATUS.md). Disable with `--no-type-sapovirus` or `CALICITYPER_TYPE_SAPOVIRUS=0`.
+- **GII.4 antigenic sites:** `calicityper antigenic` annotates published antigenic-site differences, BLOSUM62 `site_radicality` (a substitution-score summary, not antigenic distance), and emits a sequence-based antigenic-change alert (`sequence_antigenic_alert`). Annotation only — feeds no typing, novelty or recombination call, refuses non-GII input, and must **not** be used to infer immune escape, vaccine relevance or phenotypic antigenicity without neutralisation, blockade or other experimental evidence.
+- **Not validated:** non-GI/GII norovirus genotyping calls may be reported (`--type-all-groups`) but are not validated.
 - **Research software:** independent reimplementation (not produced by or affiliated with RIVM).
 
 Detailed reference: [`docs/REFERENCE.md`](docs/REFERENCE.md) • Output schemas/provenance: [`docs/OUTPUT_SCHEMA.md`](docs/OUTPUT_SCHEMA.md)

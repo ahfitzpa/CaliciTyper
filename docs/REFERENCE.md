@@ -26,12 +26,13 @@ This document contains detailed usage, methods, outputs, configuration, and vali
 | Norovirus dual genotyping (ORF1 P-type + ORF2 capsid type) | **GI, GII** | **Validated/supported** | Primary supported typing use case. |
 | Norovirus genotyping attempts | GIII–GX | **Detected / not validated** | Calls may be returned but are not validated (sparse reference coverage); use with caution. |
 | GII.4 variant resolution | 11 variants (bundled set) | **Validated (within bundled references/method limits)** | Variant carried in `orf2_type` (e.g. `GII.4_Sydney`). |
-| Putative novel ORF1/ORF2 type screening | Norovirus only (`type` screening fields, `novel`) | **Screening / tentative** | 2×SD screen; flags are not genotype designations. `not_assessable` means required region/sequence basis is insufficient. |
-| Recombination detection/scoring | Norovirus, sapovirus (alignment-based) | **Working with caveats / experimental aspects** | Evidence-weighted results; depends on alignment quality, sequence length/informative sites, and optional external tools (OpenRDP). |
-| Sapovirus genotyping | GI–GXIX (planned) | **Not implemented** | Detected to genus/genogroup only; taxonomy tables drafted, typing/reference pipeline not implemented. |
+| Putative novel ORF1/ORF2 type screening | Norovirus ORF1/ORF2 + sapovirus VP1 (`type` screening fields, `novel`) | **Screening / tentative** | Norovirus 2×SD patristic screen and sapovirus VP1 cut-off novelty; flags are not genotype designations. **Sapovirus RdRp novelty screening is not implemented** (`not_assessable`). |
+| Recombination detection/scoring | Norovirus, sapovirus (alignment-based) | **Working with caveats** | Evidence-weighted results across 7 OpenRDP scanners; depends on alignment quality, sequence length/informative sites, and external OpenRDP (`numpy<2` env or Apptainer container). |
+| Sapovirus dual genotyping (`VP1` + `RdRp`) | Multi-genogroup (Zhao et al. 2024 scheme) | **On by default, benchmarked** | Nucleotide p-distance cut-offs (`VP1 < 0.161/0.503`; `RdRp < 0.266/0.531`) with 95% Wilson CI and second-type distance margin. RdRp novelty screening is not implemented, so P-types are provisional. |
+| GII.4 antigenic-site profiling (`antigenic`) | Norovirus GII VP1 | **Annotation only** | Reports site substitutions, BLOSUM62 `site_radicality` (substitution-score summary, not antigenic distance), and `sequence_antigenic_alert`. Must NOT be used to infer immune escape or vaccine relevance without experimental evidence. |
 | FASTQ / raw-read typing | — | **Unsupported** | Assemble/cluster first; input must be FASTA contigs/genomes. |
 
-**Capability/status terms used in outputs/docs:** validated/supported, detected/not validated, screened/tentative, not implemented, experimental/working with caveats.
+**Capability/status terms used in outputs/docs:** validated/supported, detected/not validated, screened/tentative, annotation only, not implemented, working with caveats.
 
 ---
 
@@ -166,20 +167,29 @@ CALICITYPER_DATA=/shared/calicityper-ref calicityper type contigs.fasta -o typed
 - **GII.4 variants:** resolved at variant level in bundled set (variant suffix in `orf2_type`).
 - **Acceptance vs reported call:** genotype/type may be reported while acceptance is recorded separately (support/sites/window-mode conditions). Check `*_accepted`, `*_support`, `*_sites`, runner-ups, and notes.
 - **Typing windows:** window coverages are reported (`orf1_window_cov`, `orf2_window_cov`, `gii4_window_cov`). RIVM-style gating is off by default and can be enabled with `--rivm-window-mode` for comparison/replication.
-- **Sapovirus typing:** not implemented (detected to genus/genogroup only).
+- **Sapovirus typing:** VP1 genotyping and RdRp P-typing (Zhao et al. 2024 distance cut-offs) are enabled by default (`--no-type-sapovirus` reverts to genogroup only). Each sapovirus call reports observed p-distance, its 95% Wilson CI (`orf{1,2}_distance_ci`), and the nearest competing type and margin (`orf{1,2}_second_type`, `orf{1,2}_second_distance`, `orf{1,2}_distance_margin`). Sapovirus RdRp novelty screening is **not implemented** (`not_assessable`), so RdRp P-types should be treated as provisional.
+
+## Expected behaviour on edge cases
+
+| Edge case | Behaviour in CaliciTyper | Recommended action |
+|---|---|---|
+| **Mixed infections / coinfections** | CaliciTyper types assembled consensus FASTA contigs, not raw reads. A chimeric or consensus-collapsed mixed infection may show elevated IUPAC ambiguity codes (masked pairwise, lowering comparable sites and bootstrap support) or conflicting `ORF1`/`ORF2` calls (`dual_type_discordant`). | Deconvolve haplotypes or run read-level classifiers (e.g. `NorotyperII`, `MGtree`) upstream before passing consensus contigs to CaliciTyper. |
+| **Recombinant genomes** | `type` classifies `ORF1` (RdRp) and `ORF2` (VP1) independently and emits dual notation (`Genotype[P-type]`), flagging inter-genogroup incongruence in `dual_type_discordant`. `recomb` tests aligned whole/near-complete genomes (`>=5,000 nt`) across 7 OpenRDP scanners and genus-specific hotspot models. | Verify discordant dual types or suspected intra-genogroup recombinants with `calicityper recomb` and independent flanking-region phylogenies. |
+| **Low-coverage / short amplicons** | Inputs `<100` unambiguous nt are rejected before BLAST. For norovirus, alignments with `<100` informative columns return `unassigned`; `100–299` columns emit the best candidate marked `rejected` under default `--min-sites 300` (use `--preset polcap` for `>=170`/`250` nt dual PolCap or Region A–D amplicons). For sapovirus, no default coverage floor is enforced (`>=100` aligned sites and `>=50` comparable bases still required), and `orf{1,2}_distance_ci` widens automatically to flag cut-off uncertainty. | Inspect `*_sites`, `*_accepted`, `*_distance_ci`, and `gii4_window_cov`; do not call GII.4 variants from Region C alone when `gii4_window_cov` is low. |
+| **Sequences containing ambiguous bases (IUPAC `N`, `R`, `Y`, etc.)** | Non-`ACGT` IUPAC codes are accepted by input validation (non-IUPAC characters are rejected cleanly without crashing other batch entries), mapped to a masked state, and excluded pairwise from TN93 distances, p-distances, and identity denominators. In `recomb`, IUPAC codes are masked to `N` and recorded in provenance; queries exceeding `5%` ambiguous bases return `insufficient_sequence`. | Check `*_sites` (effective unambiguous overlap) and `recomb` `qc.ambiguous_fraction`; high ambiguity reduces statistical support rather than forcing erroneous calls. |
 
 ---
 
 ## Recombination analysis details
 
 ### Status labels
-Typical labels include `none`/`non_recombinant`, `weak`/`possible`/`likely`/`strong` (evidence-weighted), and `insufficient_sequence` or `not_assessed` depending on QC/tool availability and scoring. One method alone is insufficient for strong support; short/ambiguous/low-information inputs should not be forced into confident calls.
+Typical labels include `none`, `weak`/`possible`/`likely`/`strong` (evidence-weighted status-first monotonic ladder), and `insufficient_sequence`, `not_assessed`, or `failed` depending on QC/tool availability. One method alone never reaches `likely` or `strong`; short (`<5,000 nt`), low-information (`<500` parsimony-informative sites), or ambiguous (`>5%` N) inputs return `insufficient_sequence` rather than forced calls.
 
 ### Scoring components (configurable)
 Default evidence weighting combines method support, phylogenetic/segment support, breakpoint consistency, parental distinctness, and biological plausibility. See [`../calicityper/recomb_config.py`](../calicityper/recomb_config.py) and `--config`.
 
 ### OpenRDP dependency
-OpenRDP scanners are external and may be unavailable; use a separate compatible environment and set `CALICITYPER_OPENRDP` (see README/quickstart). `--dry-run` reports tool availability and whether queries would be assessed.
+OpenRDP scanners are external and require a separate `numpy<2` environment (or the Apptainer image `containers/calicityper-tools.def`); set `CALICITYPER_OPENRDP` to the executable. `--dry-run` reports tool availability and whether queries would be assessed.
 
 ---
 
@@ -190,12 +200,17 @@ Prefer CLI flags over environment variables for correctness-affecting settings (
 | Setting | CLI flag | Env fallback | Default | Effect |
 |---|---|---|---|---|
 | Minimum aligned informative sites | `--min-sites N` | `CALICITYPER_MIN_SITES` | 300 | Below threshold, call reported but not accepted (per acceptance logic). |
+| Per-region site floor / preset | `--preset polcap`, `--min-sites-orf1`, `--min-sites-orf2` | `CALICITYPER_MIN_SITES_ORF1/2` | unset | Sets region-specific floors (`polcap` = `170`/`250`). |
 | Novel-screen distance measure | `--novel-distance {ml,nj,p}` | `CALICITYPER_NOVEL_DISTANCE` | `ml` | Changes putative-novel distance basis; bounds are measure-specific. |
 | Type all norovirus genogroups | `--type-all-groups` / `--no-type-all-groups` | `CALICITYPER_TYPE_ALL_GROUPS=1` | off | Enables GIII–GX typing attempts (not validated). |
+| Sapovirus dual typing | `--type-sapovirus` / `--no-type-sapovirus` | `CALICITYPER_TYPE_SAPOVIRUS=1` | on | Enables Zhao et al. 2024 sapovirus VP1/RdRp dual typing. |
 | RIVM-style window gating | `--rivm-window-mode` / `--no-rivm-window-mode` | `CALICITYPER_RIVM_WINDOW_MODE=1` | off | For RIVM comparison/replication rather than maximizing correct calls. |
 
 Other key flags: `--bootstraps`, `--min-support`, `--max-refs-per-type`, `--seed`, `--threads`.
 External paths/env vars: `CALICITYPER_DATA`, `CALICITYPER_BLASTN`, `CALICITYPER_MAFFT`, `CALICITYPER_CLUSTALW`, `CALICITYPER_OPENRDP`.
+
+### Determinism definition
+"Byte-identical determinism" means identical SHA-256 digests of TSV output files (and identical JSON result fields excluding UTC `generated` timestamps) under fixed seeds (`--seed 1` for `type`/`novel`, `seed=3` for `recomb`), pinned reference bundle (`v0.8.1`), across thread counts (`--threads 1` vs `8`), and across independently rebuilt Linux x86_64 environments (`Python 3.12`/`3.15`, `NumPy 2.x`). Cross-architecture BLAS implementations or differing upstream OpenRDP builds may exhibit minor floating-point or scanner-version differences.
 
 ---
 
@@ -216,18 +231,19 @@ export CALICITYPER_DATA=/shared/calicityper-ref
 
 ---
 
-## Performance and scalability
+## Performance, hardware requirements and scalability
+
+### Typical hardware requirements and effect of optional dependencies
+- **Baseline (`type` / `antigenic` TSV/JSON):** runs comfortably on a standard laptop or workstation (`>=2` CPU cores, `>=1 GB` RAM, `~150 MB` disk for the verified reference bundle; measured peak RSS `<430 MB` across `5,986` sequences at `16` threads).
+- **`numba` (optional, recommended):** accelerates NJ bootstrap clade evaluation `~3–5x` with minor one-time JIT disk-cache warmup (`~30–50 MB` RAM).
+- **`iqtree` (optional, for `novel` ML distances):** increases per-query CPU time for ML patristic tree inference (`~50–150 MB` additional RAM); without IQ-TREE, `novel` falls back to NJ patristic distances (`--novel-distance nj`).
+- **`bokeh` (optional, for `--html` reports):** embedding BokehJS and hundreds of alignment panels/trees increases RAM (`>=2–4 GB` recommended for large HTML batches) and HTML file size; use `--report-max-panels` and `--no-tree` on large runs.
+- **`openrdp` (optional, for `recomb`):** requires an isolated `numpy<2` environment or the Apptainer container (`~335 MB` image) and dominates runtime (`~20–50 min` CPU per 9-genome `7.2 kb` alignment).
 
 ### Threading model
 - `--threads N` controls **worker processes** for typing/alignment work (multiprocessing pool over chunks/jobs), not BLAS-level parallelism inside each worker.
 - On import, CaliciTyper pins common BLAS/OpenMP thread environment variables to `1` by default (`OMP_NUM_THREADS`, `OPENBLAS_NUM_THREADS`, `MKL_NUM_THREADS`, `NUMEXPR_NUM_THREADS`, `VECLIB_MAXIMUM_THREADS`) via `setdefault`, so a user-exported value takes precedence. This avoids oversubscription when running multiple worker processes.
 - `recomb --threads` is used for the MAFFT alignment step when `--input` is provided (unaligned FASTA).
-
-### Memory and disk expectations
-- Memory/disk use scales with number and length of input sequences, number of region/genogroup alignment jobs, bootstrap/tree work, and report generation.
-- Large HTML reports (embedded Bokeh JS/resources and many alignment panels/trees) can be significantly larger and slower to generate than TSV/JSON-only runs.
-- `recomb` writes intermediate/working artifacts under `<output>/work/` and may write an aligned FASTA when starting from `--input`.
-- For very large batches, prefer writing TSV/JSON outputs, limit or disable heavy report artifacts, and run on a machine/filesystem with sufficient RAM and scratch space.
 
 ### Recommended options for large batches
 - Use `--report-max-panels N` to cap the number of alignment panels included in reports.

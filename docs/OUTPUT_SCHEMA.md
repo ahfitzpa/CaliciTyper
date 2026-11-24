@@ -49,6 +49,10 @@ One row per input query sequence (FASTA record), in input order. Columns are emi
 | `orf1_nearest_identity` | number/string | Identity/similarity metric to nearest ORF1 reference (as computed/reported). |
 | `orf1_nearest_type` | string | Type/genotype of nearest ORF1 reference. |
 | `orf1_distance` | number | **Sapovirus only** (`--type-sapovirus`): nucleotide p-distance to the nearest RdRp reference, over the columns both cover. Decides the P-type call against the Zhao et al. 2024 cut-offs (<0.266 P-type, <0.531 P-group). |
+| `orf1_distance_ci` / `orf2_distance_ci` | string | **Sapovirus only**: 95% Wilson score confidence interval (`lo-hi`) on the observed nucleotide p-distance over comparable unambiguous columns. Intervals whose upper bound crosses the cut-off are flagged in `note`. |
+| `orf1_second_type` / `orf2_second_type` | string | **Sapovirus only**: nearest distinct alternative genotype/P-type (excluding `nearest_type`). |
+| `orf1_second_distance` / `orf2_second_distance` | number | **Sapovirus only**: nucleotide p-distance to `second_type`. When also below the genotype/P-type cut-off (common in sapovirus RdRp), a warning is added to `note`. |
+| `orf1_distance_margin` / `orf2_distance_margin` | number | **Sapovirus only**: `second_distance - distance`, quantifying separation from the closest competing type. |
 | `orf1_accepted` | string | `accepted` or `rejected: ...` describing why the call is not accepted (e.g. low support, insufficient sites, window-mode rejection when enabled). |
 | `orf1_window_cov` | string | Coverage of the RIVM ORF1 typing window as `covered/width` (reported; gating depends on `--rivm-window-mode`). |
 | `dual_type` | string | Dual-typing designation, capsid genotype with the P-type in brackets. The P-group is written out only when it differs from the capsid genogroup: `GII.4[P16]` and `GI.5[P5]` where they agree, `GIV.1[GII.P10]` where they do not. Empty when either region was not typed. |
@@ -219,13 +223,13 @@ residues. It does not type, and nothing in it feeds a typing call.
 | `mutated_site_count` | how many of the five sites A/C/D/E/G carry any change, 0-5. Counts sites, not residues: two changes inside Site A is 1 |
 | `epitope_haplotype` | `A:...|C:...|D:...|E:...|G:...`, the query residues at each site |
 | `mean_site_entropy` | per-site Shannon entropy over the whole alignment, in bits |
-| `site_radicality` | per-site mean BLOSUM62 score of the substitutions at that site, e.g. `A=0.75;C=-1.0`. Lower (more negative) is the less conservative exchange. A site with no scorable substitution is omitted rather than written as `0`, and indels are excluded rather than scored |
+| `site_radicality` | per-site mean BLOSUM62 substitution log-odds score of the substitutions at that site, e.g. `A=0.75;C=-1.0`. Lower (more negative) is the less conservative exchange. A substitution-score summary only — **not** a measure of antigenic distance, fitness effect, physicochemical distance or receptor-binding change. Sites with no scorable substitution are omitted rather than written as `0`, and indels are excluded rather than scored |
 | `site_<X>_changes` | e.g. `294E>W,297Q>W` for sites A, C, D, E, G |
 | `conserved_<X>_changes` | changes at conserved sites F and I; reported, never used to call |
 | `coevolving_pairs_changed` | Kendra et al. 2021 Table 1 pairs where both residues changed |
-| `candidate_antigenic_shift` | `true` only if >=18 aa differences AND >=2 of A/D/E/G changed |
-| `reason` | the arithmetic behind that flag |
-| `caveat` | the false-positive rate, on every row |
+| `sequence_antigenic_alert` | sequence-based antigenic-change alert (`true` only if >=18 aa differences AND >=2 of A/D/E/G changed; formerly `candidate_antigenic_shift`) |
+| `reason` | the arithmetic behind that alert |
+| `caveat` | the false-positive rate and experimental-evidence caveat, on every row |
 
 Residue numbers are GII.4 VP1 numbering resolved to **alignment columns**
 through the reference row. VP1 runs 530-550 residues across human genotypes,
@@ -233,28 +237,31 @@ so the numbers cannot be carried to another genotype, and a reference shorter
 than 506 residues is refused: a trimmed or P2-only alignment renumbers every
 site silently.
 
-`candidate_antigenic_shift` is a screen, not a call. Kendra et al. found ~22%
-of pairs with >=18 changes were not antigenically different, and ten pairs
-were different with fewer. Antigenic distance needs blockade or
-neutralisation titres and is not inferable from sequence.
+`sequence_antigenic_alert` is a sequence-based alert only and **must not** be
+used to infer immune escape, vaccine relevance or phenotypic antigenicity
+without neutralisation, HBGA blockade or other experimental evidence. Kendra et
+al. found ~22% of pairs with >=18 changes were not antigenically different, and
+ten pairs were antigenically different with fewer.
 
-`site_radicality` is BLOSUM62, a substitution log-odds score, **not** a
-physicochemical distance: it says how often such an exchange is tolerated in
-homologous proteins, not how different the two side chains are. BLOSUM62 is
-used because Biopython ships it, so no 190-value table is transcribed by
-hand. A Grantham option would need its property table added as sourced data.
+`site_radicality` is BLOSUM62, an evolutionary substitution log-odds summary,
+**not** a measure of antigenic distance, fitness effect, physicochemical
+distance or receptor-binding change: it reflects how often an exchange is
+observed across homologous proteins. BLOSUM62 is used because Biopython ships
+it, so no 190-value table is transcribed by hand. A Grantham option would need
+its property table added as sourced data.
 
 `--export-novel-pdimer FASTA` writes a P-domain homodimer for the queries
-flagged `candidate_antigenic_shift` and no others, as `SEQ:SEQ` — the colon
+flagged `sequence_antigenic_alert` and no others, as `SEQ:SEQ` — the colon
 is the colabfold/boltz chain separator, so each record folds as a P dimer.
 Identical P domains collapse to one record naming every contributing query.
 The span is `P_DOMAIN` (aa 226-520, P1 226-278 + 406-520 around P2 279-405),
 resolved through the coordinate anchor like any other residue number; a query
 that does not cover it is skipped rather than exported as a partial fold.
 Exporting only the flagged strains is the point: it keeps a structural
-follow-up to a handful of candidates instead of the whole run.
+follow-up to a handful of alert candidates instead of the whole run.
 
 A `<out>.provenance.json` sidecar records the tool version, the reference,
-the site definitions and their source, the shift rule, and the entropy
-cut-off with a note that it came from a 1,572-sequence corpus rather than
-from the alignment supplied.
+the input guard parameters (`k = 6`, `min_containment = 0.3`), the site
+definitions and their source, the alert rule, the BLOSUM62 radicality
+interpretation caveat, and the entropy cut-off with a note that it came from a
+1,572-sequence corpus rather than from the alignment supplied.

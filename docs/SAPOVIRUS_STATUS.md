@@ -24,8 +24,13 @@ Nucleotide p-distance to the nearest reference decides the call:
 | RdRp | < 0.266 | < 0.531 |
 
 A query outside the genotype cut-off of every reference is `untypeable`, not
-given its nearest neighbour's label. Bootstrap support is reported beside the
-call but does not decide it.
+given its nearest neighbour's label. Bootstrap support, a 95% Wilson score
+confidence interval on the observed p-distance (`orf{1,2}_distance_ci`), and
+the distance/margin to the nearest distinct alternative type
+(`orf{1,2}_second_type`, `orf{1,2}_second_distance`, `orf{1,2}_distance_margin`)
+are reported beside each call to quantify fragment-length and inter-type
+uncertainty. Warning notes are appended when the 95% CI straddles the cut-off
+or when a second distinct type also falls below the cut-off.
 
 Results carry a dual type: `GI.4[P1]`, and `GIV.1[GII.P10]` where the P-group
 differs from the capsid genogroup. Columns `dual_type`, `dual_type_discordant`.

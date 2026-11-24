@@ -266,6 +266,35 @@ def nearest_reference(names, query, codes):
     return best, round(100 * best_id, 2), best_n
 
 
+def second_nearest_type(names, types, query, codes, exclude_type):
+    """(type, p_distance, n_sites) of the closest reference from any OTHER type.
+
+    Quantifies assignment margin for distance-based classifiers (sapovirus):
+    a small margin or a second type also below the genotype cut-off indicates
+    ambiguity between closely related types (common in sapovirus RdRp).
+    """
+    qi = names.index(query)
+    q = codes[qi]
+    best_type, best_d, best_n = "", None, 0
+    for i, name in enumerate(names):
+        if i == qi:
+            continue
+        t = types.get(name, "")
+        if not t or t == exclude_type:
+            continue
+        r = codes[i]
+        both = (q < 4) & (r < 4)
+        n = int(both.sum())
+        if n < MIN_IDENTITY_SITES:
+            continue
+        d = float((q[both] != r[both]).sum()) / n
+        if best_d is None or d < best_d:
+            best_type, best_d, best_n = t, d, n
+    if best_d is None:
+        return "", None, 0
+    return best_type, round(best_d, 4), best_n
+
+
 MIN_IDENTITY_SITES = 50
 
 

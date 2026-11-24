@@ -88,11 +88,26 @@ def test_one_site_is_not_enough_however_divergent():
 
 
 def test_the_caveat_travels_with_every_row():
-    """The ~22% false-positive rate must not be separable from the result."""
+    """The ~22% false-positive rate and experimental-evidence caveat must not be separable from the result."""
     ref = seq()
     row = ag.to_row(ag.annotate("q", ref, "ref", ref))
+    assert "sequence_antigenic_alert" in row
     assert "22%" in row["caveat"]
     assert "not inferable from sequence" in row["caveat"]
+    assert "must NOT be used to infer immune escape" in row["caveat"]
+
+
+def test_sequence_antigenic_alert_and_legacy_alias():
+    ref = seq()
+    q = list(ref)
+    for r in (ag.VARIABLE["A"][0], ag.VARIABLE["D"][0]):
+        q[r - 1] = "W"
+    for i in range(100, 160):
+        q[i] = "W"
+    ann = ag.annotate("q", "".join(q), "ref", ref)
+    assert ann.sequence_antigenic_alert is True
+    assert ann.candidate_antigenic_shift is True
+    assert ag.to_row(ann)["sequence_antigenic_alert"] == "true"
 
 
 def test_mismatched_alignment_lengths_are_refused():
@@ -190,7 +205,7 @@ def test_hbga_pocket_qc_alert_and_informational_sites():
     assert ann.hbga_pocket_qc_alert is True
     assert ann.informational_changes["HBGA_CORE"] == "374A>G"
     assert ann.informational_changes["H"] == "309A>N"
-    assert not ann.candidate_antigenic_shift
+    assert not ann.sequence_antigenic_alert
 
 
 def test_cli_refuses_a_non_gii4_genotype(tmp_path):
@@ -268,6 +283,10 @@ def test_cli_writes_a_provenance_sidecar(tmp_path):
     import json
     rec = json.loads((tmp_path / "ag.tsv.provenance.json").read_text())
     assert rec["subcommand"] == "antigenic"
+    assert rec["alert_column"] == "sequence_antigenic_alert"
+    assert rec["input_guard"]["min_containment"] == 0.3
+    assert rec["radicality_metric"]["matrix"] == "BLOSUM62"
+    assert "NOT a measure of antigenic distance" in rec["radicality_metric"]["interpretation"]
     assert rec["shift_rule"]["min_aa_differences"] == 18
     assert rec["shift_rule"]["site_C_excluded"] is True
     assert rec["entropy"]["conserved_at_or_below"] == 0.3

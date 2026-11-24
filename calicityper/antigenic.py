@@ -31,11 +31,14 @@ Informational secondary motifs (annotation only; never trigger shift):
     TOHMA      352, 357, 368, 378             Tohma et al. 2019 mBio emergence quartet
     HBGA_CORE  343, 344, 345, 374, 442-444    Conserved HBGA pocket (ONT frameshift/QC check)
 
-The `candidate_antigenic_shift` screen follows Kendra et al. 2021 PNAS: at
+The `sequence_antigenic_alert` screen (sequence-based antigenic-change alert,
+formerly `candidate_antigenic_shift`) follows Kendra et al. 2021 PNAS: at
 least 18 VP1 amino-acid differences were needed for an antigenic distance of
 4 or more, and shifts involved concurrent change at several of A, D, E and G.
 Site C is excluded from the site criterion, and the ~22% false-positive caveat
-travels with every output row.
+travels with every output row. This output must not be used to infer immune
+escape, vaccine relevance or phenotypic antigenicity without neutralisation,
+blockade or other experimental evidence.
 """
 from __future__ import annotations
 
@@ -101,7 +104,7 @@ MIN_AA_CHANGES = 18
 #: through a GII.4 anchor row, so this command accepts norovirus GII VP1 and
 #: nothing else: a GI, animal-genogroup or sapovirus VP1 aligned against the
 #: GII.4 anchor differs from it at far more than MIN_AA_CHANGES residues, so it
-#: would be reported as an antigenic-change candidate on divergence alone.
+#: would be reported as an antigenic-change alert on divergence alone.
 #: A query is accepted when its nearest bundled VP1 reference, by shared
 #: amino-acid k-mer containment, is a norovirus GII reference.
 GUARD_K = 6
@@ -127,10 +130,12 @@ MAX_RESIDUE = max(
 )
 
 CAVEAT = (
-    "Screen only. Kendra et al. 2021: ~22% of pairs with >=18 amino-acid "
-    "changes were not antigenically different, and 10 pairs were antigenically "
-    "different with fewer than 18. Antigenic distance needs blockade or "
-    "neutralisation titres and is not inferable from sequence."
+    "Sequence-based antigenic-change alert only; must NOT be used to infer "
+    "immune escape, vaccine relevance or phenotypic antigenicity without "
+    "neutralisation, blockade or other experimental evidence. Kendra et al. "
+    "2021: ~22% of pairs with >=18 amino-acid changes were not antigenically "
+    "different, and 10 pairs were antigenically different with fewer than 18; "
+    "antigenic distance is not inferable from sequence."
 )
 
 #: P domain span in 540-aa GII.4 VP1 numbering, for --export-novel-pdimer.
@@ -141,9 +146,11 @@ P_DOMAIN = (226, 520)
 
 #: Substitution matrix for the per-site radicality score. BLOSUM62 is used
 #: rather than Grantham because Biopython ships it, so no 190-value table is
-#: transcribed by hand. Scores are substitution log-odds, NOT physicochemical
-#: distances: lower (more negative) means a less conservative exchange. A
-#: Grantham option would need its property table added as sourced data.
+#: transcribed by hand. Scores are evolutionary substitution log-odds
+#: summaries, NOT measures of antigenic distance, fitness effect,
+#: physicochemical distance or receptor-binding change: lower (more negative)
+#: means a less conservative exchange. A Grantham option would need its
+#: property table added as sourced data.
 SUBST_MATRIX = "BLOSUM62"
 
 
@@ -172,7 +179,7 @@ class Annotation:
     conserved_changes: dict = field(default_factory=dict)
     informational_changes: dict = field(default_factory=dict)
     coevolving_pairs_changed: list = field(default_factory=list)
-    candidate_antigenic_shift: bool = False
+    sequence_antigenic_alert: bool = False
     hbga_pocket_qc_alert: bool = False
     coordinate_warning: str = ""
     reason: str = ""
@@ -182,6 +189,15 @@ class Annotation:
     immunotype: str = ""
     evolutionary_regime: str = ""
     caveat: str = CAVEAT
+
+    @property
+    def candidate_antigenic_shift(self) -> bool:
+        """Backward-compatible alias for `sequence_antigenic_alert`."""
+        return self.sequence_antigenic_alert
+
+    @candidate_antigenic_shift.setter
+    def candidate_antigenic_shift(self, value: bool) -> None:
+        self.sequence_antigenic_alert = bool(value)
 
     def haplotype(self) -> str:
         """A:TTH...|C:...|D:...|E:...|G:... from the per-site residues (including loop indels)."""
@@ -522,7 +538,7 @@ def annotate(
 
     enough_changes = ann.aa_differences >= MIN_AA_CHANGES
     enough_sites = len(changed_shift_sites) >= 2
-    ann.candidate_antigenic_shift = enough_changes and enough_sites
+    ann.sequence_antigenic_alert = enough_changes and enough_sites
     reason = (
         f"{ann.aa_differences} aa differences "
         f"({'>=' if enough_changes else '<'}{MIN_AA_CHANGES}); "
@@ -589,7 +605,7 @@ TSV_COLUMNS = [
     "tohma_quartet_changes",
     "hbga_pocket_qc",
     "coevolving_pairs_changed",
-    "candidate_antigenic_shift",
+    "sequence_antigenic_alert",
     "reason",
     "caveat",
 ]
@@ -619,7 +635,7 @@ def to_row(ann: Annotation) -> dict[str, object]:
         "tohma_quartet_changes": ann.informational_changes.get("TOHMA", ""),
         "hbga_pocket_qc": ann.informational_changes.get("HBGA_CORE", ""),
         "coevolving_pairs_changed": " ".join(ann.coevolving_pairs_changed),
-        "candidate_antigenic_shift": str(ann.candidate_antigenic_shift).lower(),
+        "sequence_antigenic_alert": str(ann.sequence_antigenic_alert).lower(),
         "reason": ann.reason,
         "caveat": ann.caveat,
     }
@@ -975,14 +991,14 @@ def pdimer_records(annotations, rows_by_query, coord_row):
     """[(name, seq)] of deduplicated P-domain sequences for flagged queries.
 
     `rows_by_query` maps query name to its aligned row. Only queries whose
-    `candidate_antigenic_shift` is true are exported, which is the point: it
-    keeps a structural follow-up to the handful of candidates rather than the
-    whole run. Identical P domains collapse to one record, with every
+    `sequence_antigenic_alert` is true are exported, which is the point: it
+    keeps a structural follow-up to the handful of alert candidates rather than
+    the whole run. Identical P domains collapse to one record, with every
     contributing query named in the header.
     """
     by_seq: dict[str, list[str]] = {}
     for ann in annotations:
-        if not ann.candidate_antigenic_shift:
+        if not ann.sequence_antigenic_alert:
             continue
         row = rows_by_query.get(ann.query)
         if row is None:

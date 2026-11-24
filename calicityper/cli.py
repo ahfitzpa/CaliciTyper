@@ -250,12 +250,27 @@ def _antigenic_provenance(a, reference, n_seqs, entropy, path):
         "subcommand": "antigenic", "alignment": a.alignment,
         "reference": reference, "genotype": a.genotype,
         "n_sequences": n_seqs,
+        "alert_column": "sequence_antigenic_alert",
+        "input_guard": {
+            "k": ag.GUARD_K,
+            "min_containment": ag.GUARD_MIN_CONTAINMENT,
+            "skipped": bool(getattr(a, "skip_input_check", False)),
+        },
         "site_definitions": "Parra et al. 2026 J Virol doi:10.1128/jvi.01804-25 (CC BY 4.0)",
         "shift_rule": {
             "min_aa_differences": ag.MIN_AA_CHANGES,
             "min_sites_changed": 2, "sites": list(ag.SHIFT_SITES),
             "site_C_excluded": True,
             "source": "Kendra et al. 2021 PNAS doi:10.1073/pnas.2015874118"},
+        "radicality_metric": {
+            "matrix": ag.SUBST_MATRIX,
+            "interpretation": (
+                "Mean BLOSUM62 substitution log-odds summary across scorable "
+                "substitutions per site (indels excluded; unscorable sites omitted). "
+                "NOT a measure of antigenic distance, fitness effect, "
+                "physicochemical distance or receptor-binding change."
+            ),
+        },
         "entropy": {"conserved_at_or_below": ag.CONSERVED_ENTROPY,
                     "source": "Kendra et al. 2021 (1,572 GII.4 VP1 sequences)",
                     "measured_over": "the supplied alignment, not that corpus",
@@ -290,8 +305,8 @@ def _add_antigenic_args(p):
                         "deliberate cross-genotype work and synthetic input only")
     p.add_argument("--export-novel-pdimer", metavar="FASTA",
                    help="write P-domain homodimer FASTA (SEQ:SEQ, the colabfold/boltz "
-                        "chain form) for queries flagged candidate_antigenic_shift only, "
-                        "deduplicated. A structural follow-up to the few candidates, not "
+                        "chain form) for queries flagged sequence_antigenic_alert only, "
+                        "deduplicated. A structural follow-up to the few alert candidates, not "
                         "the whole run; nothing about the flag changes")
     p.add_argument("--show-sites", action="store_true",
                    help="print the residue definitions and exit")
@@ -419,16 +434,16 @@ def _run_antigenic(a):
         w.writeheader()
         w.writerows(rows)
     _antigenic_provenance(a, prov_ref_label, n_total_aln, ent, a.out + ".provenance.json")
-    flagged = sum(r["candidate_antigenic_shift"] == "true" for r in rows)
+    flagged = sum(r["sequence_antigenic_alert"] == "true" for r in rows)
     print(f"annotated {len(rows)} sequence(s) against {prov_ref_label} -> {a.out}")
-    print(f"  {flagged} flagged candidate_antigenic_shift")
+    print(f"  {flagged} flagged sequence_antigenic_alert")
     if getattr(a, "export_novel_pdimer", None):
         if anchor_row is None:
             print("  P-dimer export skipped: no coordinate anchor resolved.", file=sys.stderr)
         else:
             recs_out = ag.pdimer_records(anns, qrows, anchor_row)
             n = ag.write_pdimer_fasta(a.export_novel_pdimer, recs_out)
-            n_in = sum(1 for x in anns if x.candidate_antigenic_shift)
+            n_in = sum(1 for x in anns if x.sequence_antigenic_alert)
             print(f"  P-dimer export: {n} unique P domain(s) from {n_in} flagged "
                   f"query(ies) -> {a.export_novel_pdimer}")
             if n < n_in:
@@ -441,27 +456,29 @@ def _run_antigenic(a):
 def main(argv=None):
     top = argparse.ArgumentParser(
         prog="calicityper",
-        description="Caliciviridae genogroup detection and norovirus typing/recombination analysis. "
-                    "Validated/supported genotyping scope: norovirus GI/GII. Other norovirus "
-                    "genogroups and non-norovirus Caliciviridae may be detected but genotyping "
-                    "is not validated; sapovirus genotyping (--type-sapovirus) is experimental and "
-                    "not yet benchmarked.")
+        description="Caliciviridae genogroup detection, norovirus GI/GII and sapovirus dual "
+                    "genotyping, putative-novel screening, recombination analysis and GII.4 "
+                    "antigenic-site annotation. Validated norovirus genotyping scope: GI/GII "
+                    "(GIII-GX opt-in, not validated). Sapovirus VP1/RdRp dual typing is enabled "
+                    "by default (benchmarked; RdRp novelty screening is not implemented, so "
+                    "sapovirus P-types are provisional).")
     top.add_argument("--version", action="version", version=__version__)
     sub = top.add_subparsers(dest="command", required=True, metavar="{type,novel,recomb,antigenic,setup}")
     _add_type_args(sub.add_parser(
         "type",
-        help="assign genogroup and norovirus GI/GII ORF1/ORF2 types (validated scope)",
-        description="Norovirus GI/GII dual genotyping is the validated/supported typing scope. "
-                    "Other norovirus genogroups and non-norovirus Caliciviridae may be detected "
-                    "to genogroup, but genotyping is not validated for them. Sapovirus genotyping "
-                    "is not implemented. Putative-novel screening is tentative screening, not a "
-                    "genotype designation.",
+        help="assign genogroup and norovirus GI/GII + sapovirus dual ORF1/ORF2 types",
+        description="Norovirus GI/GII dual genotyping is the validated norovirus typing scope "
+                    "(GIII-GX opt-in, not validated). Sapovirus VP1/RdRp dual typing (Zhao et al. "
+                    "2024 distance cut-offs) is enabled by default (--no-type-sapovirus disables); "
+                    "sapovirus RdRp novelty screening is not implemented, so P-types are provisional. "
+                    "Putative-novel flags are tentative screening, not genotype designations.",
         formatter_class=argparse.RawDescriptionHelpFormatter))
     _add_novel_args(sub.add_parser(
         "novel",
-        help="screen for putative novel norovirus ORF1/ORF2 types (tentative, norovirus only)",
-        description="Chhabra et al. 2019 2x SD screen applied to one query at a time "
-                    "(tentative screening, not genotype designation). Norovirus only.",
+        help="screen for putative novel norovirus ORF1/ORF2 and sapovirus VP1 types (tentative)",
+        description="Chhabra et al. 2019 2x SD patristic screen for norovirus ORF1/ORF2 and "
+                    "published cut-off novelty reporting for sapovirus VP1 (sapovirus RdRp "
+                    "novelty screening is not implemented). Tentative screening, not genotype designation.",
         formatter_class=argparse.RawDescriptionHelpFormatter))
     _add_recomb_args(sub.add_parser(
         "recomb",
@@ -471,12 +488,13 @@ def main(argv=None):
         formatter_class=argparse.RawDescriptionHelpFormatter))
     _add_antigenic_args(sub.add_parser(
         "antigenic",
-        help="annotate GII.4 antigenic sites on an aligned VP1 amino-acid alignment",
+        help="annotate GII.4 antigenic sites on an aligned or unaligned VP1 sequence (annotation only)",
         description="Annotation only. Reports which published GII.4 antigenic-site "
-                    "residues differ from a reference, and screens for the change "
-                    "combination associated with antigenic shift. Does not type, does "
-                    "not change any call, and cannot measure antigenic distance, which "
-                    "needs blockade or neutralisation titres.",
+                    "residues differ from a reference and emits a sequence-based "
+                    "antigenic-change alert (`sequence_antigenic_alert`). Does not type, does "
+                    "not change any call, and must NOT be used to infer immune escape, vaccine "
+                    "relevance or phenotypic antigenicity without neutralisation, blockade or "
+                    "other experimental evidence.",
         formatter_class=argparse.RawDescriptionHelpFormatter))
     _add_setup_args(sub.add_parser(
         "setup",

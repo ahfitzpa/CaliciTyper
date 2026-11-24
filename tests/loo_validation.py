@@ -1,7 +1,21 @@
 #!/usr/bin/env python3
 """Leave-one-out validation on the bundled reference sets (no internet needed).
-Each reference ORF sequence is typed against all OTHER references of its genogroup; the answer is its own label.
-Only types with >= 2 references are evaluated (a type with one reference cannot be recovered when it is left out).
+
+Each reference ORF sequence is programmatically excluded in memory from BOTH
+the reference alignment and the taxon-to-type map (`exclude=[acc]`) before
+MAFFT profile alignment and TN93 NJ bootstrapping; the installed reference
+bundle on disk is never modified. Only types with >= 2 references are evaluated
+(singletons cannot be recovered when their sole exemplar is removed and are
+tested separately in singleton / leave-one-genotype-out hold-outs).
+
+Outcome definitions:
+  - recovery (accepted_correct): call passes acceptance gates (support >= min_support)
+    and matches the held-out reference's true type label.
+  - abstention (abstained): call fails acceptance gates (`call == 'unassigned'`,
+    bootstrap < min_support or insufficient aligned sites).
+  - misassignment (misassigned): call passes acceptance gates with a type label
+    DIFFERENT from the held-out reference's true type label.
+
 Usage: python tests/loo_validation.py [--bootstraps 100] [--threads 2] [--max-refs-per-type N] [--out results/loo.csv]"""
 import argparse, sys, collections
 from multiprocessing import Pool
@@ -44,7 +58,8 @@ if __name__ == "__main__":
         rows = p.map(work, jobs, chunksize=1)
     df = pd.DataFrame(rows); Path(a.out).parent.mkdir(exist_ok=True, parents=True); df.to_csv(a.out, index=False)
     df["assigned"] = df.call != "unassigned"; df["correct"] = df.call == df.truth
+    df["abstained"] = ~df.assigned; df["misassigned"] = df.assigned & ~df.correct
     for region, g in df.groupby("region"):
-        print(region, "n=%d assigned=%.1f%% correct(of all)=%.1f%% wrong=%d" % (
-            len(g), 100*g.assigned.mean(), 100*g.correct.mean(), int((g.assigned & ~g.correct).sum())))
-    print(df[df.assigned & ~df.correct][["region","accession","truth","call","support"]].to_string(index=False))
+        print(region, "n=%d accepted_correct=%d (%.1f%%) abstained=%d misassigned=%d" % (
+            len(g), int(g.correct.sum()), 100*g.correct.mean(), int(g.abstained.sum()), int(g.misassigned.sum())))
+    print(df[df.misassigned][["region","accession","truth","call","support"]].to_string(index=False))

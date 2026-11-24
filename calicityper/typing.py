@@ -89,8 +89,10 @@ def _type_region_clustalw(seq, group, region, exclude=(), nrep=100, seed=1, min_
     res = tree.assign(names, types, "QUERY", codes[:, cols], nrep=nrep, seed=seed, min_support=min_support,
                       max_refs_per_type=max_refs_per_type)
     acc, ident, n_ident = tree.nearest_reference(names, "QUERY", codes[:, cols])
+    best_t = types.get(acc, "")
+    sec_t, sec_d, sec_n = tree.second_nearest_type(names, types, "QUERY", codes[:, cols], best_t)
     res.update(nearest=acc.split("|")[-1], nearest_identity=ident, nearest_sites=n_ident,
-               nearest_type=types.get(acc, ""))
+               nearest_type=best_t, second_type=sec_t, second_distance=sec_d, second_sites=sec_n)
     return res
 
 
@@ -111,8 +113,10 @@ def type_aligned(ref, qaln, exclude=(), nrep=100, seed=1, min_support=70.0,
                       max_refs_per_type=max_refs_per_type, fast_boot=fast_boot)
     res["region_sites"] = int((frac >= MIN_QUERY_FRAC_COLS).sum())   # columns the region spans
     acc, ident, n_ident = tree.nearest_reference(names, "QUERY", codes[:, cols])
+    best_t = types.get(acc, "")
+    sec_t, sec_d, sec_n = tree.second_nearest_type(names, types, "QUERY", codes[:, cols], best_t)
     res.update(nearest=acc, nearest_identity=ident, nearest_sites=n_ident,
-               nearest_type=types.get(acc, ""))
+               nearest_type=best_t, second_type=sec_t, second_distance=sec_d, second_sites=sec_n)
     return res
 
 
@@ -371,29 +375,50 @@ def apply_result(row, region, res, min_support):
         row["note"] = "; ".join(x for x in (row["note"], f"{region}: " + "; ".join(why)) if x)
 
 
+def wilson_ci(k, n, z=1.959963984540054):
+    """95% Wilson score confidence interval (lo, hi) for a binomial proportion k/n."""
+    if not n or n <= 0:
+        return None
+    p = max(0.0, min(1.0, float(k) / float(n)))
+    z2 = z * z
+    denom = 1.0 + z2 / n
+    centre = (p + z2 / (2.0 * n)) / denom
+    half = (z * math.sqrt((p * (1.0 - p) + z2 / (4.0 * n)) / n)) / denom
+    return (max(0.0, centre - half), min(1.0, centre + half))
+
+
 def _apply_sapovirus_result(row, region, res):
     """Sapovirus call by the published nucleotide distance cut-offs (Zhao et al. 2024).
 
     The nearest reference's type is the call only if the query lies within the
     genotype cut-off of it; otherwise the query is untypeable (a possible novel
     genotype if still inside the genogroup cut-off). Bootstrap support for the
-    called type is reported beside it as a second, independent number and does
-    not decide the call. Acceptance also needs the query to cover at least
-    SAPOVIRUS_MIN_REGION_COVERAGE of the region (provisional; see config).
+    called type, a 95% Wilson CI on the observed p-distance, and the distance
+    to the nearest distinct alternative type (`second_type`/`distance_margin`)
+    are reported beside the call to quantify uncertainty on short fragments or
+    overlapping P-type clusters. Acceptance also needs the query to cover at
+    least SAPOVIRUS_MIN_REGION_COVERAGE of the region (default 0.0; see config).
     """
     gt_cut, gg_cut = cg.SAPOVIRUS_CUTOFFS[region]
     label = "RdRp" if region == "orf1" else "VP1"
     nearest_type = res.get("nearest_type") or ""
     ident = res.get("nearest_identity")
     sites = int(res.get("n_sites") or 0)
+    ident_sites = int(res.get("nearest_sites") or sites)
     span = int(res.get("region_sites") or 0)
     cov = sites / span if span else 0.0
+    sec_type = res.get("second_type") or ""
+    sec_dist = res.get("second_distance")
     row[f"{region}_runners"] = format_runners(res.get("supports"))
     row[f"{region}_sites"] = sites
     row[f"{region}_coverage"] = round(cov, 3) if span else ""
     row[f"{region}_nearest"] = res.get("nearest", "")
     row[f"{region}_nearest_identity"] = ident if ident not in (None, "") else ""
     row[f"{region}_nearest_type"] = nearest_type
+    row[f"{region}_distance_ci"] = ""
+    row[f"{region}_second_type"] = sec_type
+    row[f"{region}_second_distance"] = sec_dist if sec_dist is not None else ""
+    row[f"{region}_distance_margin"] = ""
     why = []
     if ident in (None, "") or not nearest_type:
         row[f"{region}_type"], row[f"{region}_support"], row[f"{region}_distance"] = "unassigned", "", ""
@@ -401,9 +426,24 @@ def _apply_sapovirus_result(row, region, res):
     else:
         d = round(1.0 - float(ident) / 100.0, 4)
         row[f"{region}_distance"] = d
+        ci = wilson_ci(round(d * ident_sites), ident_sites) if ident_sites > 0 else None
+        if ci is not None:
+            row[f"{region}_distance_ci"] = f"{ci[0]:.4f}-{ci[1]:.4f}"
+        if sec_dist is not None:
+            row[f"{region}_distance_margin"] = round(float(sec_dist) - d, 4)
         if d < gt_cut:
             row[f"{region}_type"] = nearest_type
             row[f"{region}_support"] = round(float((res.get("all_supports") or {}).get(nearest_type, 0.0)), 1)
+            if ci is not None and ci[1] >= gt_cut:
+                row["note"] = "; ".join(x for x in (
+                    row["note"],
+                    f"{region}: 95% Wilson CI ({ci[0]:.3f}-{ci[1]:.3f}) straddles {gt_cut} {label} cut-off"
+                ) if x)
+            if sec_dist is not None and float(sec_dist) < gt_cut and sec_type:
+                row["note"] = "; ".join(x for x in (
+                    row["note"],
+                    f"{region}: second type {sec_type} (p={float(sec_dist):.3f}) also within {gt_cut} cut-off"
+                ) if x)
         else:
             row[f"{region}_type"], row[f"{region}_support"] = "untypeable", ""
             if d < gg_cut:

@@ -135,6 +135,37 @@ def test_alignment_names_match_the_labels(region):
         assert names == labels, (aln.name, sorted(names ^ labels)[:5])
 
 
+def test_sapovirus_reports_wilson_ci_and_second_type_margin():
+    """Uncertainty measures: 95% Wilson CI on p-distance and distance to the nearest other type."""
+    row = _row()
+    res = _res(85.0, sites=150, span=1650)
+    res["nearest_sites"] = 150
+    res["second_type"] = "GII.3"
+    res["second_distance"] = 0.2400
+    ty.apply_result(row, "orf2", res, min_support=70.0)
+    assert row["orf2_type"] == "GII.2"
+    lo, hi = map(float, row["orf2_distance_ci"].split("-"))
+    assert lo < 0.15 < hi
+    assert hi > 0.161                                    # short fragment CI straddles 0.161 cut-off
+    assert "straddles 0.161" in row["note"]
+    assert row["orf2_second_type"] == "GII.3"
+    assert row["orf2_second_distance"] == 0.24
+    assert row["orf2_distance_margin"] == pytest.approx(0.09, abs=1e-4)
+
+
+def test_sapovirus_warns_when_second_distinct_type_also_within_cutoff():
+    """Common in sapovirus RdRp: when a second P-type is also < 0.266, flag it in notes."""
+    row = _row()
+    res = _res(82.0, nearest_type="GII.P2", sites=1200, span=1500)
+    res["nearest_sites"] = 1200
+    res["second_type"] = "GII.P3"
+    res["second_distance"] = 0.2200
+    ty.apply_result(row, "orf1", res, min_support=70.0)
+    assert row["orf1_type"] == "GII.P2"
+    assert row["orf1_distance_margin"] == pytest.approx(0.04, abs=1e-4)
+    assert "second type GII.P3" in row["note"] and "also within 0.266" in row["note"]
+
+
 @needs_tools
 def test_a_sapovirus_genome_is_typed_end_to_end(tmp_path):
     """MN509084 (RIVM: sapovirus GII.2), from examples/. It is itself a
@@ -151,6 +182,9 @@ def test_a_sapovirus_genome_is_typed_end_to_end(tmp_path):
     assert row["genogroup"] == G
     assert (row["orf1_type"], row["orf2_type"]) == ("GII.P2", "GII.2")
     assert row["orf1_accepted"] == row["orf2_accepted"] == "accepted"
+    assert "-" in row["orf2_distance_ci"] and "-" in row["orf1_distance_ci"]
+    assert row["orf2_second_type"] != "" and row["orf2_second_type"] != "GII.2"
+    assert float(row["orf2_distance_margin"]) > 0
     # novelty is the distance cut-off's job, and the VP1 column now reports that
     # outcome; the norovirus 2x SD screen still must not run, and RdRp is not
     # screened at all because its cut-off overlaps the between-type distances
