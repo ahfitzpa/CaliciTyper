@@ -603,6 +603,7 @@ def _align_and_type(a):
             alns[(i, region)] = aln
     _apply_window_rules(rows, alns)
     _apply_dual_type(rows)
+    _apply_immunotype(rows)
     print(f"[{cmd}] completed typing for {len(recs)} sequence(s)", file=sys.stderr)
     return recs, rows, alns, todo
 
@@ -741,6 +742,34 @@ def _apply_dual_type(rows):
             row["dual_type_discordant"] = (
                 f"capsid {gg} with polymerase {pg}: regions placed in different groups; "
                 f"potential recombination or evolutionary incongruence, test with `calicityper recomb`")
+
+
+def _apply_immunotype(rows):
+    """Carry the Parra et al. 2017 immunotype and regime for the VP1 genotype.
+
+    Annotation only: nothing here changes a call, a threshold or an acceptance.
+
+    Keyed on the VP1 genotype, not the P-type, because the immunotypes are
+    clades of a VP1 amino-acid tree. Gated on the genogroup rather than on the
+    genotype string alone, because sapovirus genotype names collide with
+    norovirus ones -- sapovirus GI.1 is not norovirus GI.1, and the table is
+    norovirus. Sapovirus and other Caliciviridae carry a genogroup outside
+    cg.NOROVIRUS_GROUPS, so they fall through with the columns left empty, as
+    do unassigned, untypeable and genogroup-only rows.
+    """
+    from . import antigenic as ag
+
+    for row in rows.values():
+        row["immunotype"] = ""
+        row["evolutionary_regime"] = ""
+        if str(row.get("genogroup", "")) not in cg.NOROVIRUS_GROUPS:
+            continue
+        gt = str(row.get("orf2_type", "")).strip()
+        if not gt or gt in ("unassigned", "untypeable"):
+            continue
+        letter, regime = ag.immunotype(gt)
+        row["immunotype"] = letter or ""
+        row["evolutionary_regime"] = regime or ""
 
 
 def _apply_window_rules(rows, alns):

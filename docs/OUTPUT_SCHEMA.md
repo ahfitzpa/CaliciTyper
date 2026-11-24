@@ -53,6 +53,8 @@ One row per input query sequence (FASTA record), in input order. Columns are emi
 | `orf1_window_cov` | string | Coverage of the RIVM ORF1 typing window as `covered/width` (reported; gating depends on `--rivm-window-mode`). |
 | `dual_type` | string | Dual-typing designation, capsid genotype with the P-type in brackets. The P-group is written out only when it differs from the capsid genogroup: `GII.4[P16]` and `GI.5[P5]` where they agree, `GIV.1[GII.P10]` where they do not. Empty when either region was not typed. |
 | `dual_type_discordant` | string | Non-empty when the capsid and polymerase are placed in different groups, giving the two groups. Reports incongruence only; it is **not** a recombination call, for which see `calicityper recomb`. |
+| `immunotype` | string | Parra et al. 2017 immunotype letter (`A`-`L`) for the **capsid** genotype in `orf2_type`, from the packaged 28-genotype `immunotype_regime.tsv`. Keyed on the VP1 genotype, not the P-type, because the immunotypes are clades of a VP1 amino-acid tree. Annotation only: it changes no call. Empty for sapovirus and other *Caliciviridae* (the table is norovirus, and sapovirus genotype names collide with norovirus ones — sapovirus `GI.1` is not norovirus `GI.1`), and empty for `unassigned`, `untypeable` and genogroup-only rows. |
+| `evolutionary_regime` | string | The table's own regime for that genotype: `evolving`, `static`, `static_emerging_candidate` or `not_assessed`. `not_assessed` covers 17 of the table's 31 genotypes and is reported as such rather than collapsed to `static`, which would assert a regime Parra et al. did not assign. |
 | `orf1_putative_novel` | string | Putative-novel screen status for ORF1 (e.g. `known`, `putative_novel_type`, `putative_novel_group`, `not_assessable`/NA marker, or empty depending on context). Tentative screening only. |
 | `orf1_putative_novel_detail` | string | Explanation/detail for the ORF1 putative-novel screen result. |
 | `orf2_type` | string | Best ORF2 (VP1/capsid type, including GII.4 variant suffix when applicable) or empty/`unassigned`. |
@@ -211,7 +213,7 @@ residues. It does not type, and nothing in it feeds a typing call.
 |---|---|
 | `query`, `reference` | sequence ids from the alignment |
 | `genotype` | the genotype the site coordinates belong to; only `GII.4` is accepted |
-| `immunotype`, `evolutionary_regime` | Parra et al. 2017 immunotype letter and regime for `genotype`, read from the packaged `immunotype_regime.tsv`. Constant (`G`, `evolving`) while this command is GII.4-only; carried so a row is self-describing |
+| `immunotype`, `evolutionary_regime` | Parra et al. 2017 immunotype letter and the table's own regime for `genotype`, read from the packaged `immunotype_regime.tsv`. Constant (`G`, `evolving`) while this command is GII.4-only; carried so a row is self-describing. The genotype-varying case is the `type` TSV above |
 | `aa_differences` | amino-acid differences over columns both sequences resolve |
 | `residues_compared` | site residues actually scorable in this pair |
 | `mutated_site_count` | how many of the five sites A/C/D/E/G carry any change, 0-5. Counts sites, not residues: two changes inside Site A is 1 |

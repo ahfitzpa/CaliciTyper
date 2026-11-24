@@ -667,16 +667,50 @@ def _load_packaged_immunotypes() -> dict[str, str]:
     return out or dict(_DEFAULT_IMMUNOTYPE)
 
 
+def _load_packaged_regimes() -> dict[str, str]:
+    """{genotype: regime} from the packaged table, in the table's own wording.
+
+    Kept verbatim, including `not_assessed`, which covers 17 of the table's 31
+    genotypes. Deriving a binary static/evolving from the one-entry EVOLVING
+    tuple reported `static` for every one of those, which asserts a regime
+    Parra et al. did not assign; `not_assessed` is the honest value.
+    """
+    import csv
+    from pathlib import Path
+
+    tsv = Path(__file__).resolve().parent / "data" / "immunotype_regime.tsv"
+    if not tsv.exists():
+        return {}
+    out: dict[str, str] = {}
+    with tsv.open(newline="", encoding="utf-8") as fh:
+        for r in csv.DictReader(fh, delimiter="\t"):
+            gt = (r.get("genotype") or "").strip()
+            regime = (r.get("regime") or "").strip()
+            if gt and regime:
+                out[gt] = regime
+    return out
+
+
 IMMUNOTYPE = _load_packaged_immunotypes()
+REGIME = _load_packaged_regimes()
 
 
 def immunotype(genotype: str | None) -> tuple[str | None, str | None]:
-    """(immunotype letter or None, 'evolving'|'static'|None) for a genotype."""
+    """(immunotype letter or None, regime or None) for a genotype.
+
+    The regime is the packaged table's own value -- `evolving`, `static`,
+    `static_emerging_candidate` or `not_assessed`. It falls back to a binary
+    derivation from EVOLVING only when the table is unavailable, because that
+    derivation cannot express `not_assessed` and so overstates the source.
+    """
     g = (genotype or "").split("_")[0]
     letter = IMMUNOTYPE.get(g)
     if letter is None:
         return None, None
-    return letter, ("evolving" if g in EVOLVING else "static")
+    regime = REGIME.get(g)
+    if not regime:
+        regime = "evolving" if g in EVOLVING else "static"
+    return letter, regime
 
 
 # ----------------------------------------- turnkey reference loading & MAFFT

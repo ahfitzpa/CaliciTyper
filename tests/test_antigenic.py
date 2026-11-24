@@ -104,15 +104,25 @@ def test_immunotype_lookup_covers_all_28_parra_human_genotypes():
     assert len(ag.IMMUNOTYPE) == 28
     assert set(ag.IMMUNOTYPE.values()) == set("ABCDEFGHIJKL")
     assert ag.immunotype("GII.4") == ("G", "evolving")
-    assert ag.immunotype("GII.20") == ("G", "static")
     assert ag.immunotype("GII.2") == ("E", "static")
-    assert ag.immunotype("GII.16") == ("D", "static")
-    assert ag.immunotype("GII.8") == ("I", "static")
-    assert ag.immunotype("GII.15") == ("K", "static")
-    assert ag.immunotype("GII.22") == ("L", "static")
+    assert ag.immunotype("GII.16") == ("D", "not_assessed")
     assert ag.immunotype("GI.3")[0] == ag.immunotype("GI.8")[0] == ag.immunotype("GI.9")[0] == "C"
     assert ag.immunotype("GII.17")[0] == ag.immunotype("GII.13")[0] == "J"
     assert ag.immunotype("GII.99") == (None, None)
+
+
+def test_regime_is_the_tables_own_wording_not_a_binary_derivation():
+    """`not_assessed` must survive: it covers 17 of the table's 31 genotypes.
+
+    Deriving static/evolving from the one-entry EVOLVING tuple reported
+    `static` for every unassessed genotype, asserting a regime Parra et al.
+    never assigned.
+    """
+    for gt in ("GII.20", "GII.8", "GII.15", "GII.22"):
+        assert ag.immunotype(gt)[1] == "not_assessed", gt
+    assert ag.immunotype("GII.17")[1] == "static_emerging_candidate"
+    assert set(ag.REGIME.values()) <= {
+        "evolving", "static", "static_emerging_candidate", "not_assessed"}
     assert ag.immunotype("GII.4_Sydney") == ("G", "evolving")
 
 
@@ -363,6 +373,35 @@ def test_mutated_site_count_counts_sites_not_residues():
 def test_annotation_carries_the_immunotype_for_its_genotype():
     ann = ag.annotate("q", seq(), "r", seq())
     assert (ann.immunotype, ann.evolutionary_regime) == ("G", "evolving")
+
+
+def test_type_immunotype_columns_are_norovirus_only():
+    """Sapovirus genotype names collide with norovirus ones.
+
+    Sapovirus GI.1 is not norovirus GI.1, and the table is norovirus, so the
+    lookup is gated on the genogroup rather than on the genotype string.
+    """
+    from calicityper import cli
+
+    rows = {
+        0: {"query": "a", "genogroup": "GII", "orf2_type": "GII.4"},
+        1: {"query": "b", "genogroup": "GII", "orf2_type": "GII.4_Sydney"},
+        2: {"query": "c", "genogroup": "GI", "orf2_type": "GI.3"},
+        3: {"query": "d", "genogroup": "Caliciviridae_Sapovirus_GI",
+            "orf2_type": "GI.1"},
+        4: {"query": "e", "genogroup": "GII", "orf2_type": "unassigned"},
+        5: {"query": "f", "genogroup": "GII", "orf2_type": "untypeable"},
+        6: {"query": "g", "genogroup": "unassigned", "orf2_type": ""},
+    }
+    cli._apply_immunotype(rows)
+
+    assert (rows[0]["immunotype"], rows[0]["evolutionary_regime"]) == ("G", "evolving")
+    # a GII.4 variant label still resolves to its genotype
+    assert rows[1]["immunotype"] == "G"
+    assert (rows[2]["immunotype"], rows[2]["evolutionary_regime"]) == ("C", "static")
+    for i in (3, 4, 5, 6):
+        assert rows[i]["immunotype"] == "", rows[i]["query"]
+        assert rows[i]["evolutionary_regime"] == "", rows[i]["query"]
 
 
 def test_p_domain_sequence_is_resolved_through_the_anchor_not_raw_indices():
