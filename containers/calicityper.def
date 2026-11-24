@@ -1,0 +1,88 @@
+Bootstrap: localimage
+From: calicityper-tools.sif
+
+# CaliciTyper itself, on top of the tools image: ONE artifact that runs the
+# tool, rather than "sif + a host conda env + a host Python".
+#
+# Build both from the repository root, in this order. `localimage` and the
+# %files paths below are resolved against the current directory, so
+# calicityper-tools.sif has to sit in the repo root at build time (the built
+# copy currently lives in ../calicityper_runs/):
+#
+#   apptainer build calicityper-tools.sif containers/calicityper-tools.def
+#   apptainer build calicityper.sif       containers/calicityper.def
+#
+# Built from the tools image rather than from python:3.11 again, so the pinned
+# BLAST/MAFFT/OpenRDP %post is not duplicated and the two images cannot drift.
+# The tools image pins its own base by digest; this one inherits that.
+#
+# Reference data is NOT baked in. `calicityper setup` fetches ~GB from Zenodo
+# (doi:10.5281/zenodo.24161236) and verifies it, and writing that into the
+# image would be a post-build write into a read-only artifact. config.py
+# therefore defaults DATA to /data inside a container, which is the bind mount
+# below. An explicit CALICITYPER_DATA still wins.
+
+%files
+    pyproject.toml /opt/calicityper-src/pyproject.toml
+    README.md      /opt/calicityper-src/README.md
+    calicityper    /opt/calicityper-src/calicityper
+
+%labels
+    Description   CaliciTyper + BLAST+, MAFFT, OpenRDP
+    Entrypoint    calicityper
+    Data.mount    /data   (bind a host copy of the Zenodo reference set here)
+    Data.setup    apptainer exec -B ./refdata:/data calicityper.sif calicityper setup
+    # Inherited from calicityper-tools.sif, repeated so one `inspect` shows it:
+    Tools.absent  iqtree2, clustalw2
+    Cpu.default   1
+    Cpu.useful    4
+
+%post
+    set -eu
+    # 1: the mount point has to exist in the image for -B /data to land.
+    mkdir -p /data
+    # 2: install from the copied source, not from PyPI, so the image matches
+    #    the tree it was built from. Dependency pins live in pyproject.toml.
+    pip install --no-cache-dir /opt/calicityper-src
+    # 3: fail the build, not the first run, if the entry point is missing.
+    calicityper --help > /dev/null
+
+%environment
+    export LC_ALL=C
+    # CALICITYPER_DATA deliberately unset: config.py defaults to /data in a
+    # container, and leaving it unset keeps an explicit override working.
+
+%test
+    set -e
+    calicityper --help > /dev/null && echo "calicityper ok"
+    blastn -version | head -1
+    mafft --version
+    openrdp --help > /dev/null && echo "openrdp ok"
+
+%runscript
+    # Single entry point, arguments passed straight through: one container,
+    # one concern. `apptainer exec` still reaches the tools directly.
+    exec calicityper "$@"
+
+%help
+    CaliciTyper with its external tools, in one image.
+
+    Reference data lives on a bind mount, not in the image:
+
+      mkdir -p refdata
+      apptainer exec -B ./refdata:/data calicityper.sif calicityper setup
+      apptainer run  -B ./refdata:/data calicityper.sif --help
+
+    Any writable path works; /data is only the default inside the container.
+    To use a reference copy elsewhere, set CALICITYPER_DATA:
+
+      apptainer exec -B /scratch:/scratch --env CALICITYPER_DATA=/scratch/ref \
+          calicityper.sif calicityper ...
+
+    Not in this image: iqtree2 and clustalw2. The patristic-distance and
+    clustalw paths need those on the host, via CALICITYPER_IQTREE and
+    CALICITYPER_CLUSTALW.
+
+    One core by default; only MAFFT threads, and about four is the useful
+    ceiling. Outputs go to stdout and to whatever output path you pass, so
+    redirect rather than looking for log files inside the container.

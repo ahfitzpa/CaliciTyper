@@ -1,5 +1,5 @@
 Bootstrap: docker
-From: python:3.11
+From: python:3.11@sha256:0b0c9d578126c0456945ac38b539a71d68b7ca19f0e601a2a835b2c07d5a37a5
 
 # External tools for CaliciTyper, pinned, in one image.
 #
@@ -41,6 +41,21 @@ From: python:3.11
     BLAST        2.17.0+
     MAFFT        7.526
     OpenRDP      0.1.0 (PoonLab/OpenRDP @ b42d9e5, master)
+    Base         python:3.11@sha256:0b0c9d578126c0456945ac38b539a71d68b7ca19f0e601a2a835b2c07d5a37a5
+    # Tools config.exe() can ask for that this image does NOT carry. Both have
+    # host-only code paths: patristic distances (iqtree) and the clustalw
+    # aligner. Set CALICITYPER_IQTREE / CALICITYPER_CLUSTALW to a host binary,
+    # or stay off those paths. The CI image has no IQ-TREE either, which is why
+    # only the fallback paths fail there.
+    Tools.absent  iqtree2, clustalw2
+    # Runtime confinement. NOT measured: these are the declared expectations
+    # the benchmarking SLURM scripts already run with (cpus-per-task 2-16,
+    # most often 4). MAFFT is the only step here that threads, via
+    # align.py's --thread; BLAST and OpenRDP run single-core, so asking for
+    # more than Cpu.useful buys nothing. Replace these with measured figures
+    # once a run records MaxRSS.
+    Cpu.default   1
+    Cpu.useful    4
 
 %post
     set -eux

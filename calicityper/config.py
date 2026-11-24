@@ -1,6 +1,7 @@
 """Locations of data and external programs. Nothing here is machine specific.
 
-Data directory : $CALICITYPER_DATA, else the reference data bundled inside this
+Data directory : $CALICITYPER_DATA, else /data inside a container, else the
+                 reference data bundled inside this
                  package (calicityper/data). Because the data lives *inside* the
                  package it is installed by pip along with the code, so a plain
                  `pip install calicityper` gives a working tool -- it does not
@@ -14,7 +15,26 @@ import os, shutil
 from pathlib import Path
 
 PKG = Path(__file__).resolve().parent
-DATA = Path(os.environ.get("CALICITYPER_DATA", PKG / "data"))
+
+
+def _default_data():
+    """Where the reference set lives when CALICITYPER_DATA is unset.
+
+    Inside the package on a host, so a plain `pip install calicityper`
+    still works with no further setup. In a container, /data instead:
+    `calicityper setup` writes the Zenodo reference set, and writing that
+    into the package would be a post-build write into a read-only image.
+    /data is the documented bind mount (containers/calicityper.def).
+    """
+    if os.environ.get("APPTAINER_CONTAINER") or os.environ.get("SINGULARITY_CONTAINER"):
+        return Path("/data")
+    return PKG / "data"
+
+
+# `or`, not a dict default: CALICITYPER_DATA set but empty made this
+# Path(""), i.e. the current directory, and every reference lookup then
+# failed against a path that looked plausible in the error message.
+DATA = Path(os.environ.get("CALICITYPER_DATA") or _default_data())
 BLAST_DB = DATA / "database" / "refseqdb_2"
 BLAST_FASTA = DATA / "database" / "refseq_2.fasta"
 # Fixed search-space size for the genogroup BLAST, in bases. BLAST scales its
