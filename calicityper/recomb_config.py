@@ -189,7 +189,7 @@ def load(path=None):
         except Exception as exc:
             raise ValueError(f"malformed TOML config {p}: {exc}") from exc
     else:
-        import yaml
+        import yaml  # type: ignore[import-untyped]
         try:
             data = yaml.safe_load(text)
         except yaml.YAMLError as exc:

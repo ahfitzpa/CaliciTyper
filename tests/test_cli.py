@@ -264,6 +264,7 @@ def test_classify_follows_per_cluster_bounds():
     assert nv.classify("orf2", {"GII.NA1": 0.12}, None, t)[0] == nv.KNOWN
 
 
+@needs_tools
 def test_putative_novel_columns_and_sapovirus_vp1_reported(tmp_path):
     """Every row carries the putative novel columns. A sapovirus VP1 reports the
     published distance cut-off's outcome; sapovirus RdRp stays unassessed."""
@@ -357,6 +358,7 @@ def test_rivm_windows_resolve_to_the_published_lengths():
     assert orf1.max() >= len(align.refset("orf1", "GII").seqs[0]) - 20
 
 
+@needs_tools
 def test_short_input_is_typed_but_not_accepted(tmp_path):
     """150 nt is below the validated range, so the type is reported and the
     acceptance column says why it should not be relied on.
@@ -378,6 +380,7 @@ def test_short_input_is_typed_but_not_accepted(tmp_path):
     assert "300" in r["orf1_accepted"], r["orf1_accepted"]
 
 
+@needs_tools
 def test_input_below_the_alignment_minimum_is_rejected(tmp_path):
     """Under 100 nt there are too few aligned sites for the tree, measured:
     nothing was assignable at 80 nt in the truncation harness."""
@@ -389,6 +392,7 @@ def test_input_below_the_alignment_minimum_is_rejected(tmp_path):
     assert "rejected" in r["note"], r["note"]
 
 
+@needs_tools
 def test_window_coverage_is_reported_and_does_not_withhold_the_call(tmp_path):
     """A VP1 fragment missing region C is still typed, with its coverage shown.
 
@@ -405,6 +409,7 @@ def test_window_coverage_is_reported_and_does_not_withhold_the_call(tmp_path):
     assert r["orf2_accepted"] == "accepted", r["orf2_accepted"]
 
 
+@needs_tools
 def test_rivm_window_mode_restores_the_gate(tmp_path, monkeypatch):
     """The gate still exists for replicating RIVM's own decisions."""
     monkeypatch.setenv("CALICITYPER_RIVM_WINDOW_MODE", "1")
@@ -427,6 +432,7 @@ def test_gii4_variant_window_spans_p2_to_the_vp1_terminus():
     assert not set(cols) & set(region_c), "variant window must not overlap region C"
 
 
+@needs_tools
 def test_variant_window_coverage_is_reported_with_the_variant(tmp_path):
     """A fragment covering region C but little of P2 keeps its variant, with
     the variant-window coverage reported beside it.

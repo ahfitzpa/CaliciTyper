@@ -71,3 +71,7 @@ addopts = "-m 'not slow'"
 [tool.ruff.lint]
 select = ["E9", "F", "B006"]
 
+[tool.mypy]
+ignore_missing_imports = true
+
+
