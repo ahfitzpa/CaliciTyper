@@ -90,6 +90,24 @@ def external_tool_versions(names: tuple[str, ...] = ("blastn", "mafft")) -> dict
     return versions
 
 
+@lru_cache(maxsize=1)
+def runtime_environment() -> dict[str, Any]:
+    """Return Python version and installed core/optional dependency versions."""
+    import importlib.metadata
+    import platform
+
+    deps: dict[str, str] = {}
+    for pkg in ("biopython", "numpy", "pandas", "numba", "bokeh"):
+        try:
+            deps[pkg] = importlib.metadata.version(pkg)
+        except importlib.metadata.PackageNotFoundError:
+            pass
+    return {
+        "python_version": platform.python_version(),
+        "dependencies": deps,
+    }
+
+
 def _manifest_path(manifest_path: str | Path | None = None) -> Path:
     if manifest_path:
         return Path(manifest_path)
@@ -134,6 +152,7 @@ def base_provenance(
         "tool": tool,
         "tool_version": __version__,
         "generated": _now_iso(),
+        "runtime": runtime_environment(),
     }
     if command:
         prov["command"] = command

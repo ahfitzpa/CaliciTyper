@@ -179,7 +179,8 @@ Design rationale and the measurements behind each threshold:
 - **Input:** FASTA contigs/genomes for `type`/`novel` (not raw FASTQ). `recomb` requires `--alignment` or `--input`. `antigenic` takes an aligned VP1 amino-acid FASTA, or, with `--unaligned`, unaligned ORF2 nucleotide or VP1 amino-acid sequence; either way it must be a **norovirus GII complete VP1** and anything else is refused, because the site coordinates are GII VP1 numbering resolved through a GII.4 anchor. **Stdin is not supported** for sequence input.
 - **Output:** `type`/`novel` write TSV to stdout by default (`-o -`) or to a file; status/progress messages go to stderr.
 - **`--report PREFIX`:** writes `PREFIX.md`, `PREFIX.json`, `PREFIX.html`.
-- **Provenance/auditability:** file-based TSV outputs get `*.provenance.json`; JSON outputs include `tool_version`, effective parameters, and reference-set DOI/version/manifest hash. See [`docs/OUTPUT_SCHEMA.md`](docs/OUTPUT_SCHEMA.md).
+- **Provenance/auditability:** file-based TSV outputs get `*.provenance.json` written atomically; JSON outputs record `tool_version`, `runtime` (Python + dependency versions), `input_sha256`, `external_tools` versions, effective parameters, and reference-set DOI/version/manifest hash. See [`docs/OUTPUT_SCHEMA.md`](docs/OUTPUT_SCHEMA.md).
+- **Exit codes:** `0` success; `1` runtime/external-tool/download failure; `2` CLI/config/input validation or missing-file error; `130` interrupted (`SIGINT`); `143` terminated (`SIGTERM`).
 
 ## Supported vs unsupported
 

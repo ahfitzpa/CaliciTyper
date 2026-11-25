@@ -34,6 +34,7 @@ jobs:
             bokeh
             pytest
             ruff
+            mypy
           condarc: |
             channels:
               - conda-forge
@@ -50,9 +51,20 @@ jobs:
         shell: bash -el {0}
         run: pip install -e ".[test]"
 
-      - name: Lint (ruff)
+      - name: Lint and static type check (ruff + mypy)
         shell: bash -el {0}
-        run: ruff check calicityper/ tests/
+        run: |
+          ruff check calicityper/ tests/
+          mypy calicityper/ --ignore-missing-imports
+
+      - name: CLI smoke checks (--version / --help / antigenic --show-sites)
+        shell: bash -el {0}
+        run: |
+          calicityper --version
+          for sub in type novel recomb antigenic setup; do
+            calicityper "$sub" --help > /dev/null
+          done
+          calicityper antigenic --show-sites > /dev/null
 
       - name: Unit and CLI tests
         shell: bash -el {0}

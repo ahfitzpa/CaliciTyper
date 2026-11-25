@@ -21,6 +21,7 @@ Machine-readable provenance (JSON reports and `*.provenance.json` sidecars) reco
 | `tool_version` | CaliciTyper package version used for the run. |
 | `command` | Subcommand that produced the output (`type`, `novel`, `recomb`). |
 | `generated` | UTC timestamp (ISO 8601). |
+| `runtime` | Execution environment (`python_version` and installed core/optional Python `dependencies`). |
 | `parameters` | Effective run parameters/settings (inputs, `input_sha256`, `external_tools` versions, thresholds, flags, seeds, threads, modes, etc.) relevant to reproducibility/interpretation. CLI flags take precedence over env-var fallbacks for correctness-affecting settings where exposed. |
 | `reference_set` | Shipped reference-manifest identity: `doi`, `reference_set_version`, `manifest_sha256` (SHA-256 of canonical manifest JSON), `download_url`, counts (`n_accessions`, `n_records`, `n_artefacts`), `manifest_path`, and availability/error info. |
 

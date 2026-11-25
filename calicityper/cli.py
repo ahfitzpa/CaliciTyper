@@ -317,14 +317,21 @@ def _antigenic_provenance(a, reference, n_seqs, entropy, path):
     """Record what was run, against what, and under which published rules."""
     import json as _json
     from . import antigenic as ag
+    from . import provenance
     conserved = sorted(r for r, h in entropy.items()
                        if h is not None and h <= ag.CONSERVED_ENTROPY)
     rec = {
         "tool": "calicityper", "tool_version": __version__,
         "subcommand": "antigenic", "alignment": a.alignment,
+        "input_sha256": provenance.file_sha256(a.alignment),
+        "runtime": provenance.runtime_environment(),
         "reference": reference, "genotype": a.genotype,
         "n_sequences": n_seqs,
         "alert_column": "sequence_antigenic_alert",
+        "external_tools": (
+            provenance.external_tool_versions(("mafft",))
+            if getattr(a, "unaligned", False) else {}
+        ),
         "input_guard": {
             "k": ag.GUARD_K,
             "min_containment": ag.GUARD_MIN_CONTAINMENT,
@@ -1178,51 +1185,81 @@ def _run_recomb(a):
         cfg.run_gard = False
     if a.no_segment_trees:
         cfg.build_segment_trees = False
-    cfg.validate()
+    try:
+        cfg.validate()
+    except ValueError as e:
+        print(f"Error: invalid recombination configuration: {e}", file=sys.stderr)
+        return 2
 
     if not a.alignment and not a.input:
-        sys.exit("calicityper recomb: provide --alignment <aligned.fasta> or --input <unaligned.fasta>")
+        print("Error: calicityper recomb requires --alignment <aligned.fasta> or --input <unaligned.fasta>.",
+              file=sys.stderr)
+        return 2
+    if a.alignment and a.input:
+        print("Error: pass either --alignment or --input, not both.", file=sys.stderr)
+        return 2
 
     outdir = Path(a.output)
-    outdir.mkdir(parents=True, exist_ok=True)
+    if not a.dry_run:
+        outdir.mkdir(parents=True, exist_ok=True)
 
     aln_path = a.alignment
-    if not aln_path:
-        # --input is unaligned: align it first, because every scanner needs a
-        # column-consistent alignment and silently mis-scanning unaligned input
-        # would be worse than spending the MAFFT call.
-        aln_path = str(outdir / "aligned.fasta")
-        print(f"[recomb] aligning input FASTA with MAFFT: {a.input} -> {aln_path}", file=sys.stderr)
-        from . import provenance
-        proc = subprocess.run(
-            [ty.cg.exe("mafft"), "--quiet", "--auto", "--thread", str(max(1, a.threads)), a.input],
-            capture_output=True, text=True, check=True,
-        )
-        provenance.atomic_write_text(aln_path, proc.stdout)
+    tmp_aln_dir = None
+    try:
+        if not aln_path:
+            if not Path(a.input).is_file():
+                raise FileNotFoundError(f"input FASTA not found: {a.input}")
+            if a.dry_run:
+                tmp_aln_dir = tempfile.TemporaryDirectory(prefix="calicityper_recomb_dry_")
+                aln_path = str(Path(tmp_aln_dir.name) / "aligned.fasta")
+            else:
+                aln_path = str(outdir / "aligned.fasta")
+            print(f"[recomb] aligning input FASTA with MAFFT: {a.input} -> {aln_path}", file=sys.stderr)
+            from . import provenance
+            proc = subprocess.run(
+                [ty.cg.exe("mafft"), "--quiet", "--auto", "--thread", str(max(1, a.threads)), a.input],
+                capture_output=True, text=True,
+            )
+            if proc.returncode != 0:
+                err = (proc.stderr or "").strip()[-1000:] or "(no stderr)"
+                print(f"Error: MAFFT failed (exit {proc.returncode}) aligning {a.input}:\n{err}",
+                      file=sys.stderr)
+                return 1
+            provenance.atomic_write_text(aln_path, proc.stdout)
 
-    aln = R.read_alignment(aln_path)
-    queries = a.query or [n for n in aln.names]
-    missing = [q for q in queries if q not in aln.names]
-    if missing:
-        sys.exit(f"calicityper recomb: query id(s) not in the alignment: {missing[:5]}")
+        try:
+            aln = R.read_alignment(aln_path)
+        except R.AlignmentError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            return 2
 
-    if a.dry_run:
-        exe = cfg.openrdp()
-        print(f"alignment        : {aln_path}")
-        print(f"  sequences      : {len(aln.names)}")
-        print(f"  columns        : {aln.length}")
-        print(f"  masked to N    : {getattr(aln, 'masked_chars', 0)}")
-        print(f"  informative    : {R.informative_sites(aln)}")
-        print(f"queries          : {len(queries)}")
-        print(f"methods requested: {' '.join(cfg.methods) or '(none)'}")
-        print(f"OpenRDP          : {exe or 'NOT FOUND (set $CALICITYPER_OPENRDP)'}")
-        print(f"virus model      : {cfg.virus}")
-        print(f"segment trees    : {'yes' if cfg.build_segment_trees else 'no'}")
-        print(f"GARD             : {'requested' if cfg.run_gard else 'off'}")
-        for q in queries[:10]:
-            ok, why, st = R.qc_query(aln, q, cfg)
-            print(f"  {q}: {'OK' if ok else 'WOULD SKIP - ' + why}")
-        return 0
+        queries = a.query or [n for n in aln.names]
+        missing = [q for q in queries if q not in aln.names]
+        if missing:
+            print(f"Error: calicityper recomb: query id(s) not in the alignment: {missing[:5]}",
+                  file=sys.stderr)
+            return 2
+
+        if a.dry_run:
+            exe = cfg.openrdp()
+            print(f"alignment        : {aln_path}")
+            print(f"  sequences      : {len(aln.names)}")
+            print(f"  columns        : {aln.length}")
+            print(f"  masked to N    : {getattr(aln, 'masked_chars', 0)}")
+            print(f"  informative    : {R.informative_sites(aln)}")
+            print(f"queries          : {len(queries)}")
+            print(f"methods requested: {' '.join(cfg.methods) or '(none)'}")
+            print(f"OpenRDP          : {exe or 'NOT FOUND (set $CALICITYPER_OPENRDP)'}")
+            print(f"virus model      : {cfg.virus}")
+            print(f"segment trees    : {'yes' if cfg.build_segment_trees else 'no'}")
+            print(f"GARD             : {'requested' if cfg.run_gard else 'off'}")
+            for q in queries[:10]:
+                ok, why, st = R.qc_query(aln, q, cfg)
+                print(f"  {q}: {'OK' if ok else 'WOULD SKIP - ' + why}")
+            return 0
+    finally:
+        if tmp_aln_dir is not None:
+            tmp_aln_dir.cleanup()
 
     if a.verbose:
         print(f"[recomb] {len(queries)} quer{'y' if len(queries)==1 else 'ies'}, "
