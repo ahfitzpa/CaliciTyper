@@ -28,22 +28,7 @@ Detailed reference: [`docs/REFERENCE.md`](docs/REFERENCE.md) • Output schemas/
 
 ### 1) Install
 
-**From the GitHub release (recommended).** Each release carries a wheel, an
-sdist and the matching reference-set archive.
-
-```bash
-pip install https://github.com/ahfitzpa/CaliciTyper/releases/download/v0.8.1/calicityper-0.8.1-py3-none-any.whl
-calicityper setup --source calicityper-reference-0.8.1.tar.gz
-```
-
-Or straight from Git:
-
-```bash
-pip install git+https://github.com/ahfitzpa/CaliciTyper@v0.8.1
-calicityper setup
-```
-
-**From source, with conda/mamba:**
+**With conda/mamba (recommended for local use):**
 
 ```bash
 git clone https://github.com/ahfitzpa/CaliciTyper.git
@@ -53,10 +38,39 @@ conda activate calicityper
 calicityper setup
 ```
 
-`environment.yml` is a convenience environment, not a lock file. Pin or export
-a resolved environment if you need reproducibility, or use the Apptainer image
-described in [`docs/INSTALL_TOOLS.md`](docs/INSTALL_TOOLS.md), which fixes
-BLAST+, MAFFT and OpenRDP at known versions in a single file you can checksum.
+**With the test-verified `linux-64` lockfile (pinned versions):**
+
+```bash
+git clone https://github.com/ahfitzpa/CaliciTyper.git
+cd CaliciTyper
+conda env create -n calicityper-locked -f environment.lock.yml
+conda activate calicityper-locked
+pip install --no-deps --no-build-isolation .
+calicityper setup
+```
+
+**Python package only (`pip`):** requires external `blastn`, `makeblastdb`, and `mafft` on `PATH` (see [`docs/INSTALL_TOOLS.md`](docs/INSTALL_TOOLS.md)).
+
+```bash
+pip install git+https://github.com/ahfitzpa/CaliciTyper.git
+calicityper setup
+```
+
+**All-in-one Apptainer container (recommended for HPC):** pins BLAST+, MAFFT, ClustalW, IQ-TREE, OpenRDP (in an isolated `numpy<2` venv), and CaliciTyper in a single checksummed `.sif` image. Reference data is kept outside the image and mounted at `/data`.
+
+```bash
+git clone https://github.com/ahfitzpa/CaliciTyper.git
+cd CaliciTyper
+apptainer build calicityper-tools.sif containers/calicityper-tools.def
+apptainer build calicityper.sif containers/calicityper.def
+
+mkdir -p refdata
+apptainer exec -B "$(pwd -P)/refdata:/data" calicityper.sif calicityper setup --data-dir /data
+apptainer run  -B "$(pwd -P)/refdata:/data" -B "$(pwd -P):/work" calicityper.sif \
+    type /work/examples/example.fasta -o /work/example_typed.tsv --threads 4
+```
+
+Use `$(pwd -P)` for bind mounts on HPC clusters where `$PWD` traverses a symlink (for example `~/scratch`). See [`docs/INSTALL_TOOLS.md`](docs/INSTALL_TOOLS.md) for offline caching, SLURM builds, and standalone OpenRDP setup.
 
 > Not yet on PyPI or bioconda.
 
@@ -222,7 +236,7 @@ Full troubleshooting and performance guidance: [`docs/REFERENCE.md`](docs/REFERE
 @software{fitzpatrick_calicityper,
   author = {Amy Heather Fitzpatrick},
   title  = {CaliciTyper: command-line calicivirus genotyping and recombination analysis},
-  url    = {https://github.com/ahfitzpa/calicityper},
+  url    = {https://github.com/ahfitzpa/CaliciTyper},
   year   = {2026}
 }
 ```
@@ -230,7 +244,7 @@ Full troubleshooting and performance guidance: [`docs/REFERENCE.md`](docs/REFERE
 ### How results were validated
 - **Validated/supported scope:** norovirus GI/GII ORF1/ORF2 genotyping and Caliciviridae genogroup detection within documented method/reference limits.
 - **Automated checks:** `pytest tests/ -v` covers core in-repo behavior; CI tests a baseline on Ubuntu with Python 3.10/3.12 (see `.github/workflows/ci.yml`).
-- **Extended benchmarking/validation artifacts:** detailed benchmarking outputs, figures, and extended validation materials are maintained separately during active development and will be shared as curated records when available (public repository HEAD no longer tracks those detailed artifacts). Use released/curated records plus recorded run provenance for reproducibility.
+- **Benchmarking and validation companion repository:** full benchmarking scripts, figure generation, and manuscript analyses live in [ahfitzpa/CaliciTyper_manuscript](https://github.com/ahfitzpa/CaliciTyper_manuscript).
 - **Audit trail:** record `calicityper setup` reference-set/manifest context and per-run machine-readable provenance (`*.json` / `*.provenance.json`: tool version, parameters, reference-set DOI/version/manifest hash). See [`docs/OUTPUT_SCHEMA.md`](docs/OUTPUT_SCHEMA.md).
 
 ## Performance and scalability (summary)
@@ -251,9 +265,9 @@ Full troubleshooting and performance guidance: [`docs/REFERENCE.md`](docs/REFERE
 - Dependencies carry an upper bound at the next major, so a new upstream release cannot change behaviour without a deliberate pin change. Raise a bound only after CI has run against that major.
 - Three levels of reproducibility, strongest last:
   - [`environment.yml`](environment.yml) — bounded spec, for a normal install. Resolves fresh, so versions differ between machines.
-  - [`environment.lock.yml`](environment.lock.yml) — one solved, **test-verified** set (linux-64, Python 3.12): every version pinned, written only after `pytest tests/` passed in that exact environment. `conda env create -n calicityper-locked -f environment.lock.yml`.
+  - [`environment.lock.yml`](environment.lock.yml) — one solved, **test-verified** set (linux-64, Python 3.12): every conda dependency pinned, written only after `pytest tests/` passed in that exact environment. Create with `conda env create -n calicityper-locked -f environment.lock.yml`, then `conda activate calicityper-locked && pip install --no-deps --no-build-isolation .`.
   - [`containers/calicityper-tools.def`](containers/calicityper-tools.def) and [`containers/calicityper.def`](containers/calicityper.def) — Apptainer images (tools-only and all-in-one), isolating OpenRDP's `numpy<2` requirement from CaliciTyper's `numpy>=2`.
-- CI deliberately resolves 3.10 and 3.12 fresh rather than installing the lock, so upstream breakage still surfaces; the upper bounds are what keep that from being noise. OpenRDP workflow and version guidance: [`docs/REFERENCE.md`](docs/REFERENCE.md).
+- CI deliberately resolves 3.10 and 3.12 fresh rather than installing the lock, so upstream breakage still surfaces; the upper bounds are what keep that from being noise. OpenRDP workflow and version guidance: [`docs/INSTALL_TOOLS.md`](docs/INSTALL_TOOLS.md) and [`docs/REFERENCE.md`](docs/REFERENCE.md).
 
 ## Codebase map
 
@@ -271,6 +285,7 @@ Full troubleshooting and performance guidance: [`docs/REFERENCE.md`](docs/REFERE
 
 ## Documentation
 
+- [`docs/INSTALL_TOOLS.md`](docs/INSTALL_TOOLS.md) — external tools, Apptainer container build/run, and isolated OpenRDP setup
 - [`docs/REFERENCE.md`](docs/REFERENCE.md) — detailed usage, methods, options, coverage/acceptance, recombination, troubleshooting, performance
 - [`docs/OUTPUT_SCHEMA.md`](docs/OUTPUT_SCHEMA.md) — TSV/JSON schemas, column semantics, provenance/sidecars, versioning
 - [`RELEASING.md`](RELEASING.md), [`CHANGELOG.md`](CHANGELOG.md) — release/versioning
