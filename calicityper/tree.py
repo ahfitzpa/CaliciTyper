@@ -166,8 +166,16 @@ try:                                   # optional accelerator: pip/conda install
 except Exception:                      # pragma: no cover
     HAVE_NUMBA = False
 
+def _njit_cached(fn):
+    """Decorate with njit(cache=True), falling back to cache=False on read-only installs (e.g. Apptainer SIF)."""
+    try:
+        return njit(cache=True)(fn)
+    except RuntimeError:
+        return njit(cache=False)(fn)
+
+
 if HAVE_NUMBA:
-    @njit(cache=True)
+    @_njit_cached
     def _nj_clades(D, G):
         """NJ on distance matrix D (n x n). G: (g x n) 0/1 membership of candidate groups.
         Returns bool[g]: is group g (or its complement) a clade of the unrooted NJ tree."""

@@ -78,3 +78,21 @@ def test_write_pdimer_fasta_is_atomic(tmp_path: Path, monkeypatch):
 
     assert target.read_text(encoding="utf-8") == ">old\nAAA:AAA\n"
     assert [p.name for p in tmp_path.iterdir()] == ["pdimers.fa"]
+
+
+def test_njit_cached_falls_back_on_readonly_filesystem(monkeypatch):
+    from calicityper import tree
+
+    calls: list[bool] = []
+
+    def fake_njit(cache: bool = False):
+        calls.append(cache)
+        if cache:
+            raise RuntimeError("cannot cache function: no locator available")
+        return lambda fn: fn
+
+    monkeypatch.setattr(tree, "njit", fake_njit, raising=False)
+    fn = lambda x: x + 1
+    assert tree._njit_cached(fn) is fn
+    assert calls == [True, False]
+

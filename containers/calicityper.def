@@ -24,6 +24,7 @@ From: calicityper-tools.sif
     mkdir -p /data
     # Install into the lock conda env offline, leaving all conda-pinned dependencies untouched.
     /opt/env/bin/pip install --no-cache-dir --no-build-isolation --no-deps /opt/calicityper-src
+    /opt/env/bin/python -c "from calicityper import tree; tree.warmup()"
     calicityper --help > /dev/null
 
 %environment
@@ -32,12 +33,13 @@ From: calicityper-tools.sif
         *) export PATH=/opt/env/bin:/usr/local/bin:$PATH ;;
     esac
     export LC_ALL=C
+    export NUMBA_CACHE_DIR="${NUMBA_CACHE_DIR:-${TMPDIR:-/tmp}/calicityper-numba-cache}"
     # Leave CALICITYPER_DATA unset so config.py defaults to /data while still allowing --env overrides.
 
 %test
     set -e
     calicityper --help > /dev/null && echo "calicityper ok"
-    /opt/env/bin/python -c "import calicityper, numpy, pandas, Bio; print('python deps ok')"
+    /opt/env/bin/python -c "import calicityper, numpy, pandas, Bio; from calicityper import tree; tree.warmup(); print('python + numba ok')"
     blastn -version | head -1
     makeblastdb -version | head -1
     mafft --version
