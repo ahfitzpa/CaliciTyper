@@ -178,11 +178,22 @@ def load(path=None):
     p = Path(path)
     if not p.exists():
         raise FileNotFoundError(f"config not found: {p}")
-    text = p.read_text()
+    text = p.read_text(encoding="utf-8")
     if p.suffix.lower() in (".toml",):
-        import tomllib
-        data = tomllib.loads(text)
+        try:
+            import tomllib
+        except ModuleNotFoundError:
+            import tomli as tomllib  # type: ignore[no-redef]
+        try:
+            data = tomllib.loads(text)
+        except Exception as exc:
+            raise ValueError(f"malformed TOML config {p}: {exc}") from exc
     else:
         import yaml
-        data = yaml.safe_load(text)
+        try:
+            data = yaml.safe_load(text)
+        except yaml.YAMLError as exc:
+            raise ValueError(f"malformed YAML config {p}: {exc}") from exc
+    if data is not None and not isinstance(data, dict):
+        raise ValueError(f"config {p} must be a mapping, got {type(data).__name__}")
     return _flatten_load(data)

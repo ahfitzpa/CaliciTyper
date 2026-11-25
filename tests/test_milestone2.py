@@ -71,3 +71,12 @@ def test_recomb_dry_run_has_no_outdir_side_effects(tmp_path: Path, capsys):
     assert rc == 0
     assert not outdir.exists()
     assert "virus model" in capsys.readouterr().out
+
+
+def test_recomb_malformed_config_exits_2(tmp_path: Path, capsys):
+    bad_toml = tmp_path / "broken.toml"
+    bad_toml.write_text("[recombination\nbroken = [", encoding="utf-8")
+    rc = cli.main(["recomb", "--config", str(bad_toml), "--alignment", str(bad_toml)])
+    assert rc == 2
+    assert "malformed TOML" in capsys.readouterr().err
+

@@ -1167,25 +1167,25 @@ def _run_recomb(a):
     """
     from . import recomb as R
 
-    cfg = _rc.load(a.config)
-    if a.virus:
-        cfg.virus = a.virus
-        cfg.regions = {}            # re-resolved from `virus` by validate()
-    if a.min_length is not None:
-        cfg.min_sequence_length = a.min_length
-    if a.pvalue_threshold is not None:
-        cfg.pvalue_threshold = a.pvalue_threshold
-    if a.max_breakpoint_distance is not None:
-        cfg.max_breakpoint_distance = a.max_breakpoint_distance
-    if a.methods:
-        cfg.methods = tuple(m.lower() for m in a.methods)
-    if a.skip_rdp:
-        cfg.methods = ()
-    if a.skip_gard:
-        cfg.run_gard = False
-    if a.no_segment_trees:
-        cfg.build_segment_trees = False
     try:
+        cfg = _rc.load(a.config)
+        if a.virus:
+            cfg.virus = a.virus
+            cfg.regions = {}            # re-resolved from `virus` by validate()
+        if a.min_length is not None:
+            cfg.min_sequence_length = a.min_length
+        if a.pvalue_threshold is not None:
+            cfg.pvalue_threshold = a.pvalue_threshold
+        if a.max_breakpoint_distance is not None:
+            cfg.max_breakpoint_distance = a.max_breakpoint_distance
+        if a.methods:
+            cfg.methods = tuple(m.lower() for m in a.methods)
+        if a.skip_rdp:
+            cfg.methods = ()
+        if a.skip_gard:
+            cfg.run_gard = False
+        if a.no_segment_trees:
+            cfg.build_segment_trees = False
         cfg.validate()
     except ValueError as e:
         print(f"Error: invalid recombination configuration: {e}", file=sys.stderr)
