@@ -241,7 +241,7 @@ def rdrp_region_columns(group):
     return np.flatnonzero(occ >= RDRP_OCCUPANCY)
 
 
-_WARNED = set()
+_WARNED: set[str] = set()
 
 
 def _warn_once(msg):
@@ -391,7 +391,8 @@ def vp1_aa_alignment():
                                   "--thread", "2", str(raw)], capture_output=True, text=True)
             if out.returncode != 0:
                 raise RuntimeError(f"mafft failed on the VP1 proteins:\n{out.stderr[-800:]}")
-            path.write_text(out.stdout)
+            from . import provenance
+            provenance.atomic_write_text(path, out.stdout)
     recs = [(r.id, str(r.seq).upper()) for r in SeqIO.parse(path, "fasta")]
     return recs, path
 

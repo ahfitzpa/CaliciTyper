@@ -55,6 +55,79 @@ def _apply_runtime_overrides(a):
         from . import putative_novel
         putative_novel.FAST_NOVEL = True
 
+from contextlib import contextmanager
+
+
+@contextmanager
+def _runtime_overrides(a):
+    """Apply runtime CLI overrides and restore module globals on exit."""
+    global _ARGS
+    from . import putative_novel
+
+    saved = (
+        _ARGS,
+        cg.MIN_INFORMATIVE_SITES,
+        cg.MIN_INFORMATIVE_SITES_ORF1,
+        cg.MIN_INFORMATIVE_SITES_ORF2,
+        cg.RIVM_WINDOW_MODE,
+        list(cg.TYPEABLE_GROUPS),
+        cg.TYPE_SAPOVIRUS,
+        putative_novel.DISTANCE,
+        putative_novel.FAST_NOVEL,
+    )
+    try:
+        _apply_runtime_overrides(a)
+        yield
+    finally:
+        (
+            _ARGS,
+            cg.MIN_INFORMATIVE_SITES,
+            cg.MIN_INFORMATIVE_SITES_ORF1,
+            cg.MIN_INFORMATIVE_SITES_ORF2,
+            cg.RIVM_WINDOW_MODE,
+            cg.TYPEABLE_GROUPS,
+            cg.TYPE_SAPOVIRUS,
+            putative_novel.DISTANCE,
+            putative_novel.FAST_NOVEL,
+        ) = saved
+
+
+def _validate_numeric_args(a: argparse.Namespace) -> str | None:
+    """Validate numeric CLI bounds early; return error string or None."""
+    threads = getattr(a, "threads", None)
+    if threads is not None and threads < 1:
+        return f"--threads must be >= 1 (got {threads})."
+    bootstraps = getattr(a, "bootstraps", None)
+    if bootstraps is not None and bootstraps < 1:
+        return f"--bootstraps must be >= 1 (got {bootstraps})."
+    min_support = getattr(a, "min_support", None)
+    if min_support is not None and not (0.0 <= min_support <= 100.0):
+        return f"--min-support must be between 0 and 100 (got {min_support})."
+    max_refs = getattr(a, "max_refs_per_type", None)
+    if max_refs is not None and max_refs < 1:
+        return f"--max-refs-per-type must be >= 1 (got {max_refs})."
+    for attr, flag in (
+        ("min_sites", "--min-sites"),
+        ("min_sites_orf1", "--min-sites-orf1"),
+        ("min_sites_orf2", "--min-sites-orf2"),
+        ("report_max_panels", "--report-max-panels"),
+        ("max_breakpoint_distance", "--max-breakpoint-distance"),
+    ):
+        val = getattr(a, attr, None)
+        if val is not None and val < 0:
+            return f"{flag} must be >= 0 (got {val})."
+    openrdp_timeout = getattr(a, "openrdp_timeout", None)
+    if openrdp_timeout is not None and openrdp_timeout < 1:
+        return f"--openrdp-timeout must be >= 1 (got {openrdp_timeout})."
+    min_length = getattr(a, "min_length", None)
+    if min_length is not None and min_length < 1:
+        return f"--min-length must be >= 1 (got {min_length})."
+    pval = getattr(a, "pvalue_threshold", None)
+    if pval is not None and not (0.0 < pval <= 1.0):
+        return f"--pvalue-threshold must be in (0, 1] (got {pval})."
+    return None
+
+
 def _init(a):
     global _ARGS
     _ARGS = a
@@ -279,8 +352,8 @@ def _antigenic_provenance(a, reference, n_seqs, entropy, path):
                     "conserved_residues": conserved},
         "caveat": ag.CAVEAT,
     }
-    with open(path, "w") as fh:
-        _json.dump(rec, fh, indent=1)
+    from . import provenance
+    provenance.atomic_write_text(path, _json.dumps(rec, indent=1))
 
 
 def _add_antigenic_args(p):
@@ -430,10 +503,13 @@ def _run_antigenic(a):
             print(f"Error: {e}", file=sys.stderr)
             return 2
 
-    with open(a.out, "w", newline="") as fh:
-        w = _csv.DictWriter(fh, fieldnames=ag.TSV_COLUMNS, delimiter="\t")
-        w.writeheader()
-        w.writerows(rows)
+    import io as _io
+    from . import provenance
+    buf = _io.StringIO()
+    w = _csv.DictWriter(buf, fieldnames=ag.TSV_COLUMNS, delimiter="\t", lineterminator="\n")
+    w.writeheader()
+    w.writerows(rows)
+    provenance.atomic_write_text(a.out, buf.getvalue())
     _antigenic_provenance(a, prov_ref_label, n_total_aln, ent, a.out + ".provenance.json")
     flagged = sum(r["sequence_antigenic_alert"] == "true" for r in rows)
     print(f"annotated {len(rows)} sequence(s) against {prov_ref_label} -> {a.out}")
@@ -505,6 +581,10 @@ def main(argv=None):
         formatter_class=argparse.RawDescriptionHelpFormatter))
 
     a = top.parse_args(argv)
+    val_err = _validate_numeric_args(a)
+    if val_err:
+        print(f"Error: {val_err}", file=sys.stderr)
+        return 2
     import signal
     import threading
     terminated = False
@@ -524,8 +604,10 @@ def main(argv=None):
         if a.command == "antigenic":
             return _run_antigenic(a)
         if a.command == "novel":
-            return _run_novel(a)
-        return _run_type(a)
+            with _runtime_overrides(a):
+                return _run_novel(a)
+        with _runtime_overrides(a):
+            return _run_type(a)
     except FileNotFoundError as e:
         msg = str(e)
         if "reference data not found" in msg or "Run `calicityper setup`" in msg:
@@ -686,6 +768,7 @@ def _run_type(a):
         written = [p for p in (a.md, a.json, a.html) if p]
         if written:
             print(f"[type] wrote reports: {', '.join(written)}", file=sys.stderr)
+    return 0
 
 def _run_novel(a):
     """`calicityper novel`: the Chhabra et al. 2019 2x SD screen, on its own.
@@ -1110,10 +1193,12 @@ def _run_recomb(a):
         # would be worse than spending the MAFFT call.
         aln_path = str(outdir / "aligned.fasta")
         print(f"[recomb] aligning input FASTA with MAFFT: {a.input} -> {aln_path}", file=sys.stderr)
-        with open(aln_path, "w") as fh:
-            subprocess.run([ty.cg.exe("mafft"), "--quiet", "--auto",
-                            "--thread", str(max(1, a.threads)), a.input],
-                           stdout=fh, check=True)
+        from . import provenance
+        proc = subprocess.run(
+            [ty.cg.exe("mafft"), "--quiet", "--auto", "--thread", str(max(1, a.threads)), a.input],
+            capture_output=True, text=True, check=True,
+        )
+        provenance.atomic_write_text(aln_path, proc.stdout)
 
     aln = R.read_alignment(aln_path)
     queries = a.query or [n for n in aln.names]

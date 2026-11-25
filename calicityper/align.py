@@ -68,8 +68,9 @@ class RefSet:
                 self.types_by_acc = dict(zip(self.names, self.types))
                 self.length = len(self.seqs[0]) if self.seqs else 0
                 return
-            except Exception:
-                pass
+            except (OSError, ValueError, KeyError, EOFError) as exc:
+                import logging
+                logging.getLogger(__name__).debug("ignoring unreadable refset cache %s: %s", cache_file, exc)
         from Bio import AlignIO, SeqIO
         self.types_by_acc = {r.id.split("|")[2]: r.id.split("|")[1] for r in SeqIO.parse(orf, "fasta")}
         a = AlignIO.read(aln, "clustal")
@@ -135,8 +136,8 @@ def _mafft(ref, queries, exclude, threads):
     """queries: list of (id, seq). Returns list of aligned strings of reference-alignment length."""
     with tempfile.TemporaryDirectory(prefix="calicityper_") as td:
         rf, qf = os.path.join(td, "ref.fa"), os.path.join(td, "q.fa")
-        open(rf, "w").write(ref.fasta(exclude))
-        with open(qf, "w") as fh:
+        Path(rf).write_text(ref.fasta(exclude), encoding="utf-8")
+        with open(qf, "w", encoding="utf-8") as fh:
             for i, (_, s) in enumerate(queries):
                 fh.write(f">q{i}\n{str(s).upper().replace('U', 'T')}\n")
         cmd = [cg.exe("mafft"), "--quiet", "--thread", str(max(1, threads)), "--keeplength", "--6merpair",

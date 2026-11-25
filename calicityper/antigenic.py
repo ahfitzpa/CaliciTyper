@@ -527,14 +527,10 @@ def annotate(
     ]
 
     if entropy:
-        ann.site_entropy = {
-            s: round(
-                sum(entropy[r] for r in SITES[s] if entropy.get(r) is not None)
-                / max(1, sum(1 for r in SITES[s] if entropy.get(r) is not None)),
-                4,
-            )
-            for s in SITES
-        }
+        ann.site_entropy = {}
+        for s, site_res in SITES.items():
+            vals = [v for r in site_res if (v := entropy.get(r)) is not None]
+            ann.site_entropy[s] = round(sum(vals) / max(1, len(vals)), 4)
 
     enough_changes = ann.aa_differences >= MIN_AA_CHANGES
     enough_sites = len(changed_shift_sites) >= 2
@@ -863,7 +859,8 @@ def load_gii4_variant_references(data_dir=None) -> list[tuple[str, str]]:
         )
 
     nt_by_acc: dict[str, str] = {}
-    hdr, buf = None, []
+    hdr: str | None = None
+    buf: list[str] = []
     with nt_file.open(encoding="utf-8") as fh:
         for raw in fh:
             line = raw.strip()
@@ -940,7 +937,8 @@ def align_unaligned_queries(
             raise RuntimeError(f"MAFFT failed aligning GII.4 VP1 amino acids:\n{proc.stderr}")
 
     parsed: dict[str, str] = {}
-    cur, buf = None, []
+    cur: str | None = None
+    buf: list[str] = []
     for line in proc.stdout.splitlines():
         if line.startswith(">"):
             if cur is not None:
@@ -1019,14 +1017,15 @@ def write_pdimer_fasta(path, records) -> int:
     The colon separates chains of one complex, so each record folds as a
     P-domain homodimer. Returns the number of records written.
     """
-    p = Path(path)
-    p.parent.mkdir(parents=True, exist_ok=True)
-    with p.open("w", encoding="utf-8") as fh:
-        for name, seq in records:
-            first = name.split()[0]
-            fh.write(f">{first}_pdimer aa {P_DOMAIN[0]}-{P_DOMAIN[1]} chainA:chainB")
-            if len(name.split()) > 1:
-                fh.write(f" identical_to={name}")
-            fh.write(f"\n{seq}:{seq}\n")
+    from . import provenance
+
+    lines: list[str] = []
+    for name, seq in records:
+        first = name.split()[0]
+        hdr = f">{first}_pdimer aa {P_DOMAIN[0]}-{P_DOMAIN[1]} chainA:chainB"
+        if len(name.split()) > 1:
+            hdr += f" identical_to={name}"
+        lines.append(f"{hdr}\n{seq}:{seq}\n")
+    provenance.atomic_write_text(path, "".join(lines))
     return len(records)
 

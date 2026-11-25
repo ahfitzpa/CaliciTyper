@@ -28,6 +28,8 @@ import shutil
 import sys
 import tarfile
 import tempfile
+import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -119,9 +121,21 @@ def install(source, data_dir, manifest=None, force=False):
     with tempfile.TemporaryDirectory(prefix="calicityper_db_") as td:
         archive = Path(td) / "reference.tar.gz"
         if "://" in str(source):
+            scheme = urllib.parse.urlparse(str(source)).scheme.lower()
+            if scheme not in ("https", "http"):
+                print(
+                    f"unsupported URL scheme {scheme!r} for reference archive: {source} "
+                    "(expected https://, http://, or a local file path)",
+                    file=sys.stderr,
+                )
+                return 1
             print(f"downloading {source}")
-            with urllib.request.urlopen(source, timeout=300) as r, open(archive, "wb") as fh:
-                shutil.copyfileobj(r, fh)
+            try:
+                with urllib.request.urlopen(source, timeout=300) as r, open(archive, "wb") as fh:
+                    shutil.copyfileobj(r, fh)
+            except (urllib.error.URLError, TimeoutError, OSError) as exc:
+                print(f"failed to download {source}: {exc}", file=sys.stderr)
+                return 1
         else:
             src = Path(source).expanduser()
             if not src.exists():
@@ -156,8 +170,9 @@ def install(source, data_dir, manifest=None, force=False):
         n_cached = align.warm_cache(data_dir)
         if n_cached:
             print(f"pre-cached {n_cached} encoded reference alignment(s)")
-    except Exception:
-        pass
+    except (OSError, ValueError) as exc:
+        import logging
+        logging.getLogger(__name__).debug("reference precache skipped: %s", exc)
     print(f"installed reference set {m.get('reference_set_version', '?')} into {data_dir}")
     print(f"set CALICITYPER_DATA={data_dir} (or leave it, if that is the default path)")
     return 0
