@@ -512,3 +512,114 @@ correctness &mdash; check the runner-up column for near-threshold calls.</div>
 </div></body></html>"""
     prov.atomic_write_text(path, doc)
     return path
+
+
+def _row_support(row: dict, region: str) -> float:
+    try:
+        return float(row.get(f"{region}_support") or 0.0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def build_alignment_panels(
+    rows: list[dict],
+    alns: dict[tuple[int, str], tuple[str, str]],
+    max_panels: int | None = None,
+) -> list:
+    """Build one Bokeh difference panel per aligned query region."""
+    from . import align
+
+    keys = sorted(alns, key=lambda k: (k[0], k[1]))
+    if max_panels is not None:
+        keys = keys[:max(0, max_panels)]
+    figs = []
+    for i, region in keys:
+        g, qa = alns[(i, region)]
+        ref = align.refset(region, g)
+        best = closest_reference(qa, ref.seqs)
+        if best is None:
+            continue
+        k, pdist, n, ndiff = best
+        row = rows[i]
+        called = row.get(f"{region}_type") or "untyped"
+        sup = (
+            f" ({_row_support(row, region):.0f}% support)"
+            if row.get(f"{region}_support") not in (None, "")
+            else ""
+        )
+        nov = row.get(f"{region}_putative_novel") or ""
+        tag = (
+            f"\u2691 {novel_label(region, nov).upper()} \u00b7 "
+            if nov in NOVEL_FLAGS
+            else ""
+        )
+        title = (
+            f"{tag}{row['query']} \u2014 {region.upper()} \u2192 {called}{sup} \u00b7 "
+            f"closest {ref.names[k]} ({ref.types[k]}): {ndiff} differences "
+            f"in {n} nt, p = {pdist:.3f}"
+        )
+        fig = difference_figure(
+            str(row["query"])[:38],
+            qa,
+            f"{ref.names[k]} {ref.types[k]}"[:38],
+            ref.seqs[k],
+            title,
+        )
+        if fig is not None:
+            figs.append(fig)
+    return figs
+
+
+def build_tree_figures(
+    rows: list[dict],
+    alns: dict[tuple[int, str], tuple[str, str]],
+    max_refs_per_type: int | None = None,
+) -> tuple[list, list[str]]:
+    """Build one neighbour-joining Bokeh tree per (region, genogroup)."""
+    from collections import defaultdict
+    from . import align, tree
+
+    by_group: dict[tuple[str, str], list[tuple[int, str]]] = defaultdict(list)
+    for (i, region), (g, qa) in alns.items():
+        by_group[(region, g)].append((i, qa))
+    figs, notes = [], []
+    cap = max_refs_per_type or 10 ** 9
+    for (region, g), lst in sorted(by_group.items()):
+        ref = align.refset(region, g)
+        seen: dict[str, int] = {}
+        keep: list[int] = []
+        for k, t in enumerate(ref.types):
+            seen[t] = seen.get(t, 0) + 1
+            if seen[t] <= cap:
+                keep.append(k)
+        room = MAX_TREE_TAXA - len(keep)
+        if room < 2:
+            notes.append(
+                f"{region.upper()}/{g}: tree skipped, the reference set alone "
+                f"exceeds {MAX_TREE_TAXA} taxa."
+            )
+            continue
+        chosen = lst[:room]
+        if len(chosen) < len(lst):
+            notes.append(
+                f"{region.upper()}/{g}: tree shows {len(chosen)} of {len(lst)} queries "
+                f"(capped at {MAX_TREE_TAXA} taxa for legibility)."
+            )
+        qnames = [str(rows[i]["query"])[:38] for i, _ in chosen]
+        names = qnames + [f"{ref.names[k]} {ref.types[k]}" for k in keep]
+        codes = (
+            np.vstack([tree.encode([qa for _, qa in chosen]), ref.codes[keep]])
+            if chosen
+            else ref.codes[keep]
+        )
+        D = tree.tn93(codes)
+        fig = tree_figure(
+            names,
+            D,
+            f"{region.upper()} / {g} \u2014 {len(chosen)} queries among references",
+            highlight=set(qnames),
+        )
+        if fig is not None:
+            figs.append(fig)
+    return figs, notes
+

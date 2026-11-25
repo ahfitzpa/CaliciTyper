@@ -1,10 +1,42 @@
 """Command-line interface (`calicityper type|novel|recomb|antigenic|setup`)."""
-import argparse, csv, os, subprocess, sys, tempfile
+import argparse, csv, logging, os, subprocess, sys, tempfile
 from pathlib import Path
 from collections import defaultdict
 from . import typing as ty
 from . import config as cg, align, tree, __version__
 from . import recomb_config as _rc
+
+log = logging.getLogger("calicityper")
+
+
+def _add_logging_args(p: argparse.ArgumentParser) -> argparse.ArgumentParser:
+    p.add_argument(
+        "--log-level",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR"],
+        default="INFO",
+        help="diagnostic log verbosity on stderr [default: INFO]",
+    )
+    p.add_argument(
+        "-q", "--quiet",
+        action="store_true",
+        help="suppress INFO progress messages on stderr (equivalent to --log-level WARNING)",
+    )
+    return p
+
+
+def _configure_logging(a: argparse.Namespace) -> None:
+    level_name = "WARNING" if getattr(a, "quiet", False) else getattr(a, "log_level", "INFO")
+    if getattr(a, "verbose", False) and not getattr(a, "quiet", False) and level_name == "INFO":
+        level_name = "DEBUG"
+    level = getattr(logging, level_name, logging.INFO)
+    log.setLevel(level)
+    log.propagate = False
+    handler = logging.StreamHandler(sys.stderr)
+    handler.setLevel(level)
+    fmt = "%(levelname)s: %(message)s" if level <= logging.DEBUG else "%(message)s"
+    handler.setFormatter(logging.Formatter(fmt))
+    log.handlers[:] = [handler]
+
 
 _ARGS = None
 def _work(chunk):
@@ -391,6 +423,7 @@ def _add_antigenic_args(p):
                         "the whole run; nothing about the flag changes")
     p.add_argument("--show-sites", action="store_true",
                    help="print the residue definitions and exit")
+    return p
 
 
 def _run_antigenic(a):
@@ -519,21 +552,25 @@ def _run_antigenic(a):
     provenance.atomic_write_text(a.out, buf.getvalue())
     _antigenic_provenance(a, prov_ref_label, n_total_aln, ent, a.out + ".provenance.json")
     flagged = sum(r["sequence_antigenic_alert"] == "true" for r in rows)
-    print(f"annotated {len(rows)} sequence(s) against {prov_ref_label} -> {a.out}")
-    print(f"  {flagged} flagged sequence_antigenic_alert")
+    log.info("annotated %d sequence(s) against %s -> %s", len(rows), prov_ref_label, a.out)
+    log.info("  %d flagged sequence_antigenic_alert", flagged)
     if getattr(a, "export_novel_pdimer", None):
         if anchor_row is None:
-            print("  P-dimer export skipped: no coordinate anchor resolved.", file=sys.stderr)
+            log.warning("  P-dimer export skipped: no coordinate anchor resolved.")
         else:
             recs_out = ag.pdimer_records(anns, qrows, anchor_row)
             n = ag.write_pdimer_fasta(a.export_novel_pdimer, recs_out)
             n_in = sum(1 for x in anns if x.sequence_antigenic_alert)
-            print(f"  P-dimer export: {n} unique P domain(s) from {n_in} flagged "
-                  f"query(ies) -> {a.export_novel_pdimer}")
+            log.info(
+                "  P-dimer export: %d unique P domain(s) from %d flagged query(ies) -> %s",
+                n, n_in, a.export_novel_pdimer,
+            )
             if n < n_in:
-                print(f"  ({n_in - n} collapsed as identical or skipped for incomplete "
-                      f"aa {ag.P_DOMAIN[0]}-{ag.P_DOMAIN[1]} coverage)")
-    print(f"  {ag.CAVEAT}")
+                log.info(
+                    "  (%d collapsed as identical or skipped for incomplete aa %d-%d coverage)",
+                    n_in - n, ag.P_DOMAIN[0], ag.P_DOMAIN[1],
+                )
+    log.info("  %s", ag.CAVEAT)
     return 0
 
 
@@ -548,7 +585,7 @@ def main(argv=None):
                     "sapovirus P-types are provisional).")
     top.add_argument("--version", action="version", version=__version__)
     sub = top.add_subparsers(dest="command", required=True, metavar="{type,novel,recomb,antigenic,setup}")
-    _add_type_args(sub.add_parser(
+    _add_logging_args(_add_type_args(sub.add_parser(
         "type",
         help="assign genogroup and norovirus GI/GII + sapovirus dual ORF1/ORF2 types",
         description="Norovirus GI/GII dual genotyping is the validated norovirus typing scope "
@@ -556,21 +593,21 @@ def main(argv=None):
                     "2024 distance cut-offs) is enabled by default (--no-type-sapovirus disables); "
                     "sapovirus RdRp novelty screening is not implemented, so P-types are provisional. "
                     "Putative-novel flags are tentative screening, not genotype designations.",
-        formatter_class=argparse.RawDescriptionHelpFormatter))
-    _add_novel_args(sub.add_parser(
+        formatter_class=argparse.RawDescriptionHelpFormatter)))
+    _add_logging_args(_add_novel_args(sub.add_parser(
         "novel",
         help="screen for putative novel norovirus ORF1/ORF2 and sapovirus VP1 types (tentative)",
         description="Chhabra et al. 2019 2x SD patristic screen for norovirus ORF1/ORF2 and "
                     "published cut-off novelty reporting for sapovirus VP1 (sapovirus RdRp "
                     "novelty screening is not implemented). Tentative screening, not genotype designation.",
-        formatter_class=argparse.RawDescriptionHelpFormatter))
-    _add_recomb_args(sub.add_parser(
+        formatter_class=argparse.RawDescriptionHelpFormatter)))
+    _add_logging_args(_add_recomb_args(sub.add_parser(
         "recomb",
         help="detect and score recombination (norovirus or sapovirus)",
         description="Evidence-weighted recombination analysis for norovirus/sapovirus alignments. "
                     "Use --dry-run to validate inputs and tool availability.",
-        formatter_class=argparse.RawDescriptionHelpFormatter))
-    _add_antigenic_args(sub.add_parser(
+        formatter_class=argparse.RawDescriptionHelpFormatter)))
+    _add_logging_args(_add_antigenic_args(sub.add_parser(
         "antigenic",
         help="annotate GII.4 antigenic sites on an aligned or unaligned VP1 sequence (annotation only)",
         description="Annotation only. Reports which published GII.4 antigenic-site "
@@ -579,18 +616,19 @@ def main(argv=None):
                     "not change any call, and must NOT be used to infer immune escape, vaccine "
                     "relevance or phenotypic antigenicity without neutralisation, blockade or "
                     "other experimental evidence.",
-        formatter_class=argparse.RawDescriptionHelpFormatter))
-    _add_setup_args(sub.add_parser(
+        formatter_class=argparse.RawDescriptionHelpFormatter)))
+    _add_logging_args(_add_setup_args(sub.add_parser(
         "setup",
         help="fetch and verify the reference data set",
         description="Install or verify the reference data set required for typing. "
                     "Refuses to install data that does not match the shipped manifest.",
-        formatter_class=argparse.RawDescriptionHelpFormatter))
+        formatter_class=argparse.RawDescriptionHelpFormatter)))
 
     a = top.parse_args(argv)
+    _configure_logging(a)
     val_err = _validate_numeric_args(a)
     if val_err:
-        print(f"Error: {val_err}", file=sys.stderr)
+        log.error("Error: %s", val_err)
         return 2
     import signal
     import threading
@@ -681,13 +719,13 @@ def _align_and_type(a):
     _apply_runtime_overrides(a)
     a._want_aln = True                  # the putative novel type screen needs the alignment, not only the HTML
     cmd = getattr(a, "command", "type")
-    print(f"[{cmd}] checking reference data and input...", file=sys.stderr)
+    log.info("[%s] checking reference data and input...", cmd)
     ty.cg.check_data()          # clear error if the bundled reference data is missing
     recs = ty.read_fasta(a.fasta)
     if not recs:
-        print(f"[{cmd}] no sequences found in {a.fasta}", file=sys.stderr)
+        log.warning("[%s] no sequences found in %s", cmd, a.fasta)
     else:
-        print(f"[{cmd}] loaded {len(recs)} sequence(s) from {a.fasta}", file=sys.stderr)
+        log.info("[%s] loaded %d sequence(s) from %s", cmd, len(recs), a.fasta)
         seen_ids, dup_ids = set(), []
         for rid, _ in recs:
             if rid in seen_ids and rid not in dup_ids:
@@ -695,8 +733,11 @@ def _align_and_type(a):
             seen_ids.add(rid)
         if dup_ids:
             sample = ", ".join(dup_ids[:5]) + ("..." if len(dup_ids) > 5 else "")
-            print(f"[{cmd}] WARNING: {len(dup_ids)} duplicate sequence ID(s) in {a.fasta} ({sample}); "
-                  "BLAST hits and reports may collide.", file=sys.stderr)
+            log.warning(
+                "[%s] WARNING: %d duplicate sequence ID(s) in %s (%s); "
+                "BLAST hits and reports may collide.",
+                cmd, len(dup_ids), a.fasta, sample,
+            )
     blast_recs = [
         (rid, s) for rid, s in recs
         if not ty.invalid_characters(s)
@@ -708,7 +749,7 @@ def _align_and_type(a):
             with open(q, "w", encoding="utf-8") as fh:
                 for rid, s in blast_recs:
                     fh.write(f">{rid}\n{s}\n")
-            print(f"[{cmd}] running genogroup detection (BLAST)...", file=sys.stderr)
+            log.info("[%s] running genogroup detection (BLAST)...", cmd)
             hits = ty.blast_genogroup(q, a.threads)
     else:
         hits = {}
@@ -719,7 +760,7 @@ def _align_and_type(a):
         for region, g, seq in jobs:
             todo[(region, g)].append((i, seq))
     n_jobs = sum(len(lst) for lst in todo.values())
-    print(f"[{cmd}] planned {n_jobs} region typing job(s) across {len(todo)} region/genogroup group(s)", file=sys.stderr)
+    log.info("[%s] planned %d region typing job(s) across %d region/genogroup group(s)", cmd, n_jobs, len(todo))
     tree.warmup()          # primes the on-disk kernel cache the workers load from
     chunks = []                                     # one aligner call per chunk of queries from one region/genogroup
     for (region, g), lst in todo.items():
@@ -728,7 +769,7 @@ def _align_and_type(a):
     use_pool = a.threads > 1 and len(chunks) > 1 and n_jobs > 4
     if chunks:
         mode = f"{min(a.threads, len(chunks))} worker process(es)" if use_pool else "1 process"
-        print(f"[{cmd}] aligning/typing {len(chunks)} chunk(s) with {mode}...", file=sys.stderr)
+        log.info("[%s] aligning/typing %d chunk(s) with %s...", cmd, len(chunks), mode)
     if use_pool:
         from multiprocessing import Pool
         with Pool(min(a.threads, len(chunks)), initializer=_init, initargs=(a,)) as pool:
@@ -743,7 +784,7 @@ def _align_and_type(a):
     _apply_window_rules(rows, alns)
     _apply_dual_type(rows)
     _apply_immunotype(rows)
-    print(f"[{cmd}] completed typing for {len(recs)} sequence(s)", file=sys.stderr)
+    log.info("[%s] completed typing for %d sequence(s)", cmd, len(recs))
     return recs, rows, alns, todo
 
 
@@ -753,28 +794,29 @@ def _run_type(a):
         a.json = a.json or f"{a.report}.json"
         a.html = a.html or f"{a.report}.html"
     recs, rows, alns, todo = _align_and_type(a)
-    print("[type] running putative-novel screening...", file=sys.stderr)
+    log.info("[type] running putative-novel screening...")
     _screen_putative_novel(rows, alns, todo, only_unaccepted=not a.screen_all)
     ordered = [rows[i] for i in range(len(recs))]
-    print("Scope: norovirus GI/GII genotyping validated/supported; other norovirus genogroups and "
-          "non-norovirus Caliciviridae may be detected but genotyping is not validated. "
-          + ("Sapovirus genotyping ON: VP1 genotype and RdRp P-type, benchmarked; "
-             "RdRp cannot flag a novel P-type, so P-types are provisional. "
-             if cg.TYPE_SAPOVIRUS
-             else "Sapovirus: genogroup only (CALICITYPER_TYPE_SAPOVIRUS=1 enables typing). ")
-          + "Putative-novel flags are tentative screening.",
-          file=sys.stderr)
+    log.info(
+        "Scope: norovirus GI/GII genotyping validated/supported; other norovirus genogroups and "
+        "non-norovirus Caliciviridae may be detected but genotyping is not validated. %s"
+        "Putative-novel flags are tentative screening.",
+        "Sapovirus genotyping ON: VP1 genotype and RdRp P-type, benchmarked; "
+        "RdRp cannot flag a novel P-type, so P-types are provisional. "
+        if cg.TYPE_SAPOVIRUS
+        else "Sapovirus: genogroup only (CALICITYPER_TYPE_SAPOVIRUS=1 enables typing). ",
+    )
     _write_tsv(ordered, a.out)
     if a.out != "-":
         from . import report
         prov_path = _provenance_sidecar_path(a.out)
         report.write_type_provenance(prov_path, len(ordered), meta=_type_meta(a, command="type"))
-        print(f"[type] wrote {a.out} and {prov_path}", file=sys.stderr)
+        log.info("[type] wrote %s and %s", a.out, prov_path)
     if a.md or a.json or a.html:
         _write_reports(a, ordered, alns)
         written = [p for p in (a.md, a.json, a.html) if p]
         if written:
-            print(f"[type] wrote reports: {', '.join(written)}", file=sys.stderr)
+            log.info("[type] wrote reports: %s", ", ".join(written))
     return 0
 
 def _run_novel(a):
@@ -1023,96 +1065,6 @@ def _screen_putative_novel(rows, alns, todo, only_unaccepted=True):
                 row[f"{region}_putative_novel_detail"] = "region not present in the query"
 
 
-def _support(row, region):
-    try:
-        return float(row.get(f"{region}_support") or 0.0)
-    except (TypeError, ValueError):
-        return 0.0
-
-
-def _panels(a, rows, alns):
-    """One panel per typed region, assigned or not: the query against its single
-    closest reference (uncorrected p-distance), drawing only the differences.
-
-    Every region that reached the alignment step gets one, including
-    `unassigned` calls -- those are the ones most worth inspecting. Order is
-    input order, ORF1 before ORF2. --report-max-panels caps the count if set.
-    """
-    from . import report
-    keys = sorted(alns, key=lambda k: (k[0], k[1]))
-    if a.report_max_panels is not None:
-        keys = keys[:max(0, a.report_max_panels)]
-    figs = []
-    for i, region in keys:
-        g, qa = alns[(i, region)]
-        ref = align.refset(region, g)
-        best = report.closest_reference(qa, ref.seqs)
-        if best is None:
-            continue
-        k, pdist, n, ndiff = best
-        row = rows[i]
-        called = row.get(f"{region}_type") or "untyped"
-        sup = (f" ({_support(row, region):.0f}% support)"
-               if row.get(f"{region}_support") not in (None, "") else "")
-        nov = row.get(f"{region}_putative_novel") or ""
-        tag = (f"\u2691 {report.novel_label(region, nov).upper()} \u00b7 "
-               if nov in report.NOVEL_FLAGS else "")
-        title = (f"{tag}{row['query']} \u2014 {region.upper()} \u2192 {called}{sup} \u00b7 "
-                 f"closest {ref.names[k]} ({ref.types[k]}): {ndiff} differences "
-                 f"in {n} nt, p = {pdist:.3f}")
-        figs.append(report.difference_figure(
-            str(row["query"])[:38], qa, f"{ref.names[k]} {ref.types[k]}"[:38],
-            ref.seqs[k], title))
-    return [f for f in figs if f is not None]
-
-
-def _parse_runners(s):
-    out = []
-    for part in (s or "").split("|"):
-        if ":" in part:
-            t, v = part.rsplit(":", 1)
-            try:
-                out.append((t, float(v)))
-            except ValueError:
-                pass
-    return out
-
-
-def _trees(a, rows, alns):
-    """One neighbour-joining tree per region/genogroup: queries among references."""
-    from . import report
-    import numpy as np
-    by_group = defaultdict(list)
-    for (i, region), (g, qa) in alns.items():
-        by_group[(region, g)].append((i, qa))
-    figs, notes = [], []
-    for (region, g), lst in sorted(by_group.items()):
-        ref = align.refset(region, g)
-        seen, keep = {}, []
-        for k, t in enumerate(ref.types):             # same subset the tree uses when typing
-            seen[t] = seen.get(t, 0) + 1
-            if seen[t] <= (a.max_refs_per_type or 10 ** 9):
-                keep.append(k)
-        room = report.MAX_TREE_TAXA - len(keep)
-        if room < 2:
-            notes.append(f"{region.upper()}/{g}: tree skipped, the reference set alone "
-                         f"exceeds {report.MAX_TREE_TAXA} taxa.")
-            continue
-        chosen = lst[:room]
-        if len(chosen) < len(lst):
-            notes.append(f"{region.upper()}/{g}: tree shows {len(chosen)} of {len(lst)} queries "
-                         f"(capped at {report.MAX_TREE_TAXA} taxa for legibility).")
-        qnames = [str(rows[i]["query"])[:38] for i, _ in chosen]
-        names = qnames + [f"{ref.names[k]} {ref.types[k]}" for k in keep]
-        codes = np.vstack([tree.encode([qa for _, qa in chosen]), ref.codes[keep]]) \
-            if chosen else ref.codes[keep]
-        D = tree.tn93(codes)
-        figs.append(report.tree_figure(names, D, f"{region.upper()} / {g} \u2014 "
-                                                 f"{len(chosen)} queries among references",
-                                       highlight=set(qnames)))
-    return [f for f in figs if f is not None], notes
-
-
 def _type_meta(a, command="type"):
     from . import putative_novel
     from . import provenance
@@ -1150,8 +1102,8 @@ def _write_reports(a, rows, alns):
     if a.html:
         figs, notes = ([], [])
         if not a.no_tree:
-            figs, notes = _trees(a, rows, alns)
-        figs = _panels(a, rows, alns) + figs
+            figs, notes = report.build_tree_figures(rows, alns, max_refs_per_type=a.max_refs_per_type)
+        figs = report.build_alignment_panels(rows, alns, max_panels=a.report_max_panels) + figs
         if not report.HAVE_BOKEH:
             notes.append("bokeh is not installed, so no figures were drawn "
                          "(pip install bokeh).")
