@@ -321,7 +321,8 @@ def assign(names, types, query, codes, nrep=100, seed=1, min_support=70.0,
            max_refs_per_type=None, fast_boot=False):
     """names: aligned sequence names (references + query); types: {ref_name: type}; query: its name.
     Returns dict(type, support, supports, n_sites, n_refs)."""
-    qi = names.index(query)
+    if query not in names:
+        raise ValueError(f"{query!r} is not in names")
     refs = [n for n in names if n != query and n in types]
     if max_refs_per_type:
         seen, keep = {}, []

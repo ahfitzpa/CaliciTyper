@@ -131,7 +131,10 @@ def install(source, data_dir, manifest=None, force=False):
         staged = Path(td) / "staged"
         staged.mkdir()
         with tarfile.open(archive, "r:*") as tar:
-            tar.extractall(staged, members=_safe_members(tar))
+            if sys.version_info >= (3, 12):
+                tar.extractall(staged, members=_safe_members(tar), filter="data")
+            else:
+                tar.extractall(staged, members=_safe_members(tar))
         ok, problems = verify(staged, m, quiet=True)
         if not ok:
             print("downloaded reference data does not match the manifest:", file=sys.stderr)

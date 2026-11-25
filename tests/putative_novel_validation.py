@@ -25,8 +25,6 @@ import sys
 from collections import Counter, defaultdict
 from pathlib import Path
 
-import numpy as np
-
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from calicityper import putative_novel as nv  # noqa: E402
 

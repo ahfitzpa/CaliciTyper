@@ -13,9 +13,8 @@ Covers:
 from __future__ import annotations
 
 import numpy as np
-from Bio import SeqIO
 
-from calicityper import align, config as cg, recomb as R, recomb_config as RC, tree, typing as ty
+from calicityper import align, recomb as R, recomb_config as RC, tree, typing as ty
 
 
 def test_loo_exclude_removes_held_out_reference_from_nearest_and_tree():

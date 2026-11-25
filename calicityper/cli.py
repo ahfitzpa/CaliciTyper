@@ -505,6 +505,16 @@ def main(argv=None):
         formatter_class=argparse.RawDescriptionHelpFormatter))
 
     a = top.parse_args(argv)
+    import signal
+    import threading
+    terminated = False
+    prev_sigterm = None
+    if threading.current_thread() is threading.main_thread():
+        def _on_sigterm(_signum, _frame):
+            nonlocal terminated
+            terminated = True
+            raise KeyboardInterrupt
+        prev_sigterm = signal.signal(signal.SIGTERM, _on_sigterm)
     try:
         if a.command == "recomb":
             return _run_recomb(a)
@@ -528,13 +538,24 @@ def main(argv=None):
         elif getattr(a, "fasta", None):
             print("Hint: check that the input FASTA path exists and is readable.", file=sys.stderr)
         return 2
+    except ValueError as e:
+        if "gzip-compressed" in str(e):
+            print(f"Error: {e}", file=sys.stderr)
+            return 2
+        raise
     except KeyboardInterrupt:
-        print("Interrupted.", file=sys.stderr)
-        return 130
+        print("Terminated." if terminated else "Interrupted.", file=sys.stderr)
+        return 143 if terminated else 130
+    finally:
+        if prev_sigterm is not None:
+            signal.signal(signal.SIGTERM, prev_sigterm)
 
 
 def _write_tsv(rows, out_path):
-    """Write a list of row dicts to TSV using stdlib csv (matches pandas.to_csv output)."""
+    """Write a list of row dicts to TSV using stdlib csv (atomic for file targets)."""
+    import io
+    from . import provenance
+
     fields = []
     seen = set()
     for row in rows:
@@ -556,8 +577,9 @@ def _write_tsv(rows, out_path):
     if out_path == "-":
         _emit(sys.stdout)
     else:
-        with open(out_path, "w", newline="", encoding="utf-8") as fh:
-            _emit(fh)
+        buf = io.StringIO()
+        _emit(buf)
+        provenance.atomic_write_text(out_path, buf.getvalue())
 
 
 def _align_and_type(a):
@@ -577,6 +599,15 @@ def _align_and_type(a):
         print(f"[{cmd}] no sequences found in {a.fasta}", file=sys.stderr)
     else:
         print(f"[{cmd}] loaded {len(recs)} sequence(s) from {a.fasta}", file=sys.stderr)
+        seen_ids, dup_ids = set(), []
+        for rid, _ in recs:
+            if rid in seen_ids and rid not in dup_ids:
+                dup_ids.append(rid)
+            seen_ids.add(rid)
+        if dup_ids:
+            sample = ", ".join(dup_ids[:5]) + ("..." if len(dup_ids) > 5 else "")
+            print(f"[{cmd}] WARNING: {len(dup_ids)} duplicate sequence ID(s) in {a.fasta} ({sample}); "
+                  "BLAST hits and reports may collide.", file=sys.stderr)
     blast_recs = [
         (rid, s) for rid, s in recs
         if not ty.invalid_characters(s)
@@ -998,6 +1029,8 @@ def _type_meta(a, command="type"):
     return dict(bootstraps=a.bootstraps, fast_boot=bool(getattr(a, "fast_boot", False)),
                 min_support=a.min_support,
                 max_refs_per_type=a.max_refs_per_type, seed=a.seed, input=a.fasta,
+                input_sha256=provenance.file_sha256(a.fasta),
+                external_tools=provenance.external_tool_versions(("blastn", "mafft")),
                 preset=getattr(a, "preset", None),
                 min_sites=cg.MIN_INFORMATIVE_SITES,
                 min_sites_orf1=cg.min_sites_for("orf1"),

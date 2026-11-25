@@ -17,7 +17,6 @@ from __future__ import annotations
 import html
 import json
 from datetime import datetime, timezone
-from pathlib import Path
 
 import numpy as np
 
@@ -280,8 +279,7 @@ def to_json(rows, path, meta=None):
         "parameters": params,
         "results": recs,
     }
-    with open(path, "w", encoding="utf-8") as fh:
-        json.dump(doc, fh, indent=2)
+    prov.atomic_write_text(path, json.dumps(doc, indent=2))
     return path
 
 
@@ -299,8 +297,7 @@ def write_type_provenance(path, n_rows, meta=None):
         "reference_set": ref,
         "parameters": params,
     }
-    with open(path, "w", encoding="utf-8") as fh:
-        json.dump(doc, fh, indent=2)
+    prov.atomic_write_text(path, json.dumps(doc, indent=2))
     return path
 
 
@@ -318,8 +315,7 @@ def write_novel_provenance(path, n_rows, meta=None):
         "reference_set": ref,
         "parameters": params,
     }
-    with open(path, "w", encoding="utf-8") as fh:
-        json.dump(doc, fh, indent=2)
+    prov.atomic_write_text(path, json.dumps(doc, indent=2))
     return path
 
 
@@ -403,8 +399,7 @@ def to_markdown(rows, path, meta=None):
         "> correctness; check the runner-up column for near-threshold calls.",
         "",
     ]
-    with open(path, "w") as fh:
-        fh.write("\n".join(lines))
+    prov.atomic_write_text(path, "\n".join(lines))
     return path
 
 
@@ -512,6 +507,5 @@ correctness &mdash; check the runner-up column for near-threshold calls.</div>
  if divs else '<p class="note">No figures: install bokeh for alignment panels and trees.</p>'}
 {script}
 </div></body></html>"""
-    with open(path, "w") as fh:
-        fh.write(doc)
+    prov.atomic_write_text(path, doc)
     return path

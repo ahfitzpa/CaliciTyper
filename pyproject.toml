@@ -67,3 +67,7 @@ calicityper = [
 #   pytest -m slow tests/test_recomb.py
 markers = ["slow: needs OpenRDP and runs for tens of minutes per dataset"]
 addopts = "-m 'not slow'"
+
+[tool.ruff.lint]
+select = ["E9", "F", "B006"]
+

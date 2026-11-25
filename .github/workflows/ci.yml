@@ -33,6 +33,7 @@ jobs:
             biopython
             bokeh
             pytest
+            ruff
           condarc: |
             channels:
               - conda-forge
@@ -48,6 +49,10 @@ jobs:
       - name: Install calicityper
         shell: bash -el {0}
         run: pip install -e ".[test]"
+
+      - name: Lint (ruff)
+        shell: bash -el {0}
+        run: ruff check calicityper/ tests/
 
       - name: Unit and CLI tests
         shell: bash -el {0}

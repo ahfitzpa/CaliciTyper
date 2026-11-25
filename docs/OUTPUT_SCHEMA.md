@@ -21,7 +21,7 @@ Machine-readable provenance (JSON reports and `*.provenance.json` sidecars) reco
 | `tool_version` | CaliciTyper package version used for the run. |
 | `command` | Subcommand that produced the output (`type`, `novel`, `recomb`). |
 | `generated` | UTC timestamp (ISO 8601). |
-| `parameters` | Effective run parameters/settings (inputs, thresholds, flags, seeds, threads, modes, etc.) relevant to reproducibility/interpretation. CLI flags take precedence over env-var fallbacks for correctness-affecting settings where exposed. |
+| `parameters` | Effective run parameters/settings (inputs, `input_sha256`, `external_tools` versions, thresholds, flags, seeds, threads, modes, etc.) relevant to reproducibility/interpretation. CLI flags take precedence over env-var fallbacks for correctness-affecting settings where exposed. |
 | `reference_set` | Shipped reference-manifest identity: `doi`, `reference_set_version`, `manifest_sha256` (SHA-256 of canonical manifest JSON), `download_url`, counts (`n_accessions`, `n_records`, `n_artefacts`), `manifest_path`, and availability/error info. |
 
 Notes:
@@ -167,7 +167,7 @@ Schema: `calicityper.recomb` v1.0
 }
 ```
 
-`provenance` includes: `tool`, `tool_version`, `command`, `generated`, `alignment_file`, `alignment_sequences`, `alignment_length`, `ambiguity_chars_masked`, `reference_metadata`, `tools_used`, `tools_skipped`, `parameters` (virus/regions, thresholds, correction, requested methods, scoring weights, segment-tree settings, seeds/timeouts, requested queries, etc.), and `reference_set` (shipped manifest DOI/version/hash identity, scope-noted).
+`provenance` includes: `tool`, `tool_version`, `command`, `generated`, `alignment_file`, `alignment_sha256`, `alignment_sequences`, `alignment_length`, `ambiguity_chars_masked`, `reference_metadata`, `tools_used`, `tools_skipped`, `parameters` (virus/regions, thresholds, correction, requested methods, scoring weights, segment-tree settings, seeds/timeouts, requested queries, etc.), and `reference_set` (shipped manifest DOI/version/hash identity, scope-noted).
 
 `results[]` entries include `sequence_id`, `input_qc`/QC details (as applicable), and a `recombination` object with overall status/score/confidence/notes and `events[]` containing breakpoint coordinates (alignment/query), supporting methods/p-values, parental candidates, phylogenetic/biological/plausibility details, and per-event scores/components.
 

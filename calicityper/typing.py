@@ -18,11 +18,17 @@ def _revcomp(seq):
     return str(seq).translate(_RC_TABLE)[::-1]
 
 
-def read_fasta(path):
+def read_fasta(path: str | os.PathLike[str]) -> list[tuple[str, str]]:
     """Fast stdlib FASTA reader returning [(record_id, seq_str)] matching SeqIO.parse."""
-    recs = []
-    rid = None
-    buf = []
+    with open(path, "rb") as raw_fh:
+        if raw_fh.read(2) == b"\x1f\x8b":
+            raise ValueError(
+                f"{path} appears to be gzip-compressed (.gz); decompress it first "
+                "(e.g. `gunzip -k <file>`)."
+            )
+    recs: list[tuple[str, str]] = []
+    rid: str | None = None
+    buf: list[str] = []
     with open(path, encoding="utf-8") as fh:
         for raw in fh:
             line = raw.strip()

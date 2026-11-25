@@ -20,12 +20,11 @@ from __future__ import annotations
 import csv
 import io
 import json
-import os
 import re
 import subprocess
 import tempfile
 from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -33,7 +32,6 @@ import numpy as np
 
 from . import __version__
 from . import provenance as prov
-from . import recomb_config as rcfg
 from . import tree
 
 VALID_CHARS = set("ATGCN-")
@@ -777,6 +775,7 @@ def analyse(alignment_path, queries, cfg, metadata_path=None, workdir=None,
         "command": "recomb",
         "generated": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "alignment_file": str(alignment_path),
+        "alignment_sha256": prov.file_sha256(alignment_path),
         "alignment_sequences": len(aln.names),
         "alignment_length": aln.length,
         "ambiguity_chars_masked": getattr(aln, "masked_chars", 0),
@@ -804,7 +803,7 @@ def write_json(results, provenance, path):
         "provenance": provenance,
         "results": results,
     }
-    Path(path).write_text(json.dumps(doc, indent=2), encoding="utf-8")
+    prov.atomic_write_text(path, json.dumps(doc, indent=2))
     return path
 
 
@@ -819,7 +818,7 @@ def write_provenance_sidecar(provenance, path, n_results=0, n_events=0):
         "n_events": n_events,
         "provenance": provenance,
     }
-    Path(path).write_text(json.dumps(doc, indent=2), encoding="utf-8")
+    prov.atomic_write_text(path, json.dumps(doc, indent=2))
     return path
 
 
@@ -849,8 +848,9 @@ def write_tsv(results, path):
                 "biological_region": ev["biological_region"],
                 "notes": ev["notes"],
             })
-    with open(path, "w", newline="") as fh:
-        w = csv.DictWriter(fh, fieldnames=TSV_COLUMNS, delimiter="\t", extrasaction="ignore")
-        w.writeheader()
-        w.writerows(rows)
+    buf = io.StringIO()
+    w = csv.DictWriter(buf, fieldnames=TSV_COLUMNS, delimiter="\t", extrasaction="ignore", lineterminator="\n")
+    w.writeheader()
+    w.writerows(rows)
+    prov.atomic_write_text(path, buf.getvalue())
     return path
