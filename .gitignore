@@ -44,3 +44,8 @@ containers/cache/*
 *.sif
 containers/*.sif
 logs/
+
+# Private local development notes / roadmaps (never tracked)
+*_PRIVATE.md
+TODO_LOCAL.md
+notes_private/
