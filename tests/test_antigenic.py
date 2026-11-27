@@ -339,10 +339,18 @@ def test_guard_accepts_gii_that_is_not_gii4():
 
 
 def test_guard_refuses_a_sapovirus_vp1():
-    name, aa = _translated("sapovirus", "GI")
-    with pytest.raises(ag.AntigenicError) as e:
-        ag.check_gii_input(name, aa)
-    assert "sapovirus" in str(e.value) and "not norovirus GII" in str(e.value)
+    for gg in ("GI", "GII"):
+        name, aa = _translated("sapovirus", gg)
+        with pytest.raises(ag.AntigenicError) as e:
+            ag.check_gii_input(name, aa)
+        assert "sapovirus" in str(e.value) and "not norovirus GII" in str(e.value)
+
+
+def test_immunotype_refuses_sapovirus_inputs():
+    assert ag.immunotype("GII.4", virus="sapovirus") == (None, None)
+    assert ag.immunotype("GI.1", virus="sapovirus") == (None, None)
+    assert ag.immunotype("Caliciviridae_Sapovirus_GII.4") == (None, None)
+    assert ag.immunotype("SaV GII.4") == (None, None)
 
 
 def test_guard_refuses_a_norovirus_gi_vp1():

@@ -707,15 +707,30 @@ IMMUNOTYPE = _load_packaged_immunotypes()
 REGIME = _load_packaged_regimes()
 
 
-def immunotype(genotype: str | None) -> tuple[str | None, str | None]:
-    """(immunotype letter or None, regime or None) for a genotype.
+def immunotype(
+    genotype: str | None,
+    *,
+    virus: str = "norovirus",
+) -> tuple[str | None, str | None]:
+    """(immunotype letter or None, regime or None) for a norovirus VP1 genotype.
+
+    Norovirus-only: sapovirus and other Caliciviridae have no established
+    immunotype scheme and reuse genotype strings (e.g. GI.1, GII.4), so any
+    non-norovirus ``virus`` argument or sapovirus-prefixed label returns
+    ``(None, None)``.
 
     The regime is the packaged table's own value -- `evolving`, `static`,
     `static_emerging_candidate` or `not_assessed`. It falls back to a binary
     derivation from EVOLVING only when the table is unavailable, because that
     derivation cannot express `not_assessed` and so overstates the source.
     """
-    g = (genotype or "").split("_")[0]
+    if (virus or "").strip().lower() != "norovirus":
+        return None, None
+    raw = (genotype or "").strip()
+    low = raw.lower()
+    if low.startswith(("sapovirus", "sav ", "sav_", "caliciviridae_sapovirus")):
+        return None, None
+    g = raw.split("_")[0]
     letter = IMMUNOTYPE.get(g)
     if letter is None:
         return None, None
